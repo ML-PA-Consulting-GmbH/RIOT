@@ -154,6 +154,12 @@ ifneq (,$(filter ds18,$(USEMODULE)))
     FEATURES_REQUIRED += periph_gpio
 endif
 
+ifneq (,$(filter eeprom_spi,$(USEMODULE)))
+  USEMODUILE += xtimer
+  FEATURES_REQUIRED += periph_gpio
+  FEATURES_REQUIRED += periph_spi 
+endif
+
 ifneq (,$(filter enc28j60,$(USEMODULE)))
   FEATURES_REQUIRED += periph_gpio
   FEATURES_REQUIRED += periph_gpio_irq

@@ -206,6 +206,11 @@ ifneq (,$(filter mrf24j40,$(USEMODULE)))
   USEMODULE_INCLUDES += $(RIOTBASE)/drivers/mrf24j40/include
 endif
 
+
+ifneq (,$(filter eeprom_spi,$(USEMODULE)))
+  USEMODULE_INCLUDES += $(RIOTBASE)/drivers/eeprom_spi/include
+endif
+
 ifneq (,$(filter my9221,$(USEMODULE)))
   USEMODULE_INCLUDES += $(RIOTBASE)/drivers/my9221/include
 endif
