@@ -97,7 +97,34 @@ extern "C" {
 #define IEEE802154_FRAME_LEN_MAX        (127U)  /**< maximum frame length */
 
 /**
- * @brief   Special address defintions
+ * @brief   802.15.4 PHY modes
+ */
+enum {
+    IEEE802154_PHY_DISABLED,        /**< PHY disabled, no mode selected */
+    IEEE802154_PHY_BPSK,            /**< Binary Phase Shift Keying */
+    IEEE802154_PHY_ASK,             /**< Amplitude-Shift Keying */
+    IEEE802154_PHY_OQPSK,           /**< Offset Quadrature Phase-Shift Keying */
+    IEEE802154_PHY_OFDM,            /**< Orthogonal Frequency-Division Multiplexing */
+    IEEE802154_PHY_FSK              /**< Frequency Shift Keying */
+};
+
+/**
+ * @brief   802.15.4 Flag to indicate that O-QPSK rate mode is a legacy mode.
+ * @note    legacy rate modes != 0 are prorietary and may not be compatible across vendors.
+ */
+#define IEEE802154_OQPSK_FLAG_LEGACY (1 << 7)
+
+/**
+ * @brief   802.15.4 forward error correction schemes
+ */
+enum {
+    IEEE802154_FEC_NONE,            /**< no forward error correction */
+    IEEE802154_FEC_NRNSC,           /**< non-recursive and non-systematic code */
+    IEEE802154_FEC_RSC              /**< recursive and systematic code */
+};
+
+/**
+ * @brief   Special address definitions
  * @{
  */
 /**
@@ -194,7 +221,7 @@ extern const uint8_t ieee802154_addr_bcast[IEEE802154_ADDR_BCAST_LEN];
  *                      Otherwise, it will be ignored, when
  *                      @ref IEEE802154_FCF_PAN_COMP is set.
  * @param[in] dst_pan   Destination PAN ID in little-endian.
- * @param[in] flags     Flags for the frame. These are interchangable with the
+ * @param[in] flags     Flags for the frame. These are interchangeable with the
  *                      first byte of the IEEE 802.15.4 FCF. This means that
  *                      it encompasses the type values,
  *                      @ref IEEE802154_FCF_SECURITY_EN,
