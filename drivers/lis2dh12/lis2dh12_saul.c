@@ -31,8 +31,25 @@ static int read_accelerometer(const void *dev, phydat_t *res)
     return 3;
 }
 
+static int write_accelerometer(const void *dev, phydat_t *data)
+{
+    /* Using non-const dev !! */
+    (void) dev;
+    char str[6] = {0};
+    sprintf(str,"0x%02X",data->val[0]);
+    puts("String: ");
+    puts(str);
+    sprintf(str,"0x%02X",data->val[1]);
+    puts(str);
+
+    if (lis2dh12_write((const lis2dh12_t *)dev, data->val[0], data->val[1]) != LIS2DH12_OK) {
+        return 0;
+    }
+    return 3;
+}
+
 const saul_driver_t lis2dh12_saul_driver = {
     .read = read_accelerometer,
-    .write = saul_notsup,
+    .write = write_accelerometer,
     .type = SAUL_SENSE_ACCEL
 };

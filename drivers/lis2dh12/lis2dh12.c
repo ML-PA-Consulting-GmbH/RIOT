@@ -158,6 +158,14 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
     _write(dev, REG_CTRL_REG4, dev->p->scale);
     _write(dev, REG_CTRL_REG1, dev->p->rate);
 
+
+    //setting up Interrupt pins for testing
+    /*_write(dev, REG_CTRL_REG3, 0b01000000);
+    _write(dev, REG_INT1_CFG, 1);
+    _write(dev, REG_INT1_THS, 0b00001000);
+    _write(dev, REG_INT1_DURATION, 1);
+    */
+
     _release(dev);
     DEBUG("[lis2dh12] initialization successful\n");
     return LIS2DH12_OK;
@@ -183,6 +191,53 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
         }
         data[i] = (int16_t)((tmp * dev->comp) / 512);
     }
+
+    return LIS2DH12_OK;
+}
+
+int lis2dh12_write(const lis2dh12_t *dev, uint8_t reg, uint8_t data)
+{
+    _write(dev, reg, data);
+    return LIS2DH12_OK;
+}
+
+
+/* read interrupt INT_X (INT_1 or INT_2) */
+int lis2dh12_set_interrupt(const lis2dh12_t *dev, int_params_t params, uint8_t INT_X)
+{
+    assert(dev && params.cfg && params.ths && params.duration && params.type);
+
+    _acquire(dev);
+    if (INT_X == INT_1){
+        _write(dev, REG_CTRL_REG3, params.type);
+        _write(dev, REG_INT1_CFG, params.cfg);
+        _write(dev, REG_INT1_THS, params.ths);
+        _write(dev, REG_INT1_DURATION, params.duration);
+    }
+    else if (INT_X == INT_2){
+        _write(dev, REG_CTRL_REG6, params.type);
+        _write(dev, REG_INT2_CFG, params.cfg);
+        _write(dev, REG_INT2_THS, params.ths);
+        _write(dev, REG_INT2_DURATION, params.duration);
+    } 
+    _release(dev);
+
+    return LIS2DH12_OK;
+}
+
+/* read interrupt INT_X (INT_1 or INT_2) */
+int lis2dh12_read_interrupt(const lis2dh12_t *dev, uint8_t *data, uint8_t INT_X)
+{
+    assert(dev && data);
+
+    assert(INT_X == INT_1 || INT_X == INT_2);
+
+    _acquire(dev);
+    if(INT_X == 1)
+        data[0] = _read(dev, REG_INT1_SRC);
+    else
+        data[0] = _read(dev, REG_INT2_SRC);
+    _release(dev);
 
     return LIS2DH12_OK;
 }
