@@ -33,14 +33,8 @@ static int read_accelerometer(const void *dev, phydat_t *res)
 
 static int write_accelerometer(const void *dev, phydat_t *data)
 {
-    /* Using non-const dev !! */
-    (void) dev;
-    char str[6] = {0};
-    sprintf(str,"0x%02X",data->val[0]);
-    puts("String: ");
-    puts(str);
-    sprintf(str,"0x%02X",data->val[1]);
-    puts(str);
+    printf("Reg: 0x%02X\n",data->val[0]);
+    printf("Content: 0x%02X\n",data->val[1]);
 
     if (lis2dh12_write((const lis2dh12_t *)dev, data->val[0], data->val[1]) != LIS2DH12_OK) {
         return 0;

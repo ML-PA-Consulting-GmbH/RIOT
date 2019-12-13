@@ -29,9 +29,7 @@
 static lis2dh12_t dev;
 
 static void int_cb(void* pin){
-	puts("interrupt received from ");
-	puts(pin);
-	puts(" \n");
+	printf("interrupt received from %s\n", (char*)pin);
 
     uint8_t buffer = 0;
 
@@ -42,15 +40,7 @@ static void int_cb(void* pin){
         lis2dh12_read_interrupt(&dev,&buffer, 2);
     }
 
-
-    puts("calc value\n");
-   // char str[6] = {0};
-    puts("sprint\n");
-    //sprintf(str,"%02x",buffer);
-
-    puts("sprint\n");
-    printf("%d",buffer);
-    puts("\n");
+    printf("content SRC_Reg: 0x%02x\n\n",buffer);
 }
 
 int main(void)
@@ -70,11 +60,14 @@ int main(void)
 
     lis2dh12_init(&dev,&lis2dh12_params[0]);
 
+    int_params_t params = {0};
+    params.type = 0b01000000;
+    params.cfg = 1;
+    params.ths = 0b00011111;
+    params.duration = 1;
 
-    //int_params_t params = {0};
-    //params.cfg = 1;
-    //lis2dh12_set_interrupt(&dev,params,1);
 
+    lis2dh12_set_interrupt(&dev,params,INT_1);
 
     char line_buf[SHELL_DEFAULT_BUFSIZE];
     shell_run(NULL, line_buf, SHELL_DEFAULT_BUFSIZE);

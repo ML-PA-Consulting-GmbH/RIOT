@@ -10,7 +10,6 @@ RIOTBASE ?= $(CURDIR)/../..
 # we want to use SAUL:
 USEMODULE += saul_default
 
-USEMODULE += periph_gpio_irq
 USEMODULE += lis2dh12
 
 # include the shell:

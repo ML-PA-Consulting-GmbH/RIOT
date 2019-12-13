@@ -158,14 +158,6 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
     _write(dev, REG_CTRL_REG4, dev->p->scale);
     _write(dev, REG_CTRL_REG1, dev->p->rate);
 
-
-    //setting up Interrupt pins for testing
-    /*_write(dev, REG_CTRL_REG3, 0b01000000);
-    _write(dev, REG_INT1_CFG, 1);
-    _write(dev, REG_INT1_THS, 0b00001000);
-    _write(dev, REG_INT1_DURATION, 1);
-    */
-
     _release(dev);
     DEBUG("[lis2dh12] initialization successful\n");
     return LIS2DH12_OK;
@@ -206,6 +198,8 @@ int lis2dh12_write(const lis2dh12_t *dev, uint8_t reg, uint8_t data)
 int lis2dh12_set_interrupt(const lis2dh12_t *dev, int_params_t params, uint8_t INT_X)
 {
     assert(dev && params.cfg && params.ths && params.duration && params.type);
+
+    assert(INT_X == INT_1 || INT_X == INT_2);
 
     _acquire(dev);
     if (INT_X == INT_1){

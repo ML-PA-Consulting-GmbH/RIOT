@@ -120,7 +120,7 @@ enum {
  * @brief    interrupt section
  */
 typedef struct {
-    uint8_t cfg;        //combine configs from int_config_t 
+    uint8_t cfg;
     uint8_t ths;
     uint8_t duration;
     uint8_t type;
@@ -138,7 +138,7 @@ extern const saul_driver_t lis2dh12_saul_driver;
  * @brief   Set the Interruptvalues in LIS2DH12 sensor device
  *
  * @param[in] dev      device descriptor
- * @param[in] params   device interrupt configuration
+ * @param[in] params   device interrupt configuration, with .type, .cfg, .ths and .duration
  * @param[in] INT_X    number of interrupt line 
  *
  * @return  LIS2DH12_OK on success
@@ -159,7 +159,14 @@ int lis2dh12_set_interrupt(const lis2dh12_t *dev, int_params_t params, uint8_t I
 int lis2dh12_read_interrupt(const lis2dh12_t *dev, uint8_t *data, uint8_t INT_X);
 
 /**
- * write data to Register
+ * @brief write Data to specific Register
+ *
+ * @param[in] dev   device descriptor
+ * @param[in] reg   specific Register, number must be decimal
+ * @param[in] data  content to write, number must be decimal
+ *
+ * @return  LIS2DH12_OK on success
+ * @return  LIS2DH12_NOBUS on bus errors
  */
 int lis2dh12_write(const lis2dh12_t *dev, uint8_t reg, uint8_t data);
 
