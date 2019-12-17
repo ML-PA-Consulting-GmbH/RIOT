@@ -19,9 +19,12 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include "fmt.h"
 #include "xtimer.h"
+#include "periph/gpio.h"
+#include "board.h"
 #include "lis2dh12.h"
 #include "lis2dh12_params.h"
 
@@ -35,6 +38,28 @@ static char str_out[3][8];
 /* allocate device descriptor */
 static lis2dh12_t dev;
 
+/* interrupt callback function. */
+static void int_cb(void* pin){
+    printf("interrupt received from %s\n", (char*)pin);
+
+    int_src_reg_t buffer = {0};
+
+    if(!strcmp("PA12",pin)){
+        lis2dh12_read_int_src(&dev,&buffer, 1);
+    }
+    else{
+        lis2dh12_read_int_src(&dev,&buffer, 2);
+    }
+
+    printf("content SRC_Reg:\n\t XL 0x%02x\n",buffer.LIS2DH12_INT_SRC_XL);
+    printf("\t XH 0x%02x\n",buffer.LIS2DH12_INT_SRC_XH);
+    printf("\t YL 0x%02x\n",buffer.LIS2DH12_INT_SRC_YL);
+    printf("\t YH 0x%02x\n",buffer.LIS2DH12_INT_SRC_YH);
+    printf("\t ZL 0x%02x\n",buffer.LIS2DH12_INT_SRC_ZL);
+    printf("\t ZH 0x%02x\n",buffer.LIS2DH12_INT_SRC_ZH);
+    printf("\t IA 0x%02x\n\n",buffer.LIS2DH12_INT_SRC_IA);
+}
+
 int main(void)
 {
     puts("LIS2DH12 accelerometer driver test application\n");
@@ -47,6 +72,23 @@ int main(void)
         puts("[Failed]\n");
         return 1;
     }
+
+    /* enable interrupt Pins */
+    char* pin = "PA12";
+    if(gpio_init_int(GPIO_PIN(PA,12),GPIO_IN, GPIO_RISING,int_cb,pin) == -1)
+        puts("init_int failed!\n");
+
+    pin = "PA13";
+    if(gpio_init_int(GPIO_PIN(PA,13),GPIO_IN, GPIO_RISING,int_cb,pin) == -1)
+        puts("init_int failed!\n"); 
+
+    /* create and set the interrupt params */
+    int_params_t params = {0};
+    params.int_type = 0b01000000;
+    params.int_config = 1;
+    params.int_threshold = 0b00011111;
+    params.int_duration = 1;
+    lis2dh12_set_int(&dev,params,1);
 
     xtimer_ticks32_t last_wakeup = xtimer_now();
     while (1) {
