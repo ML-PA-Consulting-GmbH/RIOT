@@ -31,19 +31,8 @@ static int read_accelerometer(const void *dev, phydat_t *res)
     return 3;
 }
 
-static int write_accelerometer(const void *dev, phydat_t *data)
-{
-    printf("Reg: 0x%02X\n",data->val[0]);
-    printf("Content: 0x%02X\n",data->val[1]);
-
-    if (lis2dh12_write((const lis2dh12_t *)dev, data->val[0], data->val[1]) != LIS2DH12_OK) {
-        return 0;
-    }
-    return 3;
-}
-
 const saul_driver_t lis2dh12_saul_driver = {
     .read = read_accelerometer,
-    .write = write_accelerometer,
+    .write = saul_notsup,
     .type = SAUL_SENSE_ACCEL
 };

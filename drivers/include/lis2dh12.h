@@ -114,20 +114,31 @@ enum {
     LIS2DH12_OK    =  0,            /**< everything was fine */
     LIS2DH12_NOBUS = -1,            /**< bus interface error */
     LIS2DH12_NODEV = -2,            /**< unable to talk to device */
+    LIS2DH12_NOINT = -3,            /**< wrong interrupt line was given (1 or 2) */
 };
 
 /**
- * @brief    interrupt section
+ * @brief    Parameter for interrupt configuration
  */
 typedef struct {
-    uint8_t cfg;
-    uint8_t ths;
-    uint8_t duration;
-    uint8_t type;
+    uint8_t int_config;                 /**< values for configuration */
+    uint8_t int_threshold:7;            /**< the threshold for triggering interrupt, threshold in range 0-127 */
+    uint8_t int_duration:7;             /**< time between two interrupts, calc from <duration>/ODR, ODR section in CTRL_REG1, duration in range 0-127 */
+    uint8_t int_type;                   /**< values for type of interrupts */
 } int_params_t;
 
-#define INT_1 0x1
-#define INT_2 0x2
+/**
+ * @brief   Status of INT_SRC register
+ */
+typedef struct {
+    uint8_t LIS2DH12_INT_SRC_XL:1;  /**<  */
+    uint8_t LIS2DH12_INT_SRC_XH:1;  /**<  */
+    uint8_t LIS2DH12_INT_SRC_YL:1;  /**<  */
+    uint8_t LIS2DH12_INT_SRC_YH:1;  /**<  */
+    uint8_t LIS2DH12_INT_SRC_ZL:1;  /**<  */
+    uint8_t LIS2DH12_INT_SRC_ZH:1;  /**<  */
+    uint8_t LIS2DH12_INT_SRC_IA:1;  /**<  */
+} int_src_reg_t;
 
 /**
  * @brief   Export the SAUL interface for this driver
@@ -135,40 +146,28 @@ typedef struct {
 extern const saul_driver_t lis2dh12_saul_driver;
 
 /**
- * @brief   Set the Interruptvalues in LIS2DH12 sensor device
+ * @brief   Set the interrupt values in LIS2DH12 sensor device
  *
  * @param[in] dev      device descriptor
  * @param[in] params   device interrupt configuration, with .type, .cfg, .ths and .duration
- * @param[in] INT_X    number of interrupt line 
+ * @param[in] int_line number of interrupt line (1 or 2)
  *
  * @return  LIS2DH12_OK on success
  * @return  LIS2DH12_NOBUS on bus errors
  */
-int lis2dh12_set_interrupt(const lis2dh12_t *dev, int_params_t params, uint8_t INT_X);
+int lis2dh12_set_int(const lis2dh12_t *dev, int_params_t params, uint8_t int_line);
 
 /**
- * @brief   read an interruptevent on LIS2DH12 sensor device
+ * @brief   Read an interrupt event on LIS2DH12 sensor device
  *
  * @param[in] dev      device descriptor
  * @param[out] data    device interrupt data
- * @param[in] INT_X    number of interrupt line 
+ * @param[in] int_line number of interrupt line (1 or 2)
  *
  * @return  LIS2DH12_OK on success
  * @return  LIS2DH12_NOBUS on bus errors
  */
-int lis2dh12_read_interrupt(const lis2dh12_t *dev, uint8_t *data, uint8_t INT_X);
-
-/**
- * @brief write Data to specific Register
- *
- * @param[in] dev   device descriptor
- * @param[in] reg   specific Register, number must be decimal
- * @param[in] data  content to write, number must be decimal
- *
- * @return  LIS2DH12_OK on success
- * @return  LIS2DH12_NOBUS on bus errors
- */
-int lis2dh12_write(const lis2dh12_t *dev, uint8_t reg, uint8_t data);
+int lis2dh12_read_int_src(const lis2dh12_t *dev, int_src_reg_t *data, uint8_t int_line);
 
 /**
  * @brief   Initialize the given LIS2DH12 sensor device

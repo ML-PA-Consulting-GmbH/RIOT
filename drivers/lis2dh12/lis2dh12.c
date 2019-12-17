@@ -187,51 +187,77 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
     return LIS2DH12_OK;
 }
 
-int lis2dh12_write(const lis2dh12_t *dev, uint8_t reg, uint8_t data)
+int lis2dh12_set_int(const lis2dh12_t *dev, int_params_t params, uint8_t int_line)
 {
-    _write(dev, reg, data);
-    return LIS2DH12_OK;
-}
+    assert(dev && params.int_config && params.int_type);
 
-
-/* read interrupt INT_X (INT_1 or INT_2) */
-int lis2dh12_set_interrupt(const lis2dh12_t *dev, int_params_t params, uint8_t INT_X)
-{
-    assert(dev && params.cfg && params.ths && params.duration && params.type);
-
-    assert(INT_X == INT_1 || INT_X == INT_2);
-
+    assert (params.int_threshold >= 0);
+    assert (params.int_duration >= 0);
+    
     _acquire(dev);
-    if (INT_X == INT_1){
-        _write(dev, REG_CTRL_REG3, params.type);
-        _write(dev, REG_INT1_CFG, params.cfg);
-        _write(dev, REG_INT1_THS, params.ths);
-        _write(dev, REG_INT1_DURATION, params.duration);
+
+    switch (int_line){
+        /* first interrupt line (INT1) */
+        case 1:
+            _write(dev, REG_CTRL_REG3, params.int_type);
+            _write(dev, REG_INT1_CFG, params.int_config);
+            _write(dev, REG_INT1_THS, params.int_threshold);
+            _write(dev, REG_INT1_DURATION, params.int_duration);
+            break;
+        /* second interupt line (INT2) */
+        case 2:
+            _write(dev, REG_CTRL_REG6, params.int_type);
+            _write(dev, REG_INT2_CFG, params.int_config);
+            _write(dev, REG_INT2_THS, params.int_threshold);
+            _write(dev, REG_INT2_DURATION, params.int_duration);
+            break;
+
+        default:
+            _release(dev);
+            return LIS2DH12_NOINT;
+            break;
     }
-    else if (INT_X == INT_2){
-        _write(dev, REG_CTRL_REG6, params.type);
-        _write(dev, REG_INT2_CFG, params.cfg);
-        _write(dev, REG_INT2_THS, params.ths);
-        _write(dev, REG_INT2_DURATION, params.duration);
-    } 
+
     _release(dev);
 
     return LIS2DH12_OK;
 }
 
-/* read interrupt INT_X (INT_1 or INT_2) */
-int lis2dh12_read_interrupt(const lis2dh12_t *dev, uint8_t *data, uint8_t INT_X)
+int lis2dh12_read_int_src(const lis2dh12_t *dev, int_src_reg_t* data, uint8_t int_line)
 {
     assert(dev && data);
 
-    assert(INT_X == INT_1 || INT_X == INT_2);
+    assert(int_line == 1 || int_line == 2);
 
     _acquire(dev);
-    if(INT_X == 1)
-        data[0] = _read(dev, REG_INT1_SRC);
-    else
-        data[0] = _read(dev, REG_INT2_SRC);
+
+    uint8_t buffer = 0;
+    (void)buffer;
+    switch (int_line) {
+        /* first interrupt line (INT1) */
+        case 1:
+            buffer = _read(dev,REG_INT1_SRC);
+            break;
+        /* second interrupt line (INT2) */
+        case 2:
+            buffer = _read(dev,REG_INT2_SRC);
+            break;
+
+        default:
+            _release(dev);
+            return LIS2DH12_NOINT;
+            break;
+    }
+    
     _release(dev);
+
+    data->LIS2DH12_INT_SRC_XL = buffer;
+    data->LIS2DH12_INT_SRC_XH = buffer >> 1;
+    data->LIS2DH12_INT_SRC_YL = buffer >> 2;
+    data->LIS2DH12_INT_SRC_YH = buffer >> 3;
+    data->LIS2DH12_INT_SRC_ZL = buffer >> 4;
+    data->LIS2DH12_INT_SRC_ZH = buffer >> 5;
+    data->LIS2DH12_INT_SRC_IA = buffer >> 6;
 
     return LIS2DH12_OK;
 }
