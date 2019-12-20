@@ -33,11 +33,11 @@ USEMODULE += gnrc_icmpv6_echo
 
 # DTLS configuration
 # Choose which DTLS stack to use
-# USEMODULE += tinydtls_sock_dtls
-# CFLAGS += -DDTLS_PSK
+USEMODULE += tinydtls_sock_dtls
+CFLAGS += -DDTLS_PSK
 # CFLAGS += -DDTLS_ECC
 # Uncomment to enable debug logs when using DTLS
-# CFLAGS += -DDTLS_DEBUG
+CFLAGS += -DDTLS_DEBUG
 
 # Required by gcoap example
 USEMODULE += od
@@ -47,6 +47,10 @@ USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += ps
 
+# FIXME: This is a temporary patch
+# TinyDTLS <= 0.8.6 requires around 426 bytes in RAM.
+CFLAGS += -DTHREAD_STACKSIZE_MAIN=\(3*THREAD_STACKSIZE_DEFAULT\)
+
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
 # development process:
@@ -54,5 +58,11 @@ DEVELHELP ?= 1
 
 # Change this to 0 show compiler invocation lines by default:
 QUIET ?= 1
+
+CFLAGS += -DIEEE802154_DEFAULT_PANID=0xabcd
+#CFLAGS += -DGCOAP_MSG_QUEUE_SIZE=8
+
+# DTLS pkg will need at least (THREAD_STACKSIZE_DEFAULT + 1024) stack size
+#CFLAGS += -DGCOAP_STACK_SIZE=4096
 
 include $(RIOTBASE)/Makefile.include
