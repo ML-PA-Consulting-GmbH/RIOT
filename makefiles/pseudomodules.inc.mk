@@ -54,6 +54,7 @@ PSEUDOMODULES += lora
 PSEUDOMODULES += mpu_stack_guard
 PSEUDOMODULES += nanocoap_%
 PSEUDOMODULES += netdev_default
+PSEUDOMODULES += netdev_ieee802154_%
 PSEUDOMODULES += netstats
 PSEUDOMODULES += netstats_l2
 PSEUDOMODULES += netstats_ipv6
@@ -99,7 +100,7 @@ PSEUDOMODULES += od_string
 
 # include variants of the AT86RF2xx drivers as pseudo modules
 PSEUDOMODULES += at86rf23%
-PSEUDOMODULES += at86rf21%
+PSEUDOMODULES += at86rf212b
 PSEUDOMODULES += at86rfa1
 PSEUDOMODULES += at86rfr2
 
