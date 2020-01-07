@@ -187,7 +187,7 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
     return LIS2DH12_OK;
 }
 
-int lis2dh12_set_int(const lis2dh12_t *dev, int_params_t params, uint8_t int_line)
+int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_t int_line)
 {
     assert(dev && params.int_config && params.int_type);
 
@@ -223,7 +223,7 @@ int lis2dh12_set_int(const lis2dh12_t *dev, int_params_t params, uint8_t int_lin
     return LIS2DH12_OK;
 }
 
-int lis2dh12_read_int_src(const lis2dh12_t *dev, int_src_reg_t* data, uint8_t int_line)
+int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, uint8_t int_line)
 {
     assert(dev && data);
 
