@@ -38,16 +38,21 @@ static char str_out[3][8];
 /* allocate device descriptor */
 static lis2dh12_t dev;
 
+/* interrupt pins*/
+//TODO: change the interruptpins to real connected
+char* irq_1 = "PA12"; // "NC" to disable interrupt 1 (not connected)
+char* irq_2 = "PA13"; // "NC" to disable interrupt 2 (not connected)
+
 /* interrupt callback function. */
 static void int_cb(void* pin){
     printf("interrupt received from %s\n", (char*)pin);
 
     int_src_reg_t buffer = {0};
 
-    if(!strcmp("PA12",pin)){
+    if(!strcmp(irq_1,pin)){
         lis2dh12_read_int_src(&dev,&buffer, 1);
     }
-    else{
+    else if(!strcmp(irq_2,pin)){
         lis2dh12_read_int_src(&dev,&buffer, 2);
     }
 
@@ -74,13 +79,13 @@ int main(void)
     }
 
     /* enable interrupt Pins */
-    char* pin = "PA12";
-    if(gpio_init_int(GPIO_PIN(PA,12),GPIO_IN, GPIO_RISING,int_cb,pin) == -1)
-        puts("init_int failed!\n");
+    if (strcmp("NC",irq_1))
+        if (gpio_init_int(GPIO_PIN(PA,12),GPIO_IN, GPIO_RISING,int_cb,irq_1) == -1)
+            puts("init_int failed!\n");
 
-    pin = "PA13";
-    if(gpio_init_int(GPIO_PIN(PA,13),GPIO_IN, GPIO_RISING,int_cb,pin) == -1)
-        puts("init_int failed!\n"); 
+    if (strcmp("NC",irq_2))
+        if (gpio_init_int(GPIO_PIN(PA,13),GPIO_IN, GPIO_RISING,int_cb,irq_2) == -1)
+            puts("init_int failed!\n");
 
     /* create and set the interrupt params */
     int_params_t params = {0};
