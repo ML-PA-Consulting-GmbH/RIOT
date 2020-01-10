@@ -83,20 +83,27 @@ int main(void)
 #ifdef LIS2DH12_INT_PIN1
     if (gpio_init_int(LIS2DH12_INT_PIN1,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_1") == -1)
         puts("init_int failed!\n");
+
+    /* create and set the interrupt params */
+    lis2dh12_int_params_t params_int1 = {0};
+    params_int1.int_type = 0b01000000;
+    params_int1.int_config = 1;
+    params_int1.int_threshold = 0b00011111;
+    params_int1.int_duration = 1;
+    lis2dh12_set_int(&dev,params_int1,1);
 #endif
 #ifdef LIS2DH12_INT_PIN2
     if (gpio_init_int(LIS2DH12_INT_PIN2,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_2") == -1)
         puts("init_int failed!\n");
-#endif
 
     /* create and set the interrupt params */
-    lis2dh12_int_params_t params = {0};
-    params.int_type = 0b01000000;
-    params.int_config = 1;
-    params.int_threshold = 0b00011111;
-    params.int_duration = 1;
-    lis2dh12_set_int(&dev,params,1);
-    lis2dh12_set_int(&dev,params,2);
+    lis2dh12_int_params_t params_int2 = {0};
+    params_int2.int_type = 0b01000000;
+    params_int2.int_config = 1;
+    params_int2.int_threshold = 0b00011111;
+    params_int2.int_duration = 1;
+    lis2dh12_set_int(&dev,params_int2,2);
+#endif
 
     xtimer_ticks32_t last_wakeup = xtimer_now();
     while (1) {
