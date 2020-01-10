@@ -118,6 +118,41 @@ enum {
 };
 
 /**
+ * @brief   Inerrupt config register values
+ */
+enum {
+    LIS2DH12_INT_CFG_XLIE = 0x01,   /**< enable X low event or direction recognition */
+    LIS2DH12_INT_CFG_XHIE = 0x02,   /**< enable X high event or direction recognition */
+    LIS2DH12_INT_CFG_YLIE = 0x04,   /**< enable Y low event or direction recognition */
+    LIS2DH12_INT_CFG_YHIE = 0x08,   /**< enable Y high event or direction recognition */
+    LIS2DH12_INT_CFG_ZLIE = 0x10,   /**< enable Z low event or direction recognition */
+    LIS2DH12_INT_CFG_ZHIE = 0x20,   /**< enable Z high event or direction recognition*/
+    LIS2DH12_INT_CFG_6D   = 0x40,   /**< enable 6-direction detection */
+    LIS2DH12_INT_CFG_AOI  = 0x80,   /**< and/or combination of interrupt events */
+};
+
+/**
+ * @brief   Interrupt type values
+ */
+enum {
+    /* for interrupt 1 (CTRL_REG3) */
+    LIS2DH12_INT_1_TYPE_OVERRUN = 0x02, /**< FIFO overrun interrupt on INT_1 */
+    LIS2DH12_INT_1_TYPE_WTM     = 0x04, /**< FIFO watermark interrupt on INT_1 */
+    LIS2DH12_INT_1_TYPE_ZYXDA   = 0x10, /**< ZYXDA interrupt on INT_1 */
+    LIS2DH12_INT_1_TYPE_IA2     = 0x20, /**< IA2 interrupt on INT_1 */
+    LIS2DH12_INT_1_TYPE_IA1     = 0x40, /**< IA1 interrupt on INT_1 */
+    LIS2DH12_INT_1_TYPE_CLICK   = 0x80, /**< click interrupt on INT_1 */
+
+    /* for interrupt 2 (CTRL_REG6) */
+    LIS2DH12_INT_2_TYPE_POLARITY = 0x02, /**< INT_1 and INT_2 pin polarity (0: high-active; 1: low-active) */
+    LIS2DH12_INT_2_TYPE_ACT      = 0x08, /**< enable activity interrupt on INT_2 */
+    LIS2DH12_INT_2_TYPE_BOOT     = 0x10, /**< enable boot on INT_2 */
+    LIS2DH12_INT_2_TYPE_IA2      = 0x20, /**< IA2 on INT_2 */
+    LIS2DH12_INT_2_TYPE_IA1      = 0x40, /**< IA1 on INT_2 */
+    LIS2DH12_INT_2_TYPE_CLICK    = 0x80, /**< click interrupt on INT_2 */
+};
+
+/**
  * @brief    Parameter for interrupt configuration
  */
 typedef struct {

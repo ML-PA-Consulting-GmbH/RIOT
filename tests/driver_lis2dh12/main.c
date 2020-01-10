@@ -86,9 +86,9 @@ int main(void)
 
     /* create and set the interrupt params */
     lis2dh12_int_params_t params_int1 = {0};
-    params_int1.int_type = 0b01000000;
-    params_int1.int_config = 1;
-    params_int1.int_threshold = 0b00011111;
+    params_int1.int_type = LIS2DH12_INT_1_TYPE_IA1;
+    params_int1.int_config = LIS2DH12_INT_CFG_XLIE;
+    params_int1.int_threshold = 31;
     params_int1.int_duration = 1;
     lis2dh12_set_int(&dev,params_int1,1);
 #endif
@@ -98,9 +98,9 @@ int main(void)
 
     /* create and set the interrupt params */
     lis2dh12_int_params_t params_int2 = {0};
-    params_int2.int_type = 0b01000000;
-    params_int2.int_config = 1;
-    params_int2.int_threshold = 0b00011111;
+    params_int2.int_type = LIS2DH12_INT_2_TYPE_IA2;
+    params_int2.int_config = LIS2DH12_INT_CFG_YLIE;
+    params_int2.int_threshold = 31;
     params_int2.int_duration = 1;
     lis2dh12_set_int(&dev,params_int2,2);
 #endif
