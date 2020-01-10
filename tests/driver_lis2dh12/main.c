@@ -38,7 +38,7 @@ static char str_out[3][8];
 /* allocate device descriptor */
 static lis2dh12_t dev;
 
-#if defined(LIS2DH12_INT_PIN_1) || defined(LIS2DH12_INT_PIN_2)
+#if defined(LIS2DH12_INT_PIN1) || defined(LIS2DH12_INT_PIN2)
 /* interrupt callback function. */
 static void lis2dh12_int_cb(void* pin){
     printf("interrupt received from %s\n", (char*)pin);
@@ -80,12 +80,12 @@ int main(void)
     }
 
     /* enable interrupt Pins */
-#ifdef LIS2DH12_INT_PIN_1
-    if (gpio_init_int(LIS2DH12_INT_PIN_1,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_1") == -1)
+#ifdef LIS2DH12_INT_PIN1
+    if (gpio_init_int(LIS2DH12_INT_PIN1,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_1") == -1)
         puts("init_int failed!\n");
 #endif
-#ifdef LIS2DH12_INT_PIN_2
-    if (gpio_init_int(LIS2DH12_INT_PIN_2,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_2") == -1)
+#ifdef LIS2DH12_INT_PIN2
+    if (gpio_init_int(LIS2DH12_INT_PIN2,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_2") == -1)
         puts("init_int failed!\n");
 #endif
 
@@ -96,6 +96,7 @@ int main(void)
     params.int_threshold = 0b00011111;
     params.int_duration = 1;
     lis2dh12_set_int(&dev,params,1);
+    lis2dh12_set_int(&dev,params,2);
 
     xtimer_ticks32_t last_wakeup = xtimer_now();
     while (1) {
