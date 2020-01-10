@@ -28,8 +28,6 @@
 #include "lis2dh12.h"
 #include "lis2dh12_params.h"
 
-/* set to false if no interrupt should be tested or IRQ-pins are not connected */
-#define LIS2DH12_INTERRUPT_TEST true
 
 #define DELAY       (100UL * US_PER_MS)
 
@@ -40,22 +38,22 @@ static char str_out[3][8];
 /* allocate device descriptor */
 static lis2dh12_t dev;
 
-/* interrupt pins*/
-#if LIS2DH12_INTERRUPT_TEST
-#define irq_1 "PA12"    // change to real pin
-#define irq_2 "PA13"    // change to real pin
-
+#if defined(LIS2DH12_INT_PIN_1) || defined(LIS2DH12_INT_PIN_2)
 /* interrupt callback function. */
 static void lis2dh12_int_cb(void* pin){
     printf("interrupt received from %s\n", (char*)pin);
 
     lis2dh12_int_src_reg_t buffer = {0};
 
-    if(!strcmp(irq_1,pin)){
+    if(!strcmp("INT_1",pin)){
         lis2dh12_read_int_src(&dev,&buffer, 1);
     }
-    else if(!strcmp(irq_2,pin)){
+    else if(!strcmp("INT_2",pin)){
         lis2dh12_read_int_src(&dev,&buffer, 2);
+    }
+    else {
+        printf("wrong interrupt pin!\n");
+        return;
     }
 
     printf("content SRC_Reg:\n\t XL 0x%02x\n",buffer.LIS2DH12_INT_SRC_XL);
@@ -81,12 +79,13 @@ int main(void)
         return 1;
     }
 
-#if LIS2DH12_INTERRUPT_TEST
     /* enable interrupt Pins */
-    if (gpio_init_int(GPIO_PIN(PA,12),GPIO_IN, GPIO_RISING,lis2dh12_int_cb,irq_1) == -1)
+#ifdef LIS2DH12_INT_PIN_1
+    if (gpio_init_int(LIS2DH12_INT_PIN_1,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_1") == -1)
         puts("init_int failed!\n");
-
-    if (gpio_init_int(GPIO_PIN(PA,13),GPIO_IN, GPIO_RISING,lis2dh12_int_cb,irq_2) == -1)
+#endif
+#ifdef LIS2DH12_INT_PIN_2
+    if (gpio_init_int(LIS2DH12_INT_PIN_2,GPIO_IN, GPIO_RISING,lis2dh12_int_cb,"INT_2") == -1)
         puts("init_int failed!\n");
 #endif
 
