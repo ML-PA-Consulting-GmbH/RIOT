@@ -215,7 +215,6 @@ int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_
         default:
             _release(dev);
             return LIS2DH12_NOINT;
-            break;
     }
 
     _release(dev);
@@ -226,13 +225,12 @@ int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_
 int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, uint8_t int_line)
 {
     assert(dev && data);
-
     assert(int_line == 1 || int_line == 2);
 
     _acquire(dev);
 
     uint8_t buffer = 0;
-    (void)buffer;
+
     switch (int_line) {
         /* first interrupt line (INT1) */
         case 1:
@@ -246,7 +244,6 @@ int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, u
         default:
             _release(dev);
             return LIS2DH12_NOINT;
-            break;
     }
     
     _release(dev);

@@ -45,10 +45,10 @@ static void lis2dh12_int_cb(void* pin){
 
     lis2dh12_int_src_reg_t buffer = {0};
 
-    if(!strcmp("INT_1",pin)){
+    if (!strcmp("INT_1",pin)) {
         lis2dh12_read_int_src(&dev,&buffer, 1);
     }
-    else if(!strcmp("INT_2",pin)){
+    else if (!strcmp("INT_2",pin)) {
         lis2dh12_read_int_src(&dev,&buffer, 2);
     }
     else {

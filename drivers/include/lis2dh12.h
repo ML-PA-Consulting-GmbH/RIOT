@@ -118,7 +118,7 @@ enum {
 };
 
 /**
- * @brief   Inerrupt config register values
+ * @brief   Interrupt config register values
  */
 enum {
     LIS2DH12_INT_CFG_XLIE = 0x01,   /**< enable X low event or direction recognition */
