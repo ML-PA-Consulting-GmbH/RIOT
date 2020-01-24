@@ -248,13 +248,7 @@ int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, u
     
     _release(dev);
 
-    data->LIS2DH12_INT_SRC_XL = buffer;
-    data->LIS2DH12_INT_SRC_XH = buffer >> 1;
-    data->LIS2DH12_INT_SRC_YL = buffer >> 2;
-    data->LIS2DH12_INT_SRC_YH = buffer >> 3;
-    data->LIS2DH12_INT_SRC_ZL = buffer >> 4;
-    data->LIS2DH12_INT_SRC_ZH = buffer >> 5;
-    data->LIS2DH12_INT_SRC_IA = buffer >> 6;
+    data->LIS2DH12_INT_SRC = buffer;
 
     return LIS2DH12_OK;
 }

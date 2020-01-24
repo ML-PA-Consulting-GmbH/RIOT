@@ -165,15 +165,19 @@ typedef struct {
 /**
  * @brief   Status of INT_SRC register
  */
-typedef struct {
-    uint8_t LIS2DH12_INT_SRC_XL:1;  /**< X low event has occured */
-    uint8_t LIS2DH12_INT_SRC_XH:1;  /**< X high event has occured */
-    uint8_t LIS2DH12_INT_SRC_YL:1;  /**< Y low event has occured */
-    uint8_t LIS2DH12_INT_SRC_YH:1;  /**< Y high event has occured */
-    uint8_t LIS2DH12_INT_SRC_ZL:1;  /**< Z low event has occured */
-    uint8_t LIS2DH12_INT_SRC_ZH:1;  /**< Z high event has occured */
-    uint8_t LIS2DH12_INT_SRC_IA:1;  /**< 1 if interrupt occured */
-} lis2dh12_int_src_reg_t;
+typedef union {
+    struct {
+        uint8_t LIS2DH12_INT_SRC_XL:1;  /**< X low event has occured */
+        uint8_t LIS2DH12_INT_SRC_XH:1;  /**< X high event has occured */
+        uint8_t LIS2DH12_INT_SRC_YL:1;  /**< Y low event has occured */
+        uint8_t LIS2DH12_INT_SRC_YH:1;  /**< Y high event has occured */
+        uint8_t LIS2DH12_INT_SRC_ZL:1;  /**< Z low event has occured */
+        uint8_t LIS2DH12_INT_SRC_ZH:1;  /**< Z high event has occured */
+        uint8_t LIS2DH12_INT_SRC_IA:1;  /**< 1 if interrupt occured */
+    };
+    uint8_t LIS2DH12_INT_SRC;
+}lis2dh12_int_src_reg_t;
+
 
 /**
  * @brief   Export the SAUL interface for this driver
