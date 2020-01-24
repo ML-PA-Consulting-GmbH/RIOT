@@ -175,7 +175,7 @@ typedef union {
         uint8_t LIS2DH12_INT_SRC_ZH:1;  /**< Z high event has occured */
         uint8_t LIS2DH12_INT_SRC_IA:1;  /**< 1 if interrupt occured */
     };
-    uint8_t LIS2DH12_INT_SRC;
+    uint8_t int_src;
 }lis2dh12_int_src_reg_t;
 
 

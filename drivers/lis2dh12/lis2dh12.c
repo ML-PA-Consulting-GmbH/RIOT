@@ -248,7 +248,7 @@ int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, u
     
     _release(dev);
 
-    data->LIS2DH12_INT_SRC = buffer;
+    data->int_src = buffer;
 
     return LIS2DH12_OK;
 }
