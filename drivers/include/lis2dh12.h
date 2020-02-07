@@ -178,6 +178,23 @@ typedef union {
     uint8_t int_src;
 }lis2dh12_int_src_reg_t;
 
+/**
+ * @brief   Status of INT_SRC register
+ */
+typedef union {
+    struct {
+        uint8_t LIS2DH12_STATUS_XDA:1;  /**< X-axis new data available */
+        uint8_t LIS2DH12_STATUS_YDA:1;  /**< Y-axis new data available */
+        uint8_t LIS2DH12_STATUS_ZDA:1;  /**< Z-axis new data available */
+        uint8_t LIS2DH12_STATUS_ZYXDA:1;  /**< on X-, Y-, Z-axis new data available */
+        uint8_t LIS2DH12_STATUS_XOR:1;  /**< X-axis data overrun */
+        uint8_t LIS2DH12_STATUS_YOR:1;  /**< Y-axis data overrun */
+        uint8_t LIS2DH12_STATUS_ZOR:1;  /**< Y-axis data overrun */
+        uint8_t LIS2DH12_STATUS_ZYXOR:1;  /**< on X-, Y-, Z-axis data overrun */
+    };
+    uint8_t status_reg;
+}lis2dh12_status_reg_t;
+
 
 /**
  * @brief   Export the SAUL interface for this driver
@@ -230,6 +247,17 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params);
  * @return  LIS2DH12_NOBUS on bus error
  */
 int lis2dh12_read(const lis2dh12_t *dev, int16_t *data);
+
+/**
+ * @brief   Read status register from device
+ *
+ * @param[in]  dev      device descriptor
+ * @param[out] data     data from status register
+ *
+ * @return  LIS2DH12_OK on success
+ * @return  LIS2DH12_NOBUS on bus error
+ */
+int lis2dh12_read_status_reg(const lis2dh12_t *dev, lis2dh12_status_reg_t *data);
 
 /**
  * @brief   Power on the given device

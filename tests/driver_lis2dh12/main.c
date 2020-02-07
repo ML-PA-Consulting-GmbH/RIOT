@@ -23,6 +23,7 @@
 
 #include "fmt.h"
 #include "xtimer.h"
+#include "mutex.h"
 #include "periph/gpio.h"
 #include "board.h"
 #include "lis2dh12.h"
@@ -39,24 +40,37 @@ static char str_out[3][8];
 static lis2dh12_t dev;
 
 #if defined(LIS2DH12_INT_PIN1) || defined(LIS2DH12_INT_PIN2)
+/* timer lock */
+mutex_t lock_int = MUTEX_INIT;
+bool int_1_occ = false;
+bool int_2_occ = false;
 /* interrupt callback function. */
 static void lis2dh12_int_cb(void* pin){
     printf("interrupt received from %s\n", (char*)pin);
 
-    lis2dh12_int_src_reg_t buffer = {0};
-
     if (!strcmp("INT_1",pin)) {
-        lis2dh12_read_int_src(&dev,&buffer, 1);
+        int_1_occ = true;
     }
     else if (!strcmp("INT_2",pin)) {
-        lis2dh12_read_int_src(&dev,&buffer, 2);
+        int_2_occ = true;
     }
     else {
         printf("wrong interrupt pin!\n");
         return;
     }
 
-    printf("content SRC_Reg:\n\t XL 0x%02x\n",buffer.LIS2DH12_INT_SRC_XL);
+    /* unlocks the mutex */
+    mutex_unlock(&lock_int);
+}
+/* print interrupt register */
+static void lis2dh12_int_reg_content(lis2dh12_t dev, uint8_t pin){
+
+    assert(pin == 1 || pin == 2);
+
+    lis2dh12_int_src_reg_t buffer = {0};
+    lis2dh12_read_int_src(&dev, &buffer, pin);
+
+    printf("content SRC_Reg_%d:\n\t XL 0x%02x\n",pin,buffer.LIS2DH12_INT_SRC_XL);
     printf("\t XH 0x%02x\n",buffer.LIS2DH12_INT_SRC_XH);
     printf("\t YL 0x%02x\n",buffer.LIS2DH12_INT_SRC_YL);
     printf("\t YH 0x%02x\n",buffer.LIS2DH12_INT_SRC_YH);
@@ -105,25 +119,43 @@ int main(void)
     lis2dh12_set_int(&dev,params_int2,2);
 #endif
 
-    xtimer_ticks32_t last_wakeup = xtimer_now();
+    lis2dh12_status_reg_t status = {0};
+    int16_t data[3];
+
     while (1) {
-        /* read sensor data */
-        int16_t data[3];
-        if (lis2dh12_read(&dev, data) != LIS2DH12_OK) {
-            puts("error: unable to retrieve data from sensor, quitting now");
-            return 1;
+
+        /* read interrupt register */
+        if (int_1_occ){
+            lis2dh12_int_reg_content(dev,1);
+            int_1_occ = false;
+        }
+        if (int_2_occ){
+            lis2dh12_int_reg_content(dev,2);
+            int_2_occ = false;
         }
 
-        /* format data */
-        for (int i = 0; i < 3; i++) {
-            size_t len = fmt_s16_dfp(str_out[i], data[i], -3);
-            str_out[i][len] = '\0';
+        /* check status register */
+        lis2dh12_read_status_reg(&dev, &status);
+
+        if (status.LIS2DH12_STATUS_ZYXDA){
+            /* read sensor data */
+            if (lis2dh12_read(&dev, data) != LIS2DH12_OK) {
+                puts("error: unable to retrieve data from sensor, quitting now");
+                return 1;
+            }
+
+            /* format data */
+            for (int i = 0; i < 3; i++) {
+                size_t len = fmt_s16_dfp(str_out[i], data[i], -3);
+                str_out[i][len] = '\0';
+            }
+
+            /* print data to STDIO */
+            printf("X: %8s Y: %8s Z: %8s\n", str_out[0], str_out[1], str_out[2]);
         }
 
-        /* print data to STDIO */
-        printf("X: %8s Y: %8s Z: %8s\n", str_out[0], str_out[1], str_out[2]);
-
-        xtimer_periodic_wakeup(&last_wakeup, DELAY);
+        /* locks and wait */
+        xtimer_mutex_lock_timeout(&lock_int, DELAY);
     }
 
     return 0;

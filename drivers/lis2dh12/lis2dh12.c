@@ -187,6 +187,18 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
     return LIS2DH12_OK;
 }
 
+int lis2dh12_read_status_reg(const lis2dh12_t *dev, lis2dh12_status_reg_t *data)
+{
+    assert(dev && data);
+
+    uint8_t tmp;
+    tmp = _read(dev, REG_STATUS_REG);
+
+    *data = (lis2dh12_status_reg_t)tmp;
+
+    return LIS2DH12_OK;
+}
+
 int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_t int_line)
 {
     assert(dev && params.int_config && params.int_type);
