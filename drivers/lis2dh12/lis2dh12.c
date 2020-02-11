@@ -241,16 +241,14 @@ int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, u
 
     _acquire(dev);
 
-    uint8_t buffer = 0;
-
     switch (int_line) {
         /* first interrupt line (INT1) */
         case 1:
-            buffer = _read(dev,REG_INT1_SRC);
+            data->int_src = _read(dev,REG_INT1_SRC);
             break;
         /* second interrupt line (INT2) */
         case 2:
-            buffer = _read(dev,REG_INT2_SRC);
+            data->int_src = _read(dev,REG_INT2_SRC);
             break;
 
         default:
@@ -259,8 +257,6 @@ int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, u
     }
     
     _release(dev);
-
-    data->int_src = buffer;
 
     return LIS2DH12_OK;
 }
