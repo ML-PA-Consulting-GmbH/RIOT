@@ -19,13 +19,10 @@
  */
 
 #include <stdio.h>
-#include <string.h>
 
 #include "fmt.h"
 #include "xtimer.h"
-#include "msg.h"
-#include "periph/gpio.h"
-#include "board.h"
+#include "mutex.h"
 #include "lis2dh12.h"
 #include "lis2dh12_params.h"
 
@@ -43,16 +40,22 @@ static lis2dh12_t dev;
 /* control interrupt */
 typedef struct {
     uint8_t line;
-    kernel_pid_t pid;
+    mutex_t *lock;
+    uint8_t *flags;
 } lis_ctx;
 
 /* timer lock */
-//static mutex_t lock_int = MUTEX_INIT_LOCKED;
+static uint8_t isr_flags;
+static mutex_t isr_mtx = MUTEX_INIT_LOCKED;
 static lis_ctx ctx[2] = {
     {
-        .line = 0x1,
+        .line  = 1,
+        .lock  = &isr_mtx,
+        .flags = &isr_flags,
     }, {
-        .line = 0x2,
+        .line  = 2,
+        .lock  = &isr_mtx,
+        .flags = &isr_flags,
     }
 };
 
@@ -60,14 +63,9 @@ static lis_ctx ctx[2] = {
 static void lis2dh12_int_cb(void* _ctx) {
     lis_ctx *ctx = _ctx;
 
-    msg_t msg = {
-        .content.value = ctx->line
-    };
+    *ctx->flags |= ctx->line;
 
-    printf("Interrupt %d unlock\n", ctx->line);
-    //mutex_unlock(ctx->lock);
-    msg_send_int(&msg, ctx->pid);
-    puts("unlock done.");
+    mutex_unlock(ctx->lock);
 }
 
 /* print interrupt register */
@@ -88,13 +86,9 @@ static void lis2dh12_int_reg_content(lis2dh12_t *dev, uint8_t pin){
 }
 #endif
 
-static msg_t rcv_queue[2];
-
 int main(void)
 {
     uint8_t flags = 0;
-
-    msg_init_queue(rcv_queue, ARRAY_SIZE(rcv_queue));
 
     puts("LIS2DH12 accelerometer driver test application\n");
 
@@ -107,14 +101,11 @@ int main(void)
         return 1;
     }
 
-    /* init msg */
-    ctx[0].pid = thread_getpid();
-    ctx[1].pid = thread_getpid();
-
     /* enable interrupt Pins */
 #ifdef LIS2DH12_INT_PIN1
-    if (gpio_init_int(LIS2DH12_INT_PIN1, GPIO_IN, GPIO_RISING, lis2dh12_int_cb, (void*)&ctx[0]) == -1)
+    if (gpio_init_int(LIS2DH12_INT_PIN1, GPIO_IN, GPIO_RISING, lis2dh12_int_cb, (void*)&ctx[0]) == -1) {
         puts("init_int failed!\n");
+    }
 
     /* create and set the interrupt params */
     lis2dh12_int_params_t params_int1 = {0};
@@ -125,8 +116,9 @@ int main(void)
     lis2dh12_set_int(&dev, params_int1, 1);
 #endif
 #ifdef LIS2DH12_INT_PIN2
-    if (gpio_init_int(LIS2DH12_INT_PIN2,GPIO_IN, GPIO_RISING, lis2dh12_int_cb, (void*)&ctx[1]) == -1)
+    if (gpio_init_int(LIS2DH12_INT_PIN2,GPIO_IN, GPIO_RISING, lis2dh12_int_cb, (void*)&ctx[1]) == -1) {
         puts("init_int failed!\n");
+    }
 
     /* create and set the interrupt params */
     lis2dh12_int_params_t params_int2 = {0};
@@ -138,10 +130,13 @@ int main(void)
 #endif
 
     lis2dh12_status_reg_t status = {0};
-    int16_t data[3];
-    size_t len;
 
     while (1) {
+
+        if (xtimer_mutex_lock_timeout(&isr_mtx, DELAY) == 0) {
+            flags = isr_flags;
+            isr_flags = 0;
+        }
 
         /* check interrupt 1 and read register */
         if (flags & 0x1) {
@@ -157,35 +152,27 @@ int main(void)
         }
 
         /* check status register */
-        puts("reads");
         lis2dh12_read_status_reg(&dev, &status);
 
-        if (status.LIS2DH12_STATUS_ZYXDA) {
-            /* read sensor data */
-            if (lis2dh12_read(&dev, data) != LIS2DH12_OK) {
-                puts("error: unable to retrieve data from sensor, quitting now");
-                return 1;
-            }
-
-            /* format data */
-            for (int i = 0; i < 3; i++) {
-                len = fmt_s16_dfp(str_out[i], data[i], -3);
-                str_out[i][len] = '\0';
-            }
-
-            /* print data to STDIO */
-            printf("X: %8s Y: %8s Z: %8s\n", str_out[0], str_out[1], str_out[2]);
+        if (!status.LIS2DH12_STATUS_ZYXDA) {
+            continue;
         }
 
-        puts("lock");
-        /* locks and wait */
-        if (xtimer_msg_receive_timeout(rcv_queue, DELAY) >= 0) {
-            printf("got event %ld\n", rcv_queue->content.value);
-            flags |= rcv_queue->content.value;
+        /* read sensor data */
+        int16_t data[3];
+        if (lis2dh12_read(&dev, data) != LIS2DH12_OK) {
+            puts("error: unable to retrieve data from sensor, quitting now");
+            return 1;
         }
-        //mutex_lock(&lock_int);
 
-        puts("next");
+        /* format data */
+        for (int i = 0; i < 3; i++) {
+            size_t len = fmt_s16_dfp(str_out[i], data[i], -3);
+            str_out[i][len] = '\0';
+        }
+
+        /* print data to STDIO */
+        printf("X: %8s Y: %8s Z: %8s\n", str_out[0], str_out[1], str_out[2]);
     }
 
     return 0;
