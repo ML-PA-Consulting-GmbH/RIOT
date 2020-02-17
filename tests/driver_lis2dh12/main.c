@@ -111,7 +111,7 @@ int main(void)
             .cb = lis2dh12_int_cb,
             .arg = &ctx[0],
         };
-        lis2dh12_set_int(&dev, params_int1, 1);
+        lis2dh12_set_int(&dev, &params_int1, 1);
     }
 
     /* create and set the interrupt params */
@@ -124,7 +124,7 @@ int main(void)
             .cb = lis2dh12_int_cb,
             .arg = &ctx[1],
         };
-        lis2dh12_set_int(&dev, params_int2, 2);
+        lis2dh12_set_int(&dev, &params_int2, 2);
     }
 
     while (1) {

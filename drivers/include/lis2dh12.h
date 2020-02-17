@@ -204,7 +204,7 @@ extern const saul_driver_t lis2dh12_saul_driver;
  * @return  LIS2DH12_OK on success
  * @return  LIS2DH12_NOBUS on bus errors
  */
-int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_t int_line);
+int lis2dh12_set_int(const lis2dh12_t *dev, const lis2dh12_int_params_t *params, uint8_t int_line);
 
 /**
  * @brief   Read an interrupt event on LIS2DH12 sensor device
