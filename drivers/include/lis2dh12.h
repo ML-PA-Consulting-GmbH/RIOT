@@ -40,9 +40,9 @@
 
 #include "saul.h"
 
+#include "periph/gpio.h"
 #ifdef MODULE_LIS2DH12_SPI
 #include "periph/spi.h"
-#include "periph/gpio.h"
 #else
 #include "periph/i2c.h"
 #endif
@@ -95,6 +95,7 @@ typedef struct {
     i2c_t i2c;                      /**< I2C bus the device is connected to */
     uint8_t addr;                   /**< device address on the I2C bus */
 #endif
+    gpio_t int_pin[2];              /**< Interrupt pins */
     lis2dh12_scale_t scale;         /**< sampling sensitivity used */
     lis2dh12_rate_t rate;           /**< sampling rate used */
 } lis2dh12_params_t;
@@ -161,6 +162,8 @@ typedef struct {
     uint8_t int_threshold:7;        /**< the threshold for triggering interrupt, threshold in range 0-127 */
     uint8_t int_duration:7;         /**< time between two interrupts, calc from <duration>/ODR, ODR section in CTRL_REG1, duration in range 0-127 */
     uint8_t int_type;               /**< values for type of interrupts */
+    gpio_cb_t cb;                   /**< the callback to execute */
+    void *arg;                      /**< the callback argument */
 } lis2dh12_int_params_t;
 
 /**

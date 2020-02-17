@@ -196,10 +196,18 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
 
 int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_t int_line)
 {
+    gpio_t pin = dev->p->int_pin[int_line - 1];
+
     assert(dev && params.int_config && params.int_type);
 
     assert (params.int_threshold >= 0);
     assert (params.int_duration >= 0);
+
+    assert (pin != GPIO_UNDEF);
+
+    if (gpio_init_int(pin, GPIO_IN, GPIO_RISING, params.cb, params.arg)) {
+        return LIS2DH12_NOINT;
+    }
 
     _acquire(dev);
 

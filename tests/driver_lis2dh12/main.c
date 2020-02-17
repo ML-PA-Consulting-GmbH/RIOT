@@ -36,7 +36,6 @@ static char str_out[3][8];
 /* allocate device descriptor */
 static lis2dh12_t dev;
 
-#if defined(LIS2DH12_INT_PIN1) || defined(LIS2DH12_INT_PIN2)
 /* control interrupt */
 typedef struct {
     uint8_t line;
@@ -85,7 +84,6 @@ static void lis2dh12_int_reg_content(lis2dh12_t *dev, uint8_t pin){
     printf("\t ZH %d\n", !!(buffer & LIS2DH12_INT_SRC_ZH));
     printf("\t IA %d\n", !!(buffer & LIS2DH12_INT_SRC_IA));
 }
-#endif
 
 int main(void)
 {
@@ -103,32 +101,31 @@ int main(void)
     }
 
     /* enable interrupt Pins */
-#ifdef LIS2DH12_INT_PIN1
-    if (gpio_init_int(LIS2DH12_INT_PIN1, GPIO_IN, GPIO_RISING, lis2dh12_int_cb, (void*)&ctx[0]) == -1) {
-        puts("init_int failed!\n");
+    if (lis2dh12_params[0].int_pin[0] != GPIO_UNDEF) {
+        /* create and set the interrupt params */
+        lis2dh12_int_params_t params_int1 = {
+            .int_type = LIS2DH12_INT_1_TYPE_IA1,
+            .int_config = LIS2DH12_INT_CFG_XLIE,
+            .int_threshold = 31,
+            .int_duration = 1,
+            .cb = lis2dh12_int_cb,
+            .arg = &ctx[0],
+        };
+        lis2dh12_set_int(&dev, params_int1, 1);
     }
 
     /* create and set the interrupt params */
-    lis2dh12_int_params_t params_int1 = {0};
-    params_int1.int_type = LIS2DH12_INT_1_TYPE_IA1;
-    params_int1.int_config = LIS2DH12_INT_CFG_XLIE;
-    params_int1.int_threshold = 31;
-    params_int1.int_duration = 1;
-    lis2dh12_set_int(&dev, params_int1, 1);
-#endif
-#ifdef LIS2DH12_INT_PIN2
-    if (gpio_init_int(LIS2DH12_INT_PIN2,GPIO_IN, GPIO_RISING, lis2dh12_int_cb, (void*)&ctx[1]) == -1) {
-        puts("init_int failed!\n");
+    if (lis2dh12_params[0].int_pin[1] != GPIO_UNDEF) {
+        lis2dh12_int_params_t params_int2 = {
+            .int_type = LIS2DH12_INT_2_TYPE_IA2,
+            .int_config = LIS2DH12_INT_CFG_YLIE,
+            .int_threshold = 31,
+            .int_duration = 1,
+            .cb = lis2dh12_int_cb,
+            .arg = &ctx[1],
+        };
+        lis2dh12_set_int(&dev, params_int2, 2);
     }
-
-    /* create and set the interrupt params */
-    lis2dh12_int_params_t params_int2 = {0};
-    params_int2.int_type = LIS2DH12_INT_2_TYPE_IA2;
-    params_int2.int_config = LIS2DH12_INT_CFG_YLIE;
-    params_int2.int_threshold = 31;
-    params_int2.int_duration = 1;
-    lis2dh12_set_int(&dev, params_int2, 2);
-#endif
 
     while (1) {
 
