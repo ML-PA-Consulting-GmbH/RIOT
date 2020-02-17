@@ -73,16 +73,17 @@ static void lis2dh12_int_reg_content(lis2dh12_t *dev, uint8_t pin){
 
     assert(pin == 1 || pin == 2);
 
-    lis2dh12_int_src_reg_t buffer = {0};
+    uint8_t buffer;
     lis2dh12_read_int_src(dev, &buffer, pin);
 
-    printf("content SRC_Reg_%d:\n\t XL 0x%02x\n", pin,buffer.LIS2DH12_INT_SRC_XL);
-    printf("\t XH 0x%02x\n",buffer.LIS2DH12_INT_SRC_XH);
-    printf("\t YL 0x%02x\n",buffer.LIS2DH12_INT_SRC_YL);
-    printf("\t YH 0x%02x\n",buffer.LIS2DH12_INT_SRC_YH);
-    printf("\t ZL 0x%02x\n",buffer.LIS2DH12_INT_SRC_ZL);
-    printf("\t ZH 0x%02x\n",buffer.LIS2DH12_INT_SRC_ZH);
-    printf("\t IA 0x%02x\n\n",buffer.LIS2DH12_INT_SRC_IA);
+    printf("content SRC_Reg_%d: 0x%02x\n", pin, buffer);
+    printf("\t XL %d\n", !!(buffer & LIS2DH12_INT_SRC_XL));
+    printf("\t XH %d\n", !!(buffer & LIS2DH12_INT_SRC_XH));
+    printf("\t YL %d\n", !!(buffer & LIS2DH12_INT_SRC_YL));
+    printf("\t YH %d\n", !!(buffer & LIS2DH12_INT_SRC_YH));
+    printf("\t ZL %d\n", !!(buffer & LIS2DH12_INT_SRC_ZL));
+    printf("\t ZH %d\n", !!(buffer & LIS2DH12_INT_SRC_ZH));
+    printf("\t IA %d\n", !!(buffer & LIS2DH12_INT_SRC_IA));
 }
 #endif
 
@@ -129,8 +130,6 @@ int main(void)
     lis2dh12_set_int(&dev, params_int2, 2);
 #endif
 
-    lis2dh12_status_reg_t status = {0};
-
     while (1) {
 
         if (xtimer_mutex_lock_timeout(&isr_mtx, DELAY) == 0) {
@@ -151,18 +150,11 @@ int main(void)
             flags &= ~(0x2);
         }
 
-        /* check status register */
-        lis2dh12_read_status_reg(&dev, &status);
-
-        if (!status.LIS2DH12_STATUS_ZYXDA) {
-            continue;
-        }
-
         /* read sensor data */
         int16_t data[3];
         if (lis2dh12_read(&dev, data) != LIS2DH12_OK) {
-            puts("error: unable to retrieve data from sensor, quitting now");
-            return 1;
+            puts("error: unable to retrieve data from sensor");
+            continue;
         }
 
         /* format data */

@@ -172,6 +172,13 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
 
     /* read sampled data from the device */
     _acquire(dev);
+
+    /* first check if valid data is availiable */
+    if ((_read(dev, REG_STATUS_REG) & LIS2DH12_STATUS_ZYXDA) == 0) {
+        _release(dev);
+        return LIS2DH12_NODATA;
+    }
+
     _read_burst(dev, REG_OUT_X_L, raw, 6);
     _release(dev);
 
@@ -187,25 +194,13 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
     return LIS2DH12_OK;
 }
 
-int lis2dh12_read_status_reg(const lis2dh12_t *dev, lis2dh12_status_reg_t *data)
-{
-    assert(dev && data);
-
-    uint8_t tmp;
-    tmp = _read(dev, REG_STATUS_REG);
-
-    *data = (lis2dh12_status_reg_t)tmp;
-
-    return LIS2DH12_OK;
-}
-
 int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_t int_line)
 {
     assert(dev && params.int_config && params.int_type);
 
     assert (params.int_threshold >= 0);
     assert (params.int_duration >= 0);
-    
+
     _acquire(dev);
 
     switch (int_line){
@@ -234,7 +229,7 @@ int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_
     return LIS2DH12_OK;
 }
 
-int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, uint8_t int_line)
+int lis2dh12_read_int_src(const lis2dh12_t *dev, uint8_t *data, uint8_t int_line)
 {
     assert(dev && data);
     assert(int_line == 1 || int_line == 2);
@@ -244,18 +239,14 @@ int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t* data, u
     switch (int_line) {
         /* first interrupt line (INT1) */
         case 1:
-            data->int_src = _read(dev,REG_INT1_SRC);
+            *data = _read(dev, REG_INT1_SRC);
             break;
         /* second interrupt line (INT2) */
         case 2:
-            data->int_src = _read(dev,REG_INT2_SRC);
+            *data = _read(dev, REG_INT2_SRC);
             break;
-
-        default:
-            _release(dev);
-            return LIS2DH12_NOINT;
     }
-    
+
     _release(dev);
 
     return LIS2DH12_OK;

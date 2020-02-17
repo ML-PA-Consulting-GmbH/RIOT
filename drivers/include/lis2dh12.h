@@ -114,7 +114,8 @@ enum {
     LIS2DH12_OK    =  0,            /**< everything was fine */
     LIS2DH12_NOBUS = -1,            /**< bus interface error */
     LIS2DH12_NODEV = -2,            /**< unable to talk to device */
-    LIS2DH12_NOINT = -3,            /**< wrong interrupt line was given (1 or 2) */
+    LIS2DH12_NOINT = -3,            /**< wrong interrupt line was given (has to be 1 or 2) */
+    LIS2DH12_NODATA= -4,            /**< no data availiable */
 };
 
 /**
@@ -165,36 +166,25 @@ typedef struct {
 /**
  * @brief   Status of INT_SRC register
  */
-typedef union {
-    struct {
-        uint8_t LIS2DH12_INT_SRC_XL:1;  /**< X low event has occured */
-        uint8_t LIS2DH12_INT_SRC_XH:1;  /**< X high event has occured */
-        uint8_t LIS2DH12_INT_SRC_YL:1;  /**< Y low event has occured */
-        uint8_t LIS2DH12_INT_SRC_YH:1;  /**< Y high event has occured */
-        uint8_t LIS2DH12_INT_SRC_ZL:1;  /**< Z low event has occured */
-        uint8_t LIS2DH12_INT_SRC_ZH:1;  /**< Z high event has occured */
-        uint8_t LIS2DH12_INT_SRC_IA:1;  /**< 1 if interrupt occured */
-    };
-    uint8_t int_src;
-}lis2dh12_int_src_reg_t;
+#define LIS2DH12_INT_SRC_XL     (0x01)  /**< X low event has occured */
+#define LIS2DH12_INT_SRC_XH     (0x02)  /**< X high event has occured */
+#define LIS2DH12_INT_SRC_YL     (0x04)  /**< Y low event has occured */
+#define LIS2DH12_INT_SRC_YH     (0x08)  /**< Y high event has occured */
+#define LIS2DH12_INT_SRC_ZL     (0x10)  /**< Z low event has occured */
+#define LIS2DH12_INT_SRC_ZH     (0x20)  /**< Z high event has occured */
+#define LIS2DH12_INT_SRC_IA     (0x40)  /**< 1 if interrupt occured */
 
 /**
  * @brief   Status of INT_SRC register
  */
-typedef union {
-    struct {
-        uint8_t LIS2DH12_STATUS_XDA:1;  /**< X-axis new data available */
-        uint8_t LIS2DH12_STATUS_YDA:1;  /**< Y-axis new data available */
-        uint8_t LIS2DH12_STATUS_ZDA:1;  /**< Z-axis new data available */
-        uint8_t LIS2DH12_STATUS_ZYXDA:1;  /**< on X-, Y-, Z-axis new data available */
-        uint8_t LIS2DH12_STATUS_XOR:1;  /**< X-axis data overrun */
-        uint8_t LIS2DH12_STATUS_YOR:1;  /**< Y-axis data overrun */
-        uint8_t LIS2DH12_STATUS_ZOR:1;  /**< Y-axis data overrun */
-        uint8_t LIS2DH12_STATUS_ZYXOR:1;  /**< on X-, Y-, Z-axis data overrun */
-    };
-    uint8_t status_reg;
-}lis2dh12_status_reg_t;
-
+#define LIS2DH12_STATUS_XDA     (0x01)  /**< X-axis new data available */
+#define LIS2DH12_STATUS_YDA     (0x02)  /**< Y-axis new data available */
+#define LIS2DH12_STATUS_ZDA     (0x04)  /**< Z-axis new data available */
+#define LIS2DH12_STATUS_ZYXDA   (0x08)  /**< on X-, Y-, Z-axis new data available */
+#define LIS2DH12_STATUS_XOR     (0x10)  /**< X-axis data overrun */
+#define LIS2DH12_STATUS_YOR     (0x20)  /**< Y-axis data overrun */
+#define LIS2DH12_STATUS_ZOR     (0x40)  /**< Y-axis data overrun */
+#define LIS2DH12_STATUS_ZYXOR   (0x80)  /**< on X-, Y-, Z-axis data overrun */
 
 /**
  * @brief   Export the SAUL interface for this driver
@@ -223,7 +213,7 @@ int lis2dh12_set_int(const lis2dh12_t *dev, lis2dh12_int_params_t params, uint8_
  * @return  LIS2DH12_OK on success
  * @return  LIS2DH12_NOBUS on bus errors
  */
-int lis2dh12_read_int_src(const lis2dh12_t *dev, lis2dh12_int_src_reg_t *data, uint8_t int_line);
+int lis2dh12_read_int_src(const lis2dh12_t *dev, uint8_t *data, uint8_t int_line);
 
 /**
  * @brief   Initialize the given LIS2DH12 sensor device
@@ -247,17 +237,6 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params);
  * @return  LIS2DH12_NOBUS on bus error
  */
 int lis2dh12_read(const lis2dh12_t *dev, int16_t *data);
-
-/**
- * @brief   Read status register from device
- *
- * @param[in]  dev      device descriptor
- * @param[out] data     data from status register
- *
- * @return  LIS2DH12_OK on success
- * @return  LIS2DH12_NOBUS on bus error
- */
-int lis2dh12_read_status_reg(const lis2dh12_t *dev, lis2dh12_status_reg_t *data);
 
 /**
  * @brief   Power on the given device
