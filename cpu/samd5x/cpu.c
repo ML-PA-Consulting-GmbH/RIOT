@@ -149,7 +149,13 @@ static void dfll_init(void)
 #endif
     ;
 
-    OSCCTRL->DFLLCTRLB.reg = reg;
+    /* workaround for Errata 2.8.3 DFLLVAL.FINE Value When DFLL48M Re-enabled */
+    OSCCTRL->DFLLMUL.reg = 0;   /* Write new DFLLMULL configuration */
+    OSCCTRL->DFLLCTRLB.reg = 0; /* Select Open loop configuration */
+    OSCCTRL->DFLLCTRLA.bit.ENABLE = 1; /* Enable DFLL */
+    OSCCTRL->DFLLVAL.reg = OSCCTRL->DFLLVAL.reg; /* Reload DFLLVAL register */
+    OSCCTRL->DFLLCTRLB.reg = reg; /* Write final DFLL configuration */
+
     OSCCTRL->DFLLCTRLA.reg = OSCCTRL_DFLLCTRLA_ENABLE;
 
     while (!OSCCTRL->STATUS.bit.DFLLRDY) {}
@@ -260,6 +266,9 @@ void cpu_pm_cb_leave(int deep)
     if (deep) {
         /* switch back to LDO */
         sam0_set_voltage_regulator(SAM0_VREG_LDO);
+
+        /* DFLL needs to be re-initialized to work around errata */
+        dfll_init();
     }
 }
 
