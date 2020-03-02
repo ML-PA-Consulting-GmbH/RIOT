@@ -22,9 +22,6 @@
 #include "periph/init.h"
 #include "stdio_base.h"
 
-#define KHZ(x)    ((x) * 1000)
-#define MHZ(x) (KHZ(x) * 1000)
-
 /*
  * An external inductor needs to be present on the board,
  * so the feature can only be enabled by the board configuration.
