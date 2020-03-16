@@ -23,6 +23,14 @@
 #include "periph_conf.h"
 #include "stdio_base.h"
 
+/* As long as DFLL & DPLL are not used, we can default to
+   always using the buck converter when available. */
+#if !defined(CPU_SAMR30)
+#define USE_VREG_BUCK   (1)
+#else
+#define USE_VREG_BUCK   (0)
+#endif
+
 static void _gclk_setup(int gclk, uint32_t reg)
 {
     GCLK->GENCTRL[gclk].reg = reg;
@@ -82,6 +90,37 @@ uint32_t sam0_gclk_freq(uint8_t id)
     }
 }
 
+void cpu_pm_cb_enter(int deep)
+{
+    if (!deep) {
+        return;
+    }
+
+    /* If you are using saml21 rev. B, switch Main Clock to OSCULP32 during standby
+       to work around errata 1.2.1.
+       See discussion in #13441  */
+    assert((DSU->DID.bit.REVISION > 1) || ((PM->STDBYCFG.reg & 0x80) == 0));
+
+    /* errata 51.1.5 – When VDDCORE is supplied by the BUCK converter in performance
+                       level 0, the chip cannot wake-up from standby mode because the
+                       VCORERDY status is stuck at 0. */
+    if (USE_VREG_BUCK) {
+        sam0_set_voltage_regulator(SAM0_VREG_LDO);
+    }
+}
+
+void cpu_pm_cb_leave(int deep)
+{
+    if (!deep) {
+        return;
+    }
+
+    /* select buck voltage regulator */
+    if (USE_VREG_BUCK) {
+        sam0_set_voltage_regulator(SAM0_VREG_BUCK);
+    }
+}
+
 /**
  * @brief Initialize the CPU, set IRQ priorities, clocks
  */
@@ -92,6 +131,11 @@ void cpu_init(void)
 
     /* initialize the Cortex-M core */
     cortexm_init();
+
+    /* not compatible with 48 MHz DFLL & 96 MHz FDPLL */
+    if (USE_VREG_BUCK) {
+        sam0_set_voltage_regulator(SAM0_VREG_BUCK);
+    }
 
     /* turn on only needed APB peripherals */
     MCLK->APBAMASK.reg =
