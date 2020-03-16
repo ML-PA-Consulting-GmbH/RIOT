@@ -264,8 +264,11 @@ void cpu_pm_cb_enter(int deep)
 void cpu_pm_cb_leave(int deep)
 {
     if (deep) {
-        /* switch back to LDO */
-        sam0_set_voltage_regulator(SAM0_VREG_LDO);
+        /* can't use buck converter with fast internal oscillators */
+        if (USE_DPLL || USE_DFLL) {
+            /* switch back to LDO */
+            sam0_set_voltage_regulator(SAM0_VREG_LDO);
+        }
 
         /* DFLL needs to be re-initialized to work around errata */
         dfll_init();
@@ -348,6 +351,9 @@ void cpu_init(void)
         OSCCTRL->DFLLCTRLA.reg = 0;
         OSCCTRL->Dpll[0].DPLLCTRLA.reg = 0;
         OSCCTRL->Dpll[1].DPLLCTRLA.reg = 0;
+
+        /* we can now enable the more power efficient buck converter */
+        sam0_set_voltage_regulator(SAM0_VREG_BUCK);
     }
 
     /* initialize stdio prior to periph_init() to allow use of DEBUG() there */
