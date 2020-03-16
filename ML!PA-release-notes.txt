@@ -1,0 +1,15 @@
+RIOT-2020.01 - Merge Notes
+==========================
+
+ - based on 2020.04-devel-1285-gdb2ee4cbf
+ - merged benpicco/EEPROM-m95m01
+ - merged benpicco/openocd-raspi
+ - merged benpicco/at86rf215
+ - merged benpicco/sam0-jlink-fix
+ - merged benpicco/cpu/sam0/use_buck_converter
+ - merged benpicco/cpu/sam0_common/i2c-deinit
+ - merged benpicco/cpu/sam0_common/uart-deinit
+ - merged benpicco/cpu/sam0_common/spi-deinit
+ - merged benpicco/cpu/samd5x/clk-xosc
+ - add: re-init DFLL after leaving standby
+ - add: always use buck converter if external oscillator is used
