@@ -60,6 +60,7 @@ PSEUDOMODULES += mpu_stack_guard
 PSEUDOMODULES += mpu_noexec_ram
 PSEUDOMODULES += nanocoap_%
 PSEUDOMODULES += netdev_default
+PSEUDOMODULES += netdev_ieee802154_%
 PSEUDOMODULES += netstats
 PSEUDOMODULES += netstats_l2
 PSEUDOMODULES += netstats_ipv6
@@ -117,6 +118,7 @@ PSEUDOMODULES += at86rf23%
 PSEUDOMODULES += at86rf21%
 PSEUDOMODULES += at86rfa1
 PSEUDOMODULES += at86rfr2
+NO_PSEUDOMODULES += at86rf215
 
 # include variants of the BME680 drivers as pseudo modules
 PSEUDOMODULES += bme680_i2c
