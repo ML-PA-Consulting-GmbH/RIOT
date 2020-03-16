@@ -99,11 +99,11 @@ void spi_init_pins(spi_t bus)
     mutex_unlock(&locks[bus]);
 }
 
-void spi_deinit(spi_t dev)
+void spi_deinit(spi_t bus)
 {
     mutex_lock(&locks[bus]);
 
-    poweroff(dev);
+    poweroff(bus);
 
     gpio_disable_mux(spi_config[bus].miso_pin);
     gpio_disable_mux(spi_config[bus].mosi_pin);
