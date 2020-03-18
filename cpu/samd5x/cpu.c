@@ -75,6 +75,7 @@
 static void xosc32k_init(void)
 {
     if (!EXTERNAL_OSC32_SOURCE) {
+        OSC32KCTRL->XOSC32K.reg = 0;
         return;
     }
 
@@ -93,6 +94,7 @@ static void xosc_init(uint8_t idx)
     uint32_t freq;
 
     if (!USE_XOSC) {
+        OSCCTRL->XOSCCTRL[idx].reg = 0;
         return;
     }
 
@@ -139,10 +141,6 @@ static void xosc_init(uint8_t idx)
 
 static void dfll_init(void)
 {
-    if (!USE_DFLL) {
-        return;
-    }
-
     uint32_t reg = OSCCTRL_DFLLCTRLB_QLDIS
 #ifdef OSCCTRL_DFLLCTRLB_WAITLOCK
           | OSCCTRL_DFLLCTRLB_WAITLOCK
@@ -164,6 +162,7 @@ static void dfll_init(void)
 static void fdpll0_init(uint32_t f_cpu)
 {
     if (!USE_DPLL) {
+        OSCCTRL->Dpll[0].DPLLCTRLA.reg = 0;
         return;
     }
 
@@ -317,21 +316,18 @@ void cpu_init(void)
     /* enable the Cortex M Cache Controller */
     CMCC->CTRL.bit.CEN = 1;
 
-    /* Software reset the GCLK module to ensure it is re-initialized correctly */
-    GCLK->CTRLA.reg = GCLK_CTRLA_SWRST;
-    while (GCLK->CTRLA.reg & GCLK_CTRLA_SWRST) {}
-    while (GCLK->SYNCBUSY.reg & GCLK_SYNCBUSY_SWRST) {}
+    /* make sure main clock is not sourced from DPLL */
+    dfll_init();
+    gclk_connect(SAM0_GCLK_MAIN, GCLK_SOURCE_DFLL, 0);
 
-    xosc_init(0);
     xosc32k_init();
-
     if (EXTERNAL_OSC32_SOURCE) {
         gclk_connect(SAM0_GCLK_32KHZ, GCLK_SOURCE_XOSC32K, 0);
     } else if (ULTRA_LOW_POWER_INTERNAL_OSC_SOURCE) {
         gclk_connect(SAM0_GCLK_32KHZ, GCLK_SOURCE_OSCULP32K, 0);
     }
 
-    dfll_init();
+    xosc_init(0);
     fdpll0_init(CLOCK_CORECLOCK * DPLL_DIV);
 
     /* select the source of the main clock */
@@ -347,13 +343,13 @@ void cpu_init(void)
     }
 
     /* make sure fast clocks are off */
-    if (!USE_DPLL && !USE_DFLL) {
+    if (!USE_DFLL) {
         OSCCTRL->DFLLCTRLA.reg = 0;
-        OSCCTRL->Dpll[0].DPLLCTRLA.reg = 0;
-        OSCCTRL->Dpll[1].DPLLCTRLA.reg = 0;
 
-        /* we can now enable the more power efficient buck converter */
-        sam0_set_voltage_regulator(SAM0_VREG_BUCK);
+        if (!USE_DPLL) {
+            /* we can now enable the more power efficient buck converter */
+            sam0_set_voltage_regulator(SAM0_VREG_BUCK);
+        }
     }
 
     /* initialize stdio prior to periph_init() to allow use of DEBUG() there */
