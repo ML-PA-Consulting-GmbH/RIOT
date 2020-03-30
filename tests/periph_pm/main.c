@@ -205,6 +205,33 @@ static int cmd_unblock_rtc(int argc, char **argv)
 
     return 0;
 }
+
+static int cmd_set_rtc(int argc, char **argv)
+{
+    if (check_mode_duration(argc, argv) != 0) {
+        return 1;
+    }
+
+    int mode = parse_mode(argv[1]);
+    int duration = parse_duration(argv[2]);
+
+    if (mode < 0 || duration < 0) {
+        return 1;
+    }
+
+    printf("Setting power mode %d for %d seconds.\n", mode, duration);
+    fflush(stdout);
+
+    struct tm time;
+
+    rtc_get_time(&time);
+    time.tm_sec += duration;
+    rtc_set_alarm(&time, (rtc_alarm_cb_t) puts, "The alarm rang");
+
+    pm_set(mode);
+
+    return 0;
+}
 #endif /* MODULE_PERIPH_RTC */
 #endif /* MODULE_PM_LAYERED */
 
@@ -225,6 +252,9 @@ static const shell_command_t shell_commands[] = {
     { "reboot", "reboot", cmd_reboot },
 #ifdef MODULE_PM_LAYERED
     { "block", "block power mode", cmd_block },
+#ifdef MODULE_PERIPH_RTC
+    { "set_rtc", "temporary set power mode", cmd_set_rtc },
+#endif
     { "set", "set power mode", cmd_set },
     { "unblock", "unblock power mode", cmd_unblock },
 #ifdef MODULE_PERIPH_RTC
