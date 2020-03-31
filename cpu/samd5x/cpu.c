@@ -283,6 +283,14 @@ void cpu_init(void)
        must use the LDO */
     sam0_set_voltage_regulator(SAM0_VREG_LDO);
 
+    /* Disable the RTC module to prevent synchronization issues during CPU init
+       if the RTC was running from a previous boot (e.g wakeup from backup) */
+    if (RTC->MODE2.CTRLA.bit.ENABLE) {
+        while (RTC->MODE2.SYNCBUSY.reg) {}
+        RTC->MODE2.CTRLA.bit.ENABLE = 0;
+        while (RTC->MODE2.SYNCBUSY.reg) {}
+    }
+
     /* initialize the Cortex-M core */
     cortexm_init();
 
