@@ -66,6 +66,21 @@ static uint8_t _get_best_match(const uint8_t *array, uint8_t len, uint8_t val)
     return res;
 }
 
+static bool _is_busy(at86rf215_t *dev)
+{
+    if (dev->flags & AT86RF215_OPT_TX_PENDING) {
+        return true;
+    }
+
+    if (dev->state == AT86RF215_STATE_TX ||
+        dev->state == AT86RF215_STATE_TX_WAIT_ACK ||
+        dev->state == AT86RF215_STATE_RX_SEND_ACK) {
+        return true;
+    }
+
+    return false;
+}
+
 /* executed in the GPIO ISR context */
 static void _irq_handler(void *arg)
 {
@@ -189,7 +204,9 @@ static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
 
 static int _set_state(at86rf215_t *dev, netopt_state_t state)
 {
-    at86rf215_block_while_busy(dev);
+    if (_is_busy(dev)) {
+        return -EBUSY;
+    }
 
     switch (state) {
         case NETOPT_STATE_STANDBY:
