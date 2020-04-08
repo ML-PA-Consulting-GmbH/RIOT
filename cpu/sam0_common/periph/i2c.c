@@ -79,6 +79,21 @@ void i2c_init(i2c_t dev)
     int32_t tmp_baud;
 
     assert(dev < I2C_NUMOF);
+
+    /* i2c_deinit() has been called - restore config */
+    if (IS_ACTIVE(MODULE_PERIPH_I2C_RECONFIGURE) &&
+        mutex_trylock(&locks[dev]) == 0) {
+        DEBUG("I2C re-init");
+
+        _i2c_poweron(dev);
+
+        gpio_init_mux(i2c_config[dev].scl_pin, i2c_config[dev].mux);
+        gpio_init_mux(i2c_config[dev].sda_pin, i2c_config[dev].mux);
+
+        mutex_unlock(&locks[dev]);
+        return;
+    }
+
     /* Initialize mutex */
     mutex_init(&locks[dev]);
     /* DISABLE I2C MASTER */
@@ -170,6 +185,19 @@ void i2c_release(i2c_t dev)
     assert(dev < I2C_NUMOF);
     mutex_unlock(&locks[dev]);
 }
+
+#ifdef MODULE_PERIPH_I2C_RECONFIGURE
+void i2c_deinit(i2c_t dev)
+{
+    assert(dev < I2C_NUMOF);
+
+    mutex_lock(&locks[dev]);
+    _i2c_poweroff(dev);
+
+    gpio_disable_mux(i2c_config[dev].sda_pin);
+    gpio_disable_mux(i2c_config[dev].scl_pin);
+}
+#endif
 
 int i2c_read_bytes(i2c_t dev, uint16_t addr,
                    void *data, size_t len, uint8_t flags)
