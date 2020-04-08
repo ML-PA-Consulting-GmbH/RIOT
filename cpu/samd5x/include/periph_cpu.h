@@ -34,6 +34,11 @@ extern "C" {
 #define SAM0_DFLL_FREQ_HZ       (48000000U)
 
 /**
+￼ * @brief   XOSC is used to generate a fixed frequency of 48 MHz
+￼ */
+#define SAM0_XOSC48_FREQ_HZ     (48000000U)
+
+/**
  * @brief   DPLL must run with at least 96 MHz
  */
 #define SAM0_DPLL_FREQ_MIN_HZ   (96000000U)
