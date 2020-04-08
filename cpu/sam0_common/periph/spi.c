@@ -67,9 +67,6 @@ void spi_init(spi_t bus)
     /* configure pins and their muxes */
     spi_init_pins(bus);
 
-    /* wake up device */
-    poweron(bus);
-
     /* reset all device configuration */
     dev(bus)->CTRLA.reg |= SERCOM_SPI_CTRLA_SWRST;
     while ((dev(bus)->CTRLA.reg & SERCOM_SPI_CTRLA_SWRST) ||
@@ -95,6 +92,22 @@ void spi_init_pins(spi_t bus)
     gpio_init_mux(spi_config[bus].miso_pin, spi_config[bus].miso_mux);
     gpio_init_mux(spi_config[bus].mosi_pin, spi_config[bus].mosi_mux);
     gpio_init_mux(spi_config[bus].clk_pin, spi_config[bus].clk_mux);
+
+    /* wake up device */
+    poweron(bus);
+
+    mutex_unlock(&locks[bus]);
+}
+
+void spi_deinit(spi_t bus)
+{
+    mutex_lock(&locks[bus]);
+
+    poweroff(bus);
+
+    gpio_disable_mux(spi_config[bus].miso_pin);
+    gpio_disable_mux(spi_config[bus].mosi_pin);
+    gpio_disable_mux(spi_config[bus].clk_pin);
 }
 
 int spi_acquire(spi_t bus, spi_cs_t cs, spi_mode_t mode, spi_clk_t clk)
