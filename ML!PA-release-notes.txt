@@ -1,0 +1,10 @@
+RIOT-2020.04 - Merge Notes
+==========================
+
+ - based on 2020.04-devel-2025-g45afaa0fa
+
+ - merged benpicco/sam0-jlink-fix
+ - merged benpicco/cpu/sam0_common/i2c-deinit
+ - merged benpicco/cpu/sam0_common/uart-deinit
+ - merged benpicco/cpu/sam0_common/spi-deinit
+ - merged benpicco/cpu/samd5x/clk-xosc
