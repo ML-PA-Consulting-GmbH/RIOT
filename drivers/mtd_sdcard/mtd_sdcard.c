@@ -21,6 +21,7 @@
 #define ENABLE_DEBUG (0)
 #include "debug.h"
 #include "mtd.h"
+#include "xtimer.h"
 #include "mtd_sdcard.h"
 #include "sdcard_spi.h"
 #include "sdcard_spi_internal.h"

@@ -125,17 +125,6 @@ extern "C" {
 #define SD_CSD_V2 1
 #define SD_CSD_VUNSUPPORTED -1
 
-/* the retry counters below are used as timeouts for specific actions.
-   The values may need some adjustments to either give the card more time to respond
-   to commands or to achieve a lower delay / avoid infinite blocking. */
-#define R1_POLLING_RETRY_CNT       1000000
-#define SD_DATA_TOKEN_RETRY_CNT    1000000
-#define INIT_CMD_RETRY_CNT         1000000
-#define INIT_CMD0_RETRY_CNT        3
-#define SD_WAIT_FOR_NOT_BUSY_CNT   1000000 /* use -1 for full blocking till the card isn't busy */
-#define SD_BLOCK_READ_CMD_RETRIES  10     /* only affects sending of cmd not whole transaction! */
-#define SD_BLOCK_WRITE_CMD_RETRIES 10    /* only affects sending of cmd not whole transaction! */
-
 /* memory capacity in bytes = (C_SIZE+1) * SD_CSD_V2_C_SIZE_BLOCK_MULT * BLOCK_LEN */
 #define SD_CSD_V2_C_SIZE_BLOCK_MULT 1024
 
@@ -179,14 +168,15 @@ typedef enum {
  *                        (for CMDX this parameter is simply the integer value X).
  * @param[in] argument    The argument for the given cmd. As described by "7.3.1.1 Command Format".
  *                        This argument is transmitted byte wise with most significant byte first.
- * @param[in] max_retry   Specifies how often the command should be retried if an error occurs.
- *                        Use 0 to try only once, -1 to try forever, or n to retry n times.
+ * @param[in] retry_value Specifies how often the command should be retried if an error occurs.
+ *                        Use 0 to try only once, negative values to specify a timeout in
+ *                        microseconds, or positive values to retry a specified number times.
  *
  * @return                R1 response of the command if no (low-level) communication error occurred
  * @return                SD_INVALID_R1_RESPONSE if either waiting for the card to enter
  *                        not-busy-state timed out or spi communication failed
  */
-uint8_t sdcard_spi_send_cmd(sdcard_spi_t *card, uint8_t sd_cmd_idx, uint32_t argument, int32_t max_retry);
+uint8_t sdcard_spi_send_cmd(sdcard_spi_t *card, uint8_t sd_cmd_idx, uint32_t argument, int32_t retry_value);
 
 /**
  * @brief                 Sends an acmd to the sd card. ACMD<n> consists of sending CMD55 + CMD<n>
@@ -197,14 +187,15 @@ uint8_t sdcard_spi_send_cmd(sdcard_spi_t *card, uint8_t sd_cmd_idx, uint32_t arg
  *                        (for ACMDX this parameter is simply the integer value X).
  * @param[in] argument    The argument for the given cmd. As described by "7.3.1.1 Command Format".
  *                        This argument is transmitted byte wise with most significant byte first.
- * @param[in] max_retry   Specifies how often the command should be retried if an error occurs.
- *                        Use 0 to try only once, -1 to try forever, or n to retry n times.
+ * @param[in] retry_value Specifies how often the command should be retried if an error occurs.
+ *                        Use 0 to try only once, negative values to specify a timeout in
+ *                        microseconds, or positive values to retry a specified number times.
  *
  * @return                R1 response of the command if no (low-level) communication error occurred
  * @return                SD_INVALID_R1_RESPONSE if either waiting for the card to enter
  *                        not-busy-state timed out or spi communication failed
  */
-uint8_t sdcard_spi_send_acmd(sdcard_spi_t *card, uint8_t sd_cmd_idx, uint32_t argument, int32_t max_retry);
+uint8_t sdcard_spi_send_acmd(sdcard_spi_t *card, uint8_t sd_cmd_idx, uint32_t argument, int32_t retry_value);
 
 /**
  * @brief                 Gets the sector count of the card.
@@ -234,6 +225,26 @@ uint32_t sdcard_spi_get_au_size(sdcard_spi_t *card);
  */
 sd_rw_response_t sdcard_spi_read_sds(sdcard_spi_t *card, sd_status_t *sd_status);
 
+static inline void _retry_init(int32_t retry_value, uint64_t *retry_cmp)
+{
+    assert(retry_cmp);
+    *retry_cmp = (retry_value < 0)
+        ? (xtimer_now_usec64() - retry_value)
+        : (uint64_t)retry_value;
+}
+
+static inline bool _retry_process(int32_t *retry_value, uint64_t retry_cmp)
+{
+    assert(retry_value);
+    return (*retry_value) && ((*retry_value < 0) ? (xtimer_now_usec64() < retry_cmp) : ((*retry_value)-- > 0));
+}
+
+static inline uint64_t _retry_elapsed(const int32_t retry_value, const uint64_t retry_cmp)
+{
+    return (retry_value < 0)
+        ? (xtimer_now_usec64() - retry_cmp - retry_value)
+        : (retry_cmp - retry_value);
+}
 
 #ifdef __cplusplus
 }

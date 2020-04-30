@@ -70,6 +70,43 @@ static const  sdcard_spi_params_t sdcard_spi_params[] = {
     SDCARD_SPI_PARAMS
 };
 
+/**
+ * @name    Set retry parameters for specific actions
+ *
+ * Retry counters as timeouts or timeouts in microseconds for specific actions.
+ * The values may need some adjustments to either give the card more time to respond
+ * to commands or to achieve a lower delay / avoid infinite blocking.
+ * <p>
+ * Interpretation: 0 means execute once, positive values provide a maximum retry count,
+ * negative values provide a number of microseconds until the timeout gets effective.
+ * The value range is 32 bit signed integer.
+ *
+ * @{
+ */
+#ifndef INIT_CMD_RETRY
+#define INIT_CMD_RETRY           (1000000) /**< initialization command retry */
+#endif
+#ifndef INIT_CMD0_RETRY
+#define INIT_CMD0_RETRY          (3)       /**< initialization command 0 retry */
+#endif
+#ifndef R1_POLLING_RETRY
+#define R1_POLLING_RETRY         (1000000) /**< initialization first response */
+#endif
+#ifndef SD_DATA_TOKEN_RETRY
+#define SD_DATA_TOKEN_RETRY      (1000000) /**< data packet token read retry */
+#endif
+#ifndef SD_WAIT_FOR_NOT_BUSY
+#define SD_WAIT_FOR_NOT_BUSY     (1000000) /**< wait for SD card */
+#endif
+#ifndef SD_BLOCK_READ_CMD_RETRY
+#define SD_BLOCK_READ_CMD_RETRY  (10)      /**< only affects sending of cmd not whole transaction! */
+#endif
+#ifndef SD_BLOCK_WRITE_CMD_RETRY
+#define SD_BLOCK_WRITE_CMD_RETRY (10)      /**< only affects sending of cmd not whole transaction! */
+#endif
+
+/** @} */
+
 #ifdef __cplusplus
 }
 #endif
