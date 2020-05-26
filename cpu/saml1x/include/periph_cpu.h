@@ -72,6 +72,15 @@ typedef enum {
  */
 #define DAC_NUMOF           (1)
 
+/**
+ * @brief   RTC input pins that can be used for tamper detection and
+ *          wake from Deep Sleep
+ */
+static const gpio_t rtc_tamper_pins[RTC_NUM_OF_TAMPERS] = {
+    GPIO_PIN(PA, 8), GPIO_PIN(PA, 9), GPIO_PIN(PA, 16),
+    GPIO_PIN(PA, 17)
+};
+
 #ifdef __cplusplus
 }
 #endif
