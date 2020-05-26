@@ -1,0 +1,9 @@
+RIOT-2020.07 - Merge Notes
+==========================
+
+ - based on 2020.07-devel-773-ge4639fc7a0
+
+ - merged benpicco/cpu/sam0_common-rtc_tamper
+ - merged benpicco/cpu/sam0_common/uart-deinit
+ - merged benpicco/cpu/sam0_common/spi-deinit
+ - merged benpicco/cpu/samd5x/clk-xosc
