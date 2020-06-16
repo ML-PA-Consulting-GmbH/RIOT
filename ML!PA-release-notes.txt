@@ -7,3 +7,4 @@ RIOT-2020.07 - Merge Notes
  - merged benpicco/cpu/sam0_common/uart-deinit
  - merged benpicco/cpu/sam0_common/spi-deinit
  - merged benpicco/cpu/samd5x/clk-xosc
+ - cherry-picked last two commits from sven-hm/fatfs_vfs_open_flag_translation
