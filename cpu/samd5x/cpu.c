@@ -21,6 +21,7 @@
 #include "periph_conf.h"
 #include "periph/init.h"
 #include "stdio_base.h"
+#include "macros/units.h"
 
 /*
  * An external inductor needs to be present on the board,
