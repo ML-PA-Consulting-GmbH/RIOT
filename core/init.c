@@ -40,7 +40,7 @@
 #define CONFIG_BOOT_MSG 1
 #endif
 
-#if !defined(CONFIG_BOOT_MSG_STRING) &&  CONFIG_BOOT_MSG
+#if !defined(CONFIG_BOOT_MSG_STRING)
 #define CONFIG_BOOT_MSG_STRING "main(): This is RIOT! (Version: " RIOT_VERSION ")"
 #endif
 
@@ -54,9 +54,9 @@ static void *main_trampoline(void *arg)
     auto_init();
 #endif
 
-#if CONFIG_BOOT_MSG
-    LOG_INFO(CONFIG_BOOT_MSG_STRING "\n");
-#endif
+    if (IS_ACTIVE(CONFIG_BOOT_MSG)) {
+        LOG_INFO(CONFIG_BOOT_MSG_STRING "\n");
+    }
 
     main();
 
