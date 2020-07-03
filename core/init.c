@@ -36,6 +36,14 @@
 #include <auto_init.h>
 #endif
 
+#ifndef CONFIG_BOOT_MSG
+#define CONFIG_BOOT_MSG 1
+#endif
+
+#if !defined(CONFIG_BOOT_MSG_STRING)
+#define CONFIG_BOOT_MSG_STRING "main(): This is RIOT! (Version: " RIOT_VERSION ")"
+#endif
+
 extern int main(void);
 
 static void *main_trampoline(void *arg)
@@ -46,7 +54,9 @@ static void *main_trampoline(void *arg)
     auto_init();
 #endif
 
-    LOG_INFO("main(): This is RIOT! (Version: " RIOT_VERSION ")\n");
+    if (IS_ACTIVE(CONFIG_BOOT_MSG)) {
+        LOG_INFO(CONFIG_BOOT_MSG_STRING "\n");
+    }
 
     main();
 
