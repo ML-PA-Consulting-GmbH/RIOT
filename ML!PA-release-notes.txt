@@ -1,0 +1,10 @@
+RIOT-2020.07 - Merge Notes
+==========================
+
+ - based on 2020.07-devel-1736-g2ed76e2d4
+
+ - merged benpicco/cpu/sam0_common-rtc_tamper
+ - merged benpicco/cpu/sam0_common/uart-deinit
+ - merged benpicco/core/boot_msg
+ - merged benpicco/cpu/sam0_common/i2c_arbitrary_freqs
+ - merged benpicco/mtd_pagewise
