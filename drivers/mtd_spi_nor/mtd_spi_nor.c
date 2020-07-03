@@ -56,6 +56,8 @@
 
 #define MBIT_AS_BYTES       ((1024 * 1024) / 8)
 
+#define MIN(a, b) ((a) > (b) ? (b) : (a))
+
 /**
  * @brief   JEDEC memory manufacturer ID codes.
  *
@@ -75,13 +77,7 @@ static int mtd_spi_nor_write(mtd_dev_t *mtd, const void *src, uint32_t addr, uin
 static int mtd_spi_nor_erase(mtd_dev_t *mtd, uint32_t addr, uint32_t size);
 static int mtd_spi_nor_power(mtd_dev_t *mtd, enum mtd_power_state power);
 
-const mtd_desc_t mtd_spi_nor_driver = {
-    .init = mtd_spi_nor_init,
-    .read = mtd_spi_nor_read,
-    .write = mtd_spi_nor_write,
-    .erase = mtd_spi_nor_erase,
-    .power = mtd_spi_nor_power,
-};
+static int mtd_spi_nor_power(mtd_dev_t *mtd, enum mtd_power_state power);
 
 static void mtd_spi_acquire(const mtd_spi_nor_t *dev)
 {
@@ -521,6 +517,35 @@ static int mtd_spi_nor_write(mtd_dev_t *mtd, const void *src, uint32_t addr, uin
     return 0;
 }
 
+static int mtd_spi_nor_write_page(mtd_dev_t *mtd, const void *src, uint32_t page, uint32_t offset,
+                                  uint32_t size)
+{
+    const mtd_spi_nor_t *dev = (mtd_spi_nor_t *)mtd;
+
+    DEBUG("mtd_spi_nor_write_page: %p, %p, 0x%" PRIx32 ", 0x%" PRIx32 ", 0x%" PRIx32 "\n",
+          (void *)mtd, src, page, offset, size);
+
+    size_t remaining = mtd->page_size - offset;
+    size = MIN(remaining, size);
+
+    be_uint32_t addr_be = byteorder_htonl(page * mtd->page_size + offset);
+
+    mtd_spi_acquire(dev);
+
+    /* write enable */
+    mtd_spi_cmd(dev, dev->params->opcode->wren);
+
+    /* Page program */
+    mtd_spi_cmd_addr_write(dev, dev->params->opcode->page_program, addr_be, src, size);
+
+    /* waiting for the command to complete before returning */
+    wait_for_write_complete(dev, 0);
+
+    mtd_spi_release(dev);
+
+    return size;
+}
+
 static int mtd_spi_nor_erase(mtd_dev_t *mtd, uint32_t addr, uint32_t size)
 {
     DEBUG("mtd_spi_nor_erase: %p, 0x%" PRIx32 ", 0x%" PRIx32 "\n",
@@ -619,3 +644,12 @@ static int mtd_spi_nor_power(mtd_dev_t *mtd, enum mtd_power_state power)
 
     return 0;
 }
+
+const mtd_desc_t mtd_spi_nor_driver = {
+    .init = mtd_spi_nor_init,
+    .read = mtd_spi_nor_read,
+    .write = mtd_spi_nor_write,
+    .write_page = mtd_spi_nor_write_page,
+    .erase = mtd_spi_nor_erase,
+    .power = mtd_spi_nor_power,
+};
