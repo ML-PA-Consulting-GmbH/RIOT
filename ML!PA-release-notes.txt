@@ -8,3 +8,4 @@ RIOT-2020.07 - Merge Notes
  - merged benpicco/core/boot_msg
  - merged benpicco/cpu/sam0_common/i2c_arbitrary_freqs
  - merged benpicco/mtd_pagewise
+ - merged benpicco/pkg/nanocbor-enhance
