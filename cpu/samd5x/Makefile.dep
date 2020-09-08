@@ -1,5 +1,4 @@
-# use tamper detection to wake from Deep Sleep
-ifneq (,$(filter periph_gpio_irq,$(USEMODULE)))
+ifneq (,$(filter periph_gpio_tamper_wake,$(USEMODULE)))
   USEMODULE += periph_rtc_rtt
 endif
 

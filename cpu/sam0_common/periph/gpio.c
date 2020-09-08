@@ -23,7 +23,7 @@
  * Only a few pins (@ref rtc_tamper_pins) can be used for that purpose.
  *
  * Note that when configuring those pins as interrupt, the RTC/RTT will be
- * stopped briefly.
+ * stopped briefly as the RTC configuration is enable protected.
  *
  * @author      Troels Hoffmeyer <troels.d.hoffmeyer@gmail.com>
  * @author      Thomas Eichinger <thomas.eichinger@fu-berlin.de>
@@ -70,15 +70,6 @@
 #define _EIC EIC_SEC
 #else
 #define _EIC EIC
-#endif
-
-/**
- * @brief   We have to use the RTC Tamper Detect pins to wake the CPU
- *          from HIBERNATE and BACKUP sleep modes.
- */
-#if RTC_NUM_OF_TAMPERS && (defined(PM_SLEEPCFG_SLEEPMODE_BACKUP) \
-                       || defined(PM_SLEEPCFG_SLEEPMODE_HIBERNATE))
-#define USE_TAMPER_WAKE 1
 #endif
 
 /**
@@ -216,7 +207,7 @@ static int _exti(gpio_t pin)
 /* check if an RTC tamper pin was configured as interrupt */
 static bool _rtc_irq_enabled(void)
 {
-#if USE_TAMPER_WAKE
+#if MODULE_PERIPH_GPIO_TAMPER_WAKE
     for (unsigned i = 0; i < ARRAY_SIZE(rtc_tamper_pins); ++i) {
         int exti = _exti(rtc_tamper_pins[i]);
 
@@ -234,8 +225,7 @@ static bool _rtc_irq_enabled(void)
 
 static void _init_rtc_pin(gpio_t pin, gpio_flank_t flank)
 {
-    if (IS_ACTIVE(USE_TAMPER_WAKE)) {
-        rtc_tamper_init();
+    if (IS_ACTIVE(MODULE_PERIPH_GPIO_TAMPER_WAKE)) {
         rtc_tamper_register(pin, flank);
     }
 }
@@ -339,7 +329,7 @@ void gpio_pm_cb_enter(int deep)
         DEBUG_PUTS("gpio: switching EIC to slow clock");
         reenable_eic(_EIC_CLOCK_SLOW);
     }
-    else if (IS_ACTIVE(USE_TAMPER_WAKE)
+    else if (IS_ACTIVE(MODULE_PERIPH_GPIO_TAMPER_WAKE)
           && mode > PM_SLEEPCFG_SLEEPMODE_STANDBY
           && _rtc_irq_enabled()) {
         rtc_tamper_enable();
