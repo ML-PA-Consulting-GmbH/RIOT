@@ -386,11 +386,6 @@ void cpu_init(void)
     /* trigger static peripheral initialization */
     periph_init();
 
-#ifdef MODULE_PERIPH_GPIO_TAMPER_WAKE
-    /* initialize tamper detection */
-    rtc_tamper_init();
-#endif
-
     /* set ONDEMAND bit after all clocks have been configured */
     /* This is to avoid setting the source for the main clock to ONDEMAND before using it. */
     OSCCTRL->Dpll[0].DPLLCTRLA.reg |= OSCCTRL_DPLLCTRLA_ONDEMAND;

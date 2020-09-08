@@ -205,6 +205,7 @@ static int _exti(gpio_t pin)
 }
 
 /* check if an RTC tamper pin was configured as interrupt */
+__attribute__ ((unused))
 static bool _rtc_irq_enabled(void)
 {
 #if MODULE_PERIPH_GPIO_TAMPER_WAKE
