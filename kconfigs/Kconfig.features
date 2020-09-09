@@ -143,6 +143,12 @@ config HAS_PERIPH_GPIO_IRQ
         Indicates that the GPIO peripheral supports external interrupts is
         present.
 
+config HAS_PERIPH_GPIO_TAMPER_WAKE
+    bool
+    help
+        Indicates that Tamper Detection can be used to wake the CPU from
+        Deep Sleep.
+
 config HAS_PERIPH_HWRNG
     bool
     help
