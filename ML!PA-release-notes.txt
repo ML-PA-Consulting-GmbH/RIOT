@@ -7,3 +7,4 @@ RIOT-2020.07-2 - Merge Notes
  - merged benpicco/pkg/nanocbor-enhance
  - merged benpicco/cpu/util
  - merged benpicco/nib_unreachable_fix_14735
+ - merged benpicco/cpu/sam0_common/nvm_user_page
