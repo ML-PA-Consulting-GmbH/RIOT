@@ -21,7 +21,6 @@
 #define BOARD_H
 
 #include "cpu.h"
-#include "at24mac.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,19 +44,17 @@ extern "C" {
 /** @} */
 
 /**
- * @brief    AT24Mac provides a EUI-48
- */
-static inline int _at24mac_get_eui48(const void *arg, eui48_t *addr)
-{
-    return at24mac_get_eui48((uintptr_t)arg, addr);
-}
-
-/**
- * @name    EUI-48 sources on the board
- *          AT24Mac is present on the board
+ * @name	SPI_NOR_FLASH
  * @{
  */
-#define EUI48_PROVIDER_FUNC   _at24mac_get_eui48
+#define SAME54_NOR_PAGE_SIZE          (256)
+#define SAME54_NOR_PAGES_PER_SECTOR   (16)
+#define SAME54_NOR_SECTOR_COUNT       (2048)
+#define SAME54_NOR_FLAGS              (SPI_NOR_F_SECT_4K | SPI_NOR_F_SECT_32K)
+#define SAME54_NOR_SPI_DEV            SPI_DEV(2)
+#define SAME54_NOR_SPI_CLK            SPI_CLK_1MHZ
+#define SAME54_NOR_SPI_CS             GPIO_PIN(PB, 11)
+#define SAME54_NOR_SPI_MODE           SPI_MODE_3
 /** @} */
 
 /**

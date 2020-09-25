@@ -186,35 +186,6 @@ static const uart_conf_t uart_config[] = {
 /** @} */
 
 /**
- * @name PWM configuration
- * @{
- */
-#define PWM_0_EN            1
-
-#if PWM_0_EN
-/* PWM0 channels */
-static const pwm_conf_chan_t pwm_chan0_config[] = {
-    /* GPIO pin, MUX value, TCC channel */
-    { GPIO_PIN(PC, 18), GPIO_MUX_F, 2 },
-};
-#endif
-
-/* PWM device configuration */
-static const pwm_conf_t pwm_config[] = {
-#if PWM_0_EN
-    { .tim  = TCC_CONFIG(TCC0),
-      .chan = pwm_chan0_config,
-      .chan_numof = ARRAY_SIZE(pwm_chan0_config),
-      .gclk_src = SAM0_GCLK_48MHZ,
-    },
-#endif
-};
-
-/* number of devices that are actually defined */
-#define PWM_NUMOF           ARRAY_SIZE(pwm_config)
-/** @} */
-
-/**
  * @name    SPI configuration
  * @{
  */
@@ -250,6 +221,22 @@ static const spi_conf_t spi_config[] = {
 #ifdef MODULE_PERIPH_DMA
         .tx_trigger = SERCOM6_DMAC_ID_TX,
         .rx_trigger = SERCOM6_DMAC_ID_RX,
+#endif
+    },
+    {   /* SPI NOR FLASH */
+        .dev      = &(SERCOM4->SPI),
+        .miso_pin = GPIO_PIN(PB, 8),
+        .mosi_pin = GPIO_PIN(PB, 9),
+        .clk_pin  = GPIO_PIN(PB, 10),
+        .miso_mux = GPIO_MUX_D,
+        .mosi_mux = GPIO_MUX_D,
+        .clk_mux  = GPIO_MUX_D,
+        .miso_pad = SPI_PAD_MISO_0,
+        .mosi_pad = SPI_PAD_MOSI_3_SCK_1,
+        .gclk_src = SAM0_GCLK_PERIPH,
+#ifdef MODULE_PERIPH_DMA
+        .tx_trigger = SERCOM4_DMAC_ID_TX,
+        .rx_trigger = SERCOM4_DMAC_ID_RX,
 #endif
     }
 };
@@ -307,28 +294,6 @@ static const sam0_common_usb_config_t sam_usbdev_config[] = {
         .gclk_src = SAM0_GCLK_PERIPH,
     }
 };
-/** @} */
-
-/**
- * @name ADC Configuration
- * @{
- */
-
-/* ADC Default values */
-#define ADC_PRESCALER                       ADC_CTRLA_PRESCALER_DIV128
-
-#define ADC_NEG_INPUT                       ADC_INPUTCTRL_MUXNEG(0x18u)
-#define ADC_REF_DEFAULT                     ADC_REFCTRL_REFSEL_INTVCC1
-#define ADC_DEV                             ADC0
-
-static const adc_conf_chan_t adc_channels[] = {
-    /* port, pin, muxpos */
-    {GPIO_PIN(PA, 3), ADC_INPUTCTRL_MUXPOS(ADC_INPUTCTRL_MUXPOS_AIN1)},
-    {GPIO_PIN(PA, 5), ADC_INPUTCTRL_MUXPOS(ADC_INPUTCTRL_MUXPOS_AIN5)},
-    {GPIO_PIN(PA, 7), ADC_INPUTCTRL_MUXPOS(ADC_INPUTCTRL_MUXPOS_AIN7)}
-};
-
-#define ADC_NUMOF                           ARRAY_SIZE(adc_channels)
 /** @} */
 
 /**
