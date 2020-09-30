@@ -27,37 +27,7 @@
 
 int main(void)
 {
-
-   
-    /* set WRITEPROTECT and HOLD to high*/
-    /*gpio_init(GPIO_PIN(PA, 10),GPIO_OUT);
-    gpio_set(GPIO_PIN(PA, 10));
-    gpio_init(GPIO_PIN(PA, 11),GPIO_OUT);
-    gpio_set(GPIO_PIN(PA, 11));
-    puts("done!\n");
-#if defined(MTD_0) && (defined(MODULE_SPIFFS) || defined(MODULE_LITTLEFS))
-
-    fs_desc.dev = MTD_0;
-#elif defined(MTD_0) && defined(MODULE_FATFS_VFS)
-    fatfs_mtd_devs[fs_desc.vol_idx] = MTD_0;
-#endif
-    int res = vfs_mount(&const_mount);
-    if (res < 0) {
-        puts("Error while mounting constfs");
-    }
-    else {
-        puts("constfs mounted successfully");
-    }
-
-    char line_buf[SHELL_DEFAULT_BUFSIZE];
-    shell_run(shell_commands, line_buf, SHELL_DEFAULT_BUFSIZE);*/
-
-
-    puts("Hello\n");
-
-    MCLK->AHBMASK.reg  |= MCLK_AHBMASK_QSPI;
-    MCLK->APBCMASK.reg |= MCLK_APBCMASK_QSPI;
-
+    /* init GPIOs for QSPI */
     gpio_init(GPIO_PIN(PB, 10),GPIO_OUT);
     gpio_init(GPIO_PIN(PB, 11),GPIO_OUT);
     gpio_init_mux(GPIO_PIN(PA,  8), GPIO_MUX_H);
@@ -67,57 +37,142 @@ int main(void)
     gpio_init_mux(GPIO_PIN(PB, 10), GPIO_MUX_H);
     gpio_init_mux(GPIO_PIN(PB, 11), GPIO_MUX_H);
 
+    /* set Master Clock */
+    MCLK->AHBMASK.reg  |= MCLK_AHBMASK_QSPI;
+    MCLK->APBCMASK.reg |= MCLK_APBCMASK_QSPI;
 
-    QSPI->CTRLB.bit.MODE = 1;
+    /*0x9F 
+    Baud 375000
+    polarity zero
+    phase changed on leading, captured on falling*/
+
+
+    /* activate QSPI module */
     QSPI->CTRLA.bit.ENABLE = 1;
-    
+
+    QSPI->CTRLB.bit.DLYCS = 0;
+    QSPI->CTRLB.bit.DLYBCT = 0;
+    QSPI->CTRLB.bit.DATALEN = 0; //8Bit
+    QSPI->CTRLB.bit.CSMODE = 1;
+    QSPI->CTRLB.bit.SMEMREG = 1;
+    QSPI->CTRLB.bit.WDRBT = 0;
+    QSPI->CTRLB.bit.LOOPEN = 0;
+    QSPI->CTRLB.bit.MODE = 1;
+
+    QSPI->BAUD.bit.BAUD = 19; //MCLK 120MHZ -> 6MHZ
+    QSPI->BAUD.bit.DLYBS = 9; //DLYBS/MCLK -> 300ns
+    QSPI->BAUD.bit.BAUD = 9;
+    QSPI->BAUD.bit.CPHA = 1;
+    QSPI->BAUD.bit.CPOL = 0;
+
     while(!QSPI->STATUS.bit.ENABLE);
 
-    fprintf(stdout,"INSTREND: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
     fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-    puts("init done");
+    puts("init done\n");
+    fprintf(stdout,"baud: 0x%lx\n", QSPI->BAUD.reg);
+    
+
+
+    puts("erase Chip");
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
 
     // erase chip
     QSPI->INSTRCTRL.reg  = 0x000000C7;
     QSPI->INSTRFRAME.reg = 0x00000010;
-    
-    fprintf(stdout,"INSTREND: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    while(!(QSPI->INTFLAG.bit.INSTREND));
-    puts("done");
 
+    QSPI->CTRLB.bit.MODE = 1;
+    QSPI->CTRLA.bit.ENABLE = 1;
+    while(!QSPI->STATUS.bit.ENABLE);
+
+    while(!(QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+    puts("done\n");
+
+    puts("clear ints");
     //clear all interrupts
     QSPI->INTFLAG.reg = QSPI->INTFLAG.reg;
     while((QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+    puts("done\n");
 
+    puts("write");
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
     //write to chip
-    fprintf(stdout,"INSTREND: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    QSPI->INSTRADDR.reg  = 0x04000000;
-    QSPI->TXDATA.reg =     0xFFFFFFFF;
+    //QSPI->INSTRADDR.reg  = 0x04000000;
 
+    QSPI->CTRLB.bit.MODE = 1;
+    QSPI->CTRLA.bit.ENABLE = 1;
+    while(!QSPI->STATUS.bit.ENABLE);
+
+    
     QSPI->INSTRCTRL.reg  = 0x00000002;
     QSPI->INSTRFRAME.reg = 0x000030B3;
+
+    //dummy read
+    fprintf(stdout,"Frame: %lx\n", QSPI->INSTRFRAME.reg);
+
+    QSPI->TXDATA.reg = 0xFF;
+
     QSPI->CTRLA.bit.LASTXFER = 1;
 
-    fprintf(stdout,"INSTREND: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    while(!(QSPI->INTFLAG.bit.INSTREND));
+    //fprintf(stdout,"DATA: 0x%lx\n", QSPI->TXDATA.reg);
 
-    puts("write done");
+    while(!(QSPI->INTFLAG.bit.INSTREND));
+    //while(!(QSPI->INTFLAG.bit.TXC));
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+    puts("done\n");
+
+    puts("clear ints");
+    //clear all interrupts
+    fprintf(stdout,"Ints: 0x%lx\n", QSPI->INTFLAG.reg);
+
+    QSPI->INTFLAG.reg = QSPI->INTFLAG.reg;
+    while((QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+
+    fprintf(stdout,"Ints: 0x%lx\n", QSPI->INTFLAG.reg);
+    puts("done\n");
+
+    puts("read");
+
+    QSPI->CTRLB.bit.MODE = 1;
+    QSPI->CTRLA.bit.ENABLE = 1;
+    while(!QSPI->STATUS.bit.ENABLE);
+
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+    //QSPI->INSTRADDR.reg  = 0x04000000;
+    QSPI->INSTRCTRL.reg  = 0x0000000B;
+    QSPI->INSTRFRAME.reg = 0x000220B6;
+
+    //dummy read
+    fprintf(stdout,"Frame: %lx\n", QSPI->INSTRFRAME.reg);
+
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+
+    QSPI->CTRLA.bit.LASTXFER = 1;
+
+    while(!(QSPI->INTFLAG.bit.INSTREND))    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+    puts("done\n");
+
+    puts("clear ints");
     //clear all interrupts
     QSPI->INTFLAG.reg = QSPI->INTFLAG.reg;
     while((QSPI->INTFLAG.bit.INSTREND));
-
-
-    QSPI->INSTRADDR.reg  = 0x04000000;
-    QSPI->INSTRCTRL.reg  = 0x0000006B;
-    QSPI->INSTRFRAME.reg = 0x000810B2;
-    QSPI->CTRLA.bit.LASTXFER = 1;
-
-    while(!(QSPI->INTFLAG.bit.INSTREND));
-    puts("read done");
-    fprintf(stdout,"data: %lx\n", QSPI->RXDATA.reg);
-    //clear all interrupts
-    QSPI->INTFLAG.reg = QSPI->INTFLAG.reg;
-    while((QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+    puts("done\n");
 
     return 0;
 }
