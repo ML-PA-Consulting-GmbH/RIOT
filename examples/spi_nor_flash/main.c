@@ -25,72 +25,53 @@
 #include "periph/gpio.h"
 #include "periph/spi.h"
 
-int main(void)
-{
-    /* init GPIOs for QSPI */
-    gpio_init(GPIO_PIN(PB, 10),GPIO_OUT);
-    gpio_init(GPIO_PIN(PB, 11),GPIO_OUT);
-    gpio_init_mux(GPIO_PIN(PA,  8), GPIO_MUX_H);
-    gpio_init_mux(GPIO_PIN(PA,  9), GPIO_MUX_H);
-    gpio_init_mux(GPIO_PIN(PA, 10), GPIO_MUX_H);
-    gpio_init_mux(GPIO_PIN(PA, 11), GPIO_MUX_H);
-    gpio_init_mux(GPIO_PIN(PB, 10), GPIO_MUX_H);
-    gpio_init_mux(GPIO_PIN(PB, 11), GPIO_MUX_H);
-
+void init_qspi(void){
     /* set Master Clock */
     MCLK->AHBMASK.reg  |= MCLK_AHBMASK_QSPI;
     MCLK->APBCMASK.reg |= MCLK_APBCMASK_QSPI;
 
-    /*0x9F 
-    Baud 375000
-    polarity zero
-    phase changed on leading, captured on falling*/
+    /* init GPIOs */
+    /* QSPI CS */
+    gpio_init(GPIO_PIN(PB, 11),GPIO_IN);
+    gpio_init_mux(GPIO_PIN(PB, 11), GPIO_MUX_H);
+    /* QSPI DATA_0 */
+    gpio_init(GPIO_PIN(PA, 8),GPIO_OUT);
+    gpio_clear(GPIO_PIN(PA, 8));
+    gpio_init_mux(GPIO_PIN(PA, 8), GPIO_MUX_H);
+    /* QSPI DATA_1 */
+    gpio_init(GPIO_PIN(PA, 9),GPIO_OUT);
+    gpio_clear(GPIO_PIN(PA, 9));
+    gpio_init_mux(GPIO_PIN(PA, 9), GPIO_MUX_H);
+    /* QSPI DATA_2 */
+    gpio_init(GPIO_PIN(PA, 10),GPIO_OUT);
+    gpio_clear(GPIO_PIN(PA, 10));
+    gpio_init_mux(GPIO_PIN(PA, 10), GPIO_MUX_H);
+    /* QSPI DATA_3 */
+    gpio_init(GPIO_PIN(PA, 11),GPIO_OUT);
+    gpio_clear(GPIO_PIN(PA, 11));
+    gpio_init_mux(GPIO_PIN(PA, 11), GPIO_MUX_H);
+    /* QSPI CLK */
+    gpio_init(GPIO_PIN(PB, 10),GPIO_IN);
+    gpio_init_mux(GPIO_PIN(PB, 10), GPIO_MUX_H);
 
+    /* Settings */
+    QSPI->CTRLA.reg = 1; //SWRST
 
-    /* activate QSPI module */
-    QSPI->CTRLA.bit.ENABLE = 1;
+    QSPI->CTRLB.reg = 0x06000011;
+    /*QSPI->CTRLB.bit.MODE = 1; //MemoryMode
+    QSPI->CTRLB.bit.CSMODE = 1; //LASTXFER
+    QSPI->CTRLB.bit.DATALEN = 0; //Length 8Bit
+    QSPI->CTRLB.bit.DLYBCT = 0; //ignored in MemoryMode
+    QSPI->CTRLB.bit.DLYCS = 6; //CS delay*/
 
-    QSPI->CTRLB.bit.DLYCS = 0;
-    QSPI->CTRLB.bit.DLYBCT = 0;
-    QSPI->CTRLB.bit.DATALEN = 0; //8Bit
-    QSPI->CTRLB.bit.CSMODE = 1;
-    QSPI->CTRLB.bit.SMEMREG = 1;
-    QSPI->CTRLB.bit.WDRBT = 0;
-    QSPI->CTRLB.bit.LOOPEN = 0;
-    QSPI->CTRLB.bit.MODE = 1;
+    QSPI->BAUD.reg = 0x00241300;
+    /*QSPI->BAUD.bit.CPOL = 0;
+    QSPI->BAUD.bit.CPHA = 0;
+    QSPI->BAUD.bit.BAUD = 19; //(120MHz/6MHz)-1
+    QSPI->BAUD.bit.DLYBS = 36; //120MHZ*0,3us (300ns delay)*/
+}
 
-    QSPI->BAUD.bit.BAUD = 19; //MCLK 120MHZ -> 6MHZ
-    QSPI->BAUD.bit.DLYBS = 9; //DLYBS/MCLK -> 300ns
-    QSPI->BAUD.bit.BAUD = 9;
-    QSPI->BAUD.bit.CPHA = 1;
-    QSPI->BAUD.bit.CPOL = 0;
-
-    while(!QSPI->STATUS.bit.ENABLE);
-
-    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-    puts("init done\n");
-    fprintf(stdout,"baud: 0x%lx\n", QSPI->BAUD.reg);
-    
-
-
-    puts("erase Chip");
-    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-
-    // erase chip
-    QSPI->INSTRCTRL.reg  = 0x000000C7;
-    QSPI->INSTRFRAME.reg = 0x00000010;
-
-    QSPI->CTRLB.bit.MODE = 1;
-    QSPI->CTRLA.bit.ENABLE = 1;
-    while(!QSPI->STATUS.bit.ENABLE);
-
-    while(!(QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-    puts("done\n");
-
+void clear_ints(void){
     puts("clear ints");
     //clear all interrupts
     QSPI->INTFLAG.reg = QSPI->INTFLAG.reg;
@@ -98,7 +79,41 @@ int main(void)
     fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
     fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
     puts("done\n");
+}
 
+void qspi_erase(void){
+
+    puts("erase Chip");
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+
+    // erase chip
+    QSPI->INSTRADDR.reg = 22;
+    QSPI->INSTRCTRL.reg  = 6;
+    QSPI->INSTRFRAME.reg = 22;
+
+    QSPI->INSTRADDR.reg = 144;
+    QSPI->INSTRCTRL.reg  = 5;
+    QSPI->INSTRFRAME.reg = 150;
+
+    /* read for sync */
+    uint32_t tmp = QSPI->INSTRFRAME.reg;
+    fprintf(stdout,"tmp: %lx\n", tmp);
+
+    QSPI->CTRLB.bit.MODE = 1;
+    QSPI->CTRLA.bit.ENABLE = 1;
+    while(!QSPI->STATUS.bit.ENABLE);
+
+
+    QSPI->CTRLA.bit.LASTXFER = 1;
+
+    while(!(QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
+    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
+    puts("done\n");
+}
+
+void qspi_write(void){
     puts("write");
     fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
     fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
@@ -128,51 +143,98 @@ int main(void)
     fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
     puts("done\n");
 
-    puts("clear ints");
-    //clear all interrupts
-    fprintf(stdout,"Ints: 0x%lx\n", QSPI->INTFLAG.reg);
+}
 
-    QSPI->INTFLAG.reg = QSPI->INTFLAG.reg;
-    while((QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-
-    fprintf(stdout,"Ints: 0x%lx\n", QSPI->INTFLAG.reg);
-    puts("done\n");
-
+void qspi_read(void){
     puts("read");
 
-    QSPI->CTRLB.bit.MODE = 1;
-    QSPI->CTRLA.bit.ENABLE = 1;
+    QSPI->CTRLA.reg = 2;
+    QSPI->CTRLB.reg = 1;
     while(!QSPI->STATUS.bit.ENABLE);
 
-    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-    //QSPI->INSTRADDR.reg  = 0x04000000;
-    QSPI->INSTRCTRL.reg  = 0x0000000B;
-    QSPI->INSTRFRAME.reg = 0x000220B6;
+    QSPI->INSTRADDR.reg  = 144;
+    QSPI->INSTRCTRL.reg  = 97;
+    QSPI->INSTRFRAME.reg = 8336;
 
     //dummy read
-    fprintf(stdout,"Frame: %lx\n", QSPI->INSTRFRAME.reg);
+    uint32_t tmp = QSPI->INSTRFRAME.reg;
+    (void) tmp;
+
+    QSPI->CTRLA.reg = 0x01000002;
+
+    while(!(QSPI->INTFLAG.bit.INSTREND));
+
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    puts("done\n");
+
+}
+
+
+int main(void)
+{
+    /* Init QSPI */
+    init_qspi();
+
+    /* QSPI enable */
+    QSPI->CTRLA.reg = 2;
+
+    QSPI->INSTRADDR.reg = 144;
+    QSPI->INSTRCTRL.reg = 101;
+    QSPI->INSTRFRAME.reg = 144;
+
+    /* treansfer */
+    //dummy read, to sync bus
+    uint32_t tmp = QSPI->INSTRFRAME.reg;
+    (void) tmp;
+
+    /* QSPI end transfer */
+    QSPI->CTRLA.reg = 0x01000002;
+
+    /* run command */
+    do {
+        QSPI->INSTRADDR.reg = 16;
+        QSPI->INSTRCTRL.reg = 6;
+        QSPI->INSTRFRAME.reg = 16;
+        tmp = QSPI->INSTRFRAME.reg;
+        (void) tmp;
+
+        QSPI->INSTRADDR.reg = 144;
+        QSPI->INSTRCTRL.reg = 5;
+        QSPI->INSTRFRAME.reg = 144;
+        tmp = QSPI->INSTRFRAME.reg;
+        (void) tmp;
+    } while(!QSPI->STATUS.bit.ENABLE);
+
+
+    /* QSPI end transfer */
+    QSPI->CTRLA.reg = 0x01000002;
+
+    QSPI->INSTRADDR.reg = 144;
+    QSPI->INSTRCTRL.reg = 97;
+    QSPI->INSTRFRAME.reg = 8336;
+
+    tmp = QSPI->INSTRFRAME.reg;
+    (void) tmp;
+
+    while(!(QSPI->INTFLAG.bit.INSTREND));
 
     fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
 
-    QSPI->CTRLA.bit.LASTXFER = 1;
+    puts("init done\n");
 
-    while(!(QSPI->INTFLAG.bit.INSTREND))    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
+    clear_ints();
 
-    fprintf(stdout,"DATA: 0x%lx\n", QSPI->RXDATA.reg);
-    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-    puts("done\n");
+    qspi_read();
 
-    puts("clear ints");
-    //clear all interrupts
-    QSPI->INTFLAG.reg = QSPI->INTFLAG.reg;
-    while((QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"instrend: %x\n", (QSPI->INTFLAG.bit.INSTREND));
-    fprintf(stdout,"status: %lx\n", QSPI->STATUS.reg);
-    puts("done\n");
+    clear_ints();
 
     return 0;
 }
