@@ -1,5 +1,5 @@
 # name of your application
-APPLICATION = spi_nor_flash
+APPLICATION = qspi_nor_flash
 
 # If no BOARD is found in the environment, use this default:
 BOARD ?= same54-xpro
