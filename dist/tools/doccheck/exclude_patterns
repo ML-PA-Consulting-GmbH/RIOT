@@ -14275,6 +14275,7 @@ sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_BLOCK2 \(macro definiti
 sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_CONTENT_FORMAT \(macro definition\) of group net_coap is not documented\.
 sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_LOCATION_PATH \(macro definition\) of group net_coap is not documented\.
 sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_LOCATION_QUERY \(macro definition\) of group net_coap is not documented\.
+sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_ETAG \(macro definition\) of group net_coap is not documented\.
 sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_OBSERVE \(macro definition\) of group net_coap is not documented\.
 sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_PROXY_SCHEME \(macro definition\) of group net_coap is not documented\.
 sys/include/net/coap\.h:[0-9]+: warning: Member COAP_OPT_PROXY_URI \(macro definition\) of group net_coap is not documented\.

@@ -14,6 +14,9 @@ endif
 ifneq (,$(filter telnet,$(USEMODULE)))
   DIRS += net/application_layer/telnet
 endif
+ifneq (,$(filter coapfileserver,$(USEMODULE)))
+  DIRS += net/application_layer/coapfileserver
+endif
 ifneq (,$(filter constfs,$(USEMODULE)))
   DIRS += fs/constfs
 endif
