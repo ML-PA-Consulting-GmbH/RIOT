@@ -107,21 +107,27 @@ static inline kernel_pid_t msg_bus_get_sender_pid(const msg_t *msg)
 }
 
 /**
- * @brief Check if a message originates from a certain bus
+ * @brief Check if a message originates from a bus
  *
  * If a thread is attached to multiple buses, this function can be used
  * to determine if a message originated from a certain bus.
  *
- * @param[in] bus           The bus to check for
+ * @param[in] bus           The bus to check for, may be NULL
  * @param[in] msg           The received message
  *
  * @return                  True if the messages @p m was sent over @p bus
- *                          False otherwise.
+ *                          If @p bus is NULL, this function returns true
+ *                          if the message was sent over *any* bus.
+ *                          False if the messages @p m was a direct message
+ *                          or from a different bus.
  */
 static inline bool msg_is_from_bus(const msg_bus_t *bus, const msg_t *msg)
 {
-    return (msg->sender_pid & MSB_BUS_PID_FLAG) &&
-           (bus->id == (msg->type >> 5));
+    if (bus != NULL && (bus->id != (msg->type >> 5))) {
+        return false;
+    }
+
+    return msg->sender_pid & MSB_BUS_PID_FLAG;
 }
 
 /**
