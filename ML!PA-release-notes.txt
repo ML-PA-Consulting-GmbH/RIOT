@@ -1,0 +1,7 @@
+RIOT-2020.10-0 - Merge Notes
+==========================
+
+ - based on 2021.01-devel-580-gdaa7ed54cd
+
+ - merged benpicco/cpu/sam0_common/nvm_user_page
+ - merged benpicco/cpu/same54-qspi_spi
