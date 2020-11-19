@@ -225,6 +225,17 @@ static inline int riotboot_flashwrite_finish(riotboot_flashwrite_t *state)
 }
 
 /**
+ * @brief   Revert a firmware update (riotboot version)
+ *
+ * This function clears the slot having the most recent firmware revision.
+ *
+ * @param[in]   slot       Target slot to revert the update from
+ *
+ * @returns     0 on success, <0 otherwise
+ */
+int riotboot_flashwrite_revert(int slot);
+
+/**
  * @brief       Get a slot's size
  *
  * @param[in]   state   ptr to state struct
