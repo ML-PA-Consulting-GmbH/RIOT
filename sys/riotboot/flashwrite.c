@@ -24,6 +24,7 @@
 #include <string.h>
 
 #include "riotboot/flashwrite.h"
+#include "riotboot/slot.h"
 #include "od.h"
 
 #define LOG_PREFIX "riotboot_flashwrite: "
@@ -150,15 +151,32 @@ int riotboot_flashwrite_putbytes(riotboot_flashwrite_t *state,
     return 0;
 }
 
-int riotboot_flashwrite_revert(int slot)
+int riotboot_flashwrite_invalidate(int slot)
 {
-    riotboot_flashwrite_t flash;
+    extern const unsigned riotboot_slot_numof;
 
-    riotboot_flashwrite_init(&flash , slot);
+    if (riotboot_slot_numof == 1){
+        LOG_WARNING(LOG_PREFIX "Only one slot configured\n");
+        return -1;
+    }
+    if ((riotboot_slot_validate(riotboot_slot_other()) != 0) || (riotboot_slot_validate(riotboot_slot_current()) != 0)){
+        LOG_INFO(LOG_PREFIX "There will be no valid images to run after reboot\n");
+        return -2;
+    }
 
-    uint8_t zeros[]={0,0,0,0};
+    uint8_t data_flash[4] = { INVALIDATE_HDR };
 
-    return riotboot_flashwrite_finish_raw(&flash, zeros, RIOTBOOT_FLASHWRITE_SKIPLEN);
+    flashpage_write_raw((void *) riotboot_slot_get_hdr(slot), (const void *) data_flash, 4);
+
+    return 0;
+}
+
+int riotboot_flashwrite_update_revert(void)
+{
+    int _slot_to_revert = -1;
+    _slot_to_revert = (riotboot_slot_get_hdr(riotboot_slot_other())->version
+            > riotboot_slot_get_hdr(riotboot_slot_current())->version) ? riotboot_slot_other() : riotboot_slot_current();
+    return riotboot_flashwrite_invalidate(_slot_to_revert);
 }
 
 int riotboot_flashwrite_finish_raw(riotboot_flashwrite_t *state,
