@@ -1,0 +1,7 @@
+RIOT-2020.10-1 - Merge Notes
+==========================
+
+ - based on 2021.01-devel-1049-ga80f0d966a
+
+ - merged benpicco/cpu/same54-qspi_spi
+ - merged benpicco/pkg/nanocbor-fix_indefinite
