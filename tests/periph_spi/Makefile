@@ -3,6 +3,7 @@ include ../Makefile.tests_common
 
 FEATURES_REQUIRED += periph_spi
 FEATURES_OPTIONAL += periph_spi_reconfigure
+FEATURES_OPTIONAL += periph_spi_on_qspi
 
 USEMODULE += xtimer
 USEMODULE += shell
