@@ -153,29 +153,29 @@ int riotboot_flashwrite_putbytes(riotboot_flashwrite_t *state,
 
 int riotboot_flashwrite_invalidate(int slot)
 {
-    extern const unsigned riotboot_slot_numof;
-
     if (riotboot_slot_numof == 1){
-        LOG_WARNING(LOG_PREFIX "Only one slot configured\n");
+        LOG_WARNING(LOG_PREFIX "abort, only one slot configured\n");
         return -1;
     }
-    if ((riotboot_slot_validate(riotboot_slot_other()) != 0) || (riotboot_slot_validate(riotboot_slot_current()) != 0)){
-        LOG_INFO(LOG_PREFIX "There will be no valid images to run after reboot\n");
+    if (riotboot_slot_validate(1 - slot) != 0){
+        LOG_WARNING(LOG_PREFIX "abort, can not erase slot[%d], other slot[%d] is invalid\n",slot, 1 - slot);
         return -2;
     }
 
-    uint8_t data_flash[4] = { INVALIDATE_HDR };
+    uint8_t data_flash[4];
+    memset(data_flash, INVALIDATE_HDR, sizeof(data_flash));
 
-    flashpage_write_raw((void *) riotboot_slot_get_hdr(slot), (const void *) data_flash, 4);
+    flashpage_write((void *)riotboot_slot_get_hdr(slot), data_flash, sizeof(data_flash));
 
     return 0;
 }
 
-int riotboot_flashwrite_update_revert(void)
+int riotboot_flashwrite_invalidate_latest(void)
 {
-    int _slot_to_revert = -1;
+    int _slot_to_revert;
     _slot_to_revert = (riotboot_slot_get_hdr(riotboot_slot_other())->version
-            > riotboot_slot_get_hdr(riotboot_slot_current())->version) ? riotboot_slot_other() : riotboot_slot_current();
+                        > riotboot_slot_get_hdr(riotboot_slot_current())->version)
+                        ? riotboot_slot_other() : riotboot_slot_current();
     return riotboot_flashwrite_invalidate(_slot_to_revert);
 }
 
@@ -189,7 +189,6 @@ int riotboot_flashwrite_finish_raw(riotboot_flashwrite_t *state,
 #if CONFIG_RIOTBOOT_FLASHWRITE_RAW
     memcpy(state->firstblock_buf, bytes, len);
     flashpage_write(slot_start, state->firstblock_buf, RIOTBOOT_FLASHPAGE_BUFFER_SIZE);
-    res = 0;
 #else
     uint8_t *firstpage;
 
