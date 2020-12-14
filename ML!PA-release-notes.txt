@@ -7,3 +7,4 @@ RIOT-2020.10-1 - Merge Notes
  - merged benpicco/pkg/nanocbor-fix_indefinite
  - merged firas-hamdi/feat/Add_flashwrite_revert
  - merged firas-hamdi/fix/suit_coap_wo_progressbar
+ - added diff to riot/master from ML-PA-Consulting-GmbH/feat/20201214__native_rtc_settime
