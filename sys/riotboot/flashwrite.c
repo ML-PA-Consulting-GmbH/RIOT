@@ -30,6 +30,11 @@
 #define LOG_PREFIX "riotboot_flashwrite: "
 #include "log.h"
 
+/**
+ * @brief Magic number used to invalidate a slot
+ */
+#define INVALIDATE_HDR                  0xAA
+
 static inline size_t min(size_t a, size_t b)
 {
     return a <= b ? a : b;
@@ -153,11 +158,11 @@ int riotboot_flashwrite_putbytes(riotboot_flashwrite_t *state,
 
 int riotboot_flashwrite_invalidate(int slot)
 {
-    if (riotboot_slot_numof == 1){
+    if (riotboot_slot_numof == 1) {
         LOG_WARNING(LOG_PREFIX "abort, only one slot configured\n");
         return -1;
     }
-    if (riotboot_slot_validate(1 - slot) != 0){
+    if (riotboot_slot_validate(1 - slot) != 0) {
         LOG_WARNING(LOG_PREFIX "abort, can not erase slot[%d], other slot[%d] is invalid\n",slot, 1 - slot);
         return -2;
     }

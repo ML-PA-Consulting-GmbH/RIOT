@@ -129,11 +129,6 @@ typedef struct {
 #define RIOTBOOT_FLASHWRITE_SKIPLEN     sizeof(RIOTBOOT_MAGIC)
 
 /**
- * @brief Magic number used to invalidate a slot
- */
-#define INVALIDATE_HDR                  0xAA
-
-/**
  * @brief   Initialize firmware update (raw version)
  *
  * Allows setting the initial offset to @p offset, which would mean that the
