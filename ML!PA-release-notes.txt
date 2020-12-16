@@ -1,0 +1,9 @@
+RIOT-2020.10-3 - Merge Notes
+==========================
+
+ - based on 2021.01-devel-1597-gab477a94b0
+
+ - merged benpicco/pkg/NanoCBOR-switch_upstream
+ - merged benpicco/cpu/samd51-spurious_tamper
+ - cherry-pick 3811883bc4d9335e89d48c829e00ad2721ac3dd (flashpage: enable Automatic Quad Word Write)
+
