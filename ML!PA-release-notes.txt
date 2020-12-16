@@ -8,3 +8,4 @@ RIOT-2020.10-1 - Merge Notes
  - merged firas-hamdi/feat/Add_flashwrite_revert
  - merged firas-hamdi/fix/suit_coap_wo_progressbar
  - added diff to riot/master from ML-PA-Consulting-GmbH/feat/20201214__native_rtc_settime
+ - cherry-picked de23b62a89777657732338c6ef43020a0b491611 from benpicco/cpu/samd51-spurious_tamper
