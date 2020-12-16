@@ -7,3 +7,5 @@ RIOT-2020.10-1 - Merge Notes
  - merged benpicco/pkg/nanocbor-fix_indefinite
  - merged firas-hamdi/feat/Add_flashwrite_revert
  - merged firas-hamdi/fix/suit_coap_wo_progressbar
+ - cherry-picked de23b62a89777657732338c6ef43020a0b491611 from benpicco/cpu/samd51-spurious_tamper
+
