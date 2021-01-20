@@ -1,0 +1,8 @@
+RIOT-2021.04-mlpa-0 - Merge Notes
+==========================
+
+ - based on 2021.04-devel-115-gac4bd3abf8
+
+ - merged benpicco/pkg/NanoCBOR-switch_upstream
+ - cherry-pick ef7cbdb31292565211c539528317a4abe2ef86b4 (flashpage: fix unaligned writes)
+
