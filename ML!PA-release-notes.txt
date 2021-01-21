@@ -6,4 +6,5 @@ RIOT-2021.04-mlpa-0 - Merge Notes
  - merged benpicco/pkg/NanoCBOR-switch_upstream
  - cherry-pick ef7cbdb31292565211c539528317a4abe2ef86b4 (flashpage: fix unaligned writes)
  - cherry-pick b24480538a6ed5240df013da1f79b3f0e5beb93e, 657644c6c14e9859ac9b9eaf4a810d89fc0862d6 (nanocoap: split the URI according to path and query params)
+ - cherry-pick b52c7bb7ed732550c00e44f2c3dead1100c53bce (suit/transport/coap: fix URIs splitting bug)
 
