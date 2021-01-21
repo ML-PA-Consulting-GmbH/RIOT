@@ -66,8 +66,22 @@ static inline void _done(void)
 
 static inline void _wait_syncbusy(void)
 {
-#ifdef ADC_STATUS_SYNCBUSY
+#if defined(ADC_STATUS_SYNCBUSY)
     while (ADC_DEV->STATUS.reg & ADC_STATUS_SYNCBUSY) {}
+#elif defined(CPU_COMMON_SAMD5X)
+    /* exit from sleep may set swtrig to 1 permanently
+     * we therefore ignore this bit at all times
+     * SAMD5X SAME5X errata: DS80000748L-page 10
+     */
+    do {
+        /* fix of undocumented issue:
+         * under certain conditions polling
+         * of ADC_DEV->STATUS.reg after hibernate
+         * sleep (normal sleep not tested)
+         * will block without a small wait period
+         */
+        for (volatile unsigned int i = 0; i < 50; i++) {}
+    } while (ADC_DEV->SYNCBUSY.reg & ~ADC_SYNCBUSY_SWTRIG);
 #else
     while (ADC_DEV->SYNCBUSY.reg) {}
 #endif
