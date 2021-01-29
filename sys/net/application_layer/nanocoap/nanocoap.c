@@ -790,13 +790,14 @@ size_t coap_opt_put_string_with_len(uint8_t *buf, uint16_t lastonum, uint16_t op
 size_t coap_opt_put_uri(uint8_t *buf, uint16_t *lastonum, const char *uri)
 {
     const char *query = strchr(uri, '?');
-    size_t len = query ? (size_t)(query - uri) : strlen(uri);
+    size_t len = query ? (size_t)(query - uri - 1) : strlen(uri);
     size_t bytes_out = coap_opt_put_string_with_len(buf, *lastonum,
                                                     COAP_OPT_URI_PATH,
                                                     uri, len, '/');
     *lastonum = COAP_OPT_URI_PATH;
 
     if (query) {
+        buf += bytes_out;
         bytes_out += coap_opt_put_uri_query(buf, COAP_OPT_URI_PATH, query + 1);
         *lastonum = COAP_OPT_URI_QUERY;
     }
