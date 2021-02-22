@@ -7,4 +7,5 @@ RIOT-2021.04-mlpa-0 - Merge Notes
  - cherry-pick ef7cbdb31292565211c539528317a4abe2ef86b4 (flashpage: fix unaligned writes)
  - cherry-pick b24480538a6ed5240df013da1f79b3f0e5beb93e, 657644c6c14e9859ac9b9eaf4a810d89fc0862d6 (nanocoap: split the URI according to path and query params)
  - cherry-pick b52c7bb7ed732550c00e44f2c3dead1100c53bce (suit/transport/coap: fix URIs splitting bug)
+ - cherry-pick d864c8d66a26991b956a0d6b96863e4a62894fbd 35b68cf8493d8d2100c63a21489c276cdcd8001b (fix samd5x ADC bug occurring on lbc_at-v9)
 
