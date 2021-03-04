@@ -69,6 +69,9 @@ static inline void _wait_syncbusy(void)
 #ifdef ADC_STATUS_SYNCBUSY
     while (ADC_DEV->STATUS.reg & ADC_STATUS_SYNCBUSY) {}
 #else
+    /* XXX: Why do we need to wait before accessing SYNCBUSY after hibernate? */
+    for (volatile unsigned int i = 0; i < 50; i++) {}
+
     /* Ignore the ADC SYNCBUSY.SWTRIG status
      * The ADC SYNCBUSY.SWTRIG gets stuck to '1' after wake-up from Standby Sleep mode.
      * SAMD5x/SAME5x errata: DS80000748 (page 10)
