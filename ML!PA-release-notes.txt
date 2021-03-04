@@ -1,0 +1,7 @@
+RIOT-2021.04-mlpa-0 - Merge Notes
+==========================
+
+ - based on 2021.04-devel-939-g2b809f24c2
+
+ - merged benpicco/cpu/sam0_common/flashpage_irq_disable
+ - merged jan-mo/feat/20210120_lis2dh12_extension
