@@ -25,6 +25,7 @@
 #include "fmt.h"
 #include "thread.h"
 #include "shell.h"
+#include "mutex.h"
 
 #include "lis2dh12.h"
 #include "lis2dh12_params.h"
@@ -127,12 +128,10 @@ static int16_t shock_thold;
 static int16_t old_data_lis[3];
 static uint8_t int1_src_old;
 
+static mutex_t _lock = MUTEX_INIT_LOCKED;
+
 /* lis2dh12 interrupt callback function. */
 static void lis2dh12_int_cb(void* l) {
-
-    /* disable IRQ until lis_process is done */
-    gpio_irq_disable(dev.p->int1_pin);
-    gpio_irq_disable(dev.p->int2_pin);
 
     /* reset click source */
     lis2dh12_read_click_src(&dev, &click_src_reg);
@@ -152,7 +151,7 @@ static void lis2dh12_int_cb(void* l) {
             int1_src & LIS2DH12_INT_SRC_YH, int1_src & LIS2DH12_INT_SRC_YL,
             int1_src & LIS2DH12_INT_SRC_XH, int1_src & LIS2DH12_INT_SRC_XL);
 
-    thread_wakeup(lis2dh12_process);
+    mutex_unlock(&_lock);
 }
 #endif /* MODULE_LIS2DH12_INT */
 
@@ -235,9 +234,14 @@ void lis2dh12_test_init(void) {
 #ifdef MODULE_LIS2DH12_INT
 void* lis2dh12_test_process(void* arg) {
     (void) arg;
+
+    /* start processing */
+    DEBUG("[Process]: start process\n");
+
     while (1) {
-        /* start processing */
-        DEBUG("[Process]: start process\n");
+
+        /* wait for interrupt */
+        mutex_lock(&_lock);
 
         /* read FIFO_src before getting data */
         LIS2DH12_FIFO_SRC_REG_t fifo_src;
@@ -400,13 +404,6 @@ void* lis2dh12_test_process(void* arg) {
                 printf("got Z-DCLICK, sign %d\n", sign);
             }
         }
-
-        /* enable IRQ again */
-        gpio_irq_enable(dev.p->int1_pin);
-        gpio_irq_enable(dev.p->int2_pin);
-
-        /* thread will sleep until next wokeup_lis */
-        thread_sleep();
     }
 
     return NULL;
@@ -694,7 +691,7 @@ int main(void)
 #ifdef MODULE_LIS2DH12_INT
     /* processing lis2dh12 acceleration data */
     lis2dh12_process = thread_create(lis2dh12_process_stack, sizeof(lis2dh12_process_stack),
-                  THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_SLEEPING,
+                  THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST,
                   lis2dh12_test_process, NULL, "lis2dh12_process");
 #endif /* MODULE_LIS2DH12_INT */
 
