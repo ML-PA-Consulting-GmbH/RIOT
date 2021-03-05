@@ -49,18 +49,11 @@
 #define Z_CLICK 3
 #define DCLICK_DEFAULT 40   /* default threshold for double click */
 
+#define ABS(x) ((x) >= 0 ? (x) : -(x))
+
 #ifdef MODULE_LIS2DH12_INT
 static kernel_pid_t lis2dh12_process;
 #endif /* MODULE_LIS2DH12_INT */
-
-int __attribute__((weak)) shell_lis2dh12_cmd(int argc, char** argv);
-
-static const shell_command_t shell_commands[] = {
-                { "lis", "Command with multiple subcommands.", shell_lis2dh12_cmd },
-                { NULL, NULL, NULL },
-};
-
-char lis2dh12_process_stack[THREAD_STACKSIZE_MAIN];
 
 /* setting the double click order */
 static LIS2DH12_CLICK_SRC_t click_src_reg;
@@ -101,14 +94,8 @@ static lis2dh12_fifo_t fifo_cfg = {
     .FIFO_mode = LIS2DH12_FIFO_MODE_STREAMtoFIFO,
 };
 
-/* Memory to print current data */
-static char str_out[3][8];
-
-/* current lis acceleration data */
-static int16_t data_lis[3];
-
 /* highpass configuration */
-lis2dh12_highpass_t highpass_cfg = {
+static lis2dh12_highpass_t highpass_cfg = {
     .Highpass_mode = LIS2DH12_HP_MODE_REFERENCE,
     .Highpass_freq = LIS2DH12_HP_FREQ_DIV100,
     .CLICK_enable = false,
@@ -247,8 +234,8 @@ void* lis2dh12_test_process(void* arg) {
         LIS2DH12_FIFO_SRC_REG_t fifo_src;
         lis2dh12_read_fifo_src(&dev, &fifo_src);
         DEBUG("[Process]: FIFO SRC 0x%x\n", fifo_src.reg);
-        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n", fifo_src.bit.WTM,
-                                fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
+        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n",
+              fifo_src.bit.WTM, fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
 
         /* get fifo data */
         uint8_t number_read = lis2dh12_read_fifo_data(&dev, data_fifo, NUM_FIFO_VALUES);
@@ -256,8 +243,8 @@ void* lis2dh12_test_process(void* arg) {
         /* read FIFO_src after getting data */
         lis2dh12_read_fifo_src(&dev, &fifo_src);
         DEBUG("[Process]: FIFO SRC 0x%x\n", fifo_src.reg);
-        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n", fifo_src.bit.WTM,
-                                fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
+        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n",
+              fifo_src.bit.WTM, fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
 
         /* display FIFO data */
         if (ENABLE_DEBUG) {
@@ -280,14 +267,13 @@ void* lis2dh12_test_process(void* arg) {
         bool Y_shock_pos = false;
         bool Z_shock_pos = false;
 
-        for (uint8_t entry = NUM_FIFO_VALUES - NUM_DATA_SHOCK_DETECT; entry < NUM_FIFO_VALUES;
-                entry++) {
-            uint16_t abs_X = data_fifo[entry].X_AXIS >= 0 ? data_fifo[entry].X_AXIS :
-                                                            -1*data_fifo[entry].X_AXIS;
-            uint16_t abs_Y = data_fifo[entry].Y_AXIS >= 0 ? data_fifo[entry].Y_AXIS :
-                                                            -1*data_fifo[entry].Y_AXIS;
-            uint16_t abs_Z = data_fifo[entry].Z_AXIS >= 0 ? data_fifo[entry].Z_AXIS :
-                                                            -1*data_fifo[entry].Z_AXIS;
+        for (uint8_t entry = NUM_FIFO_VALUES - NUM_DATA_SHOCK_DETECT;
+             entry < NUM_FIFO_VALUES;
+             entry++) {
+
+            uint16_t abs_X = ABS(data_fifo[entry].X_AXIS);
+            uint16_t abs_Y = ABS(data_fifo[entry].Y_AXIS);
+            uint16_t abs_Z = ABS(data_fifo[entry].Z_AXIS);
 
             /* check X shock direction */
             if (max_data_X <= abs_X) {
@@ -306,9 +292,10 @@ void* lis2dh12_test_process(void* arg) {
             }
         }
 
-        DEBUG("[Process]: oldX %d, oldY %d, oldZ %d\n", old_data_lis[0], old_data_lis[1],
-                    old_data_lis[2]);
-        DEBUG("[Process]: maxX %d, maxY %d, maxZ %d\n", max_data_X, max_data_Y, max_data_Z);
+        DEBUG("[Process]: oldX %d, oldY %d, oldZ %d\n",
+              old_data_lis[0], old_data_lis[1], old_data_lis[2]);
+        DEBUG("[Process]: maxX %d, maxY %d, maxZ %d\n",
+              max_data_X, max_data_Y, max_data_Z);
 
         /* X shock */
         int16_t diff_value = max_data_X - old_data_lis[0];
@@ -341,8 +328,7 @@ void* lis2dh12_test_process(void* arg) {
             }
         }
 
-        /* check for roll */
-        /* roll conditions
+        /* check for roll conditions
          *
          * only 180°, changes can be detected with 6D reg in INT1_SRC
          * change in ZH and ZL -> X-roll (device flipped from top to bottom)
@@ -350,56 +336,63 @@ void* lis2dh12_test_process(void* arg) {
          * change in XH and XL -> Y-roll
          */
         DEBUG("[Process]: OLD - IA %d; ZH %d; ZL %d; YH %d; YL %d; XH %d; XL %d.\n",
-                    int1_src_old & LIS2DH12_INT_SRC_IA,
-                    int1_src_old & LIS2DH12_INT_SRC_ZH, int1_src_old & LIS2DH12_INT_SRC_ZL,
-                    int1_src_old & LIS2DH12_INT_SRC_YH, int1_src_old & LIS2DH12_INT_SRC_YL,
-                    int1_src_old & LIS2DH12_INT_SRC_XH, int1_src_old & LIS2DH12_INT_SRC_XL);
+              int1_src_old & LIS2DH12_INT_SRC_IA,
+              int1_src_old & LIS2DH12_INT_SRC_ZH, int1_src_old & LIS2DH12_INT_SRC_ZL,
+              int1_src_old & LIS2DH12_INT_SRC_YH, int1_src_old & LIS2DH12_INT_SRC_YL,
+              int1_src_old & LIS2DH12_INT_SRC_XH, int1_src_old & LIS2DH12_INT_SRC_XL);
 
         DEBUG("[Process]: NEW - IA %d; ZH %d; ZL %d; YH %d; YL %d; XH %d; XL %d.\n",
-                    int1_src & LIS2DH12_INT_SRC_IA,
-                    int1_src & LIS2DH12_INT_SRC_ZH, int1_src & LIS2DH12_INT_SRC_ZL,
-                    int1_src & LIS2DH12_INT_SRC_YH, int1_src & LIS2DH12_INT_SRC_YL,
-                    int1_src & LIS2DH12_INT_SRC_XH, int1_src & LIS2DH12_INT_SRC_XL);
+              int1_src & LIS2DH12_INT_SRC_IA,
+              int1_src & LIS2DH12_INT_SRC_ZH, int1_src & LIS2DH12_INT_SRC_ZL,
+              int1_src & LIS2DH12_INT_SRC_YH, int1_src & LIS2DH12_INT_SRC_YL,
+              int1_src & LIS2DH12_INT_SRC_XH, int1_src & LIS2DH12_INT_SRC_XL);
 
-        if (((int1_src_old & LIS2DH12_INT_SRC_ZH) != (int1_src & LIS2DH12_INT_SRC_ZH))
-                && ((int1_src_old & LIS2DH12_INT_SRC_ZL) != (int1_src & LIS2DH12_INT_SRC_ZL))) {
+        if (((int1_src_old & LIS2DH12_INT_SRC_ZH) != (int1_src & LIS2DH12_INT_SRC_ZH)) &&
+            ((int1_src_old & LIS2DH12_INT_SRC_ZL) != (int1_src & LIS2DH12_INT_SRC_ZL))) {
             printf("X roll detected.\n");
         }
-        if (((int1_src_old & LIS2DH12_INT_SRC_XH) != (int1_src & LIS2DH12_INT_SRC_XH))
-                && ((int1_src_old & LIS2DH12_INT_SRC_YL) != (int1_src & LIS2DH12_INT_SRC_YL))) {
+        if (((int1_src_old & LIS2DH12_INT_SRC_XH) != (int1_src & LIS2DH12_INT_SRC_XH)) &&
+            ((int1_src_old & LIS2DH12_INT_SRC_YL) != (int1_src & LIS2DH12_INT_SRC_YL))) {
             printf("Z roll detected.\n");
         }
-        if (((int1_src_old & LIS2DH12_INT_SRC_YH) != (int1_src & LIS2DH12_INT_SRC_YH))
-                && ((int1_src_old & LIS2DH12_INT_SRC_XL) != (int1_src & LIS2DH12_INT_SRC_XL))) {
+        if (((int1_src_old & LIS2DH12_INT_SRC_YH) != (int1_src & LIS2DH12_INT_SRC_YH)) &&
+            ((int1_src_old & LIS2DH12_INT_SRC_XL) != (int1_src & LIS2DH12_INT_SRC_XL))) {
             printf("Y roll detected.\n");
         }
 
         int1_src_old = int1_src;
 
-        /* check click order */
-        /*
+        /* check click order
+         *
          * idea is to do a sequence of double clicks, to enable the device
          *
          */
+
         /* click_src read during interrupt callback */
         DEBUG("[Process]: clickSRC 0x%x\n", click_src_reg.reg);
 
         if (click_src_reg.bit.IA && click_src_reg.bit.DClick) {
+
             /* X-Double */
-            if (click_src_reg.bit.X_AXIS && !click_src_reg.bit.Y_AXIS
-                && !click_src_reg.bit.Z_AXIS) {
+            if ( click_src_reg.bit.X_AXIS &&
+                !click_src_reg.bit.Y_AXIS &&
+                !click_src_reg.bit.Z_AXIS) {
                 int8_t sign = click_src_reg.bit.Sign ? -1 : 1;
                 printf("got X-DCLICK, sign %d\n", sign);
             }
+
             /* Y-Double */
-            if (!click_src_reg.bit.X_AXIS && click_src_reg.bit.Y_AXIS
-                && !click_src_reg.bit.Z_AXIS) {
+            if (!click_src_reg.bit.X_AXIS &&
+                 click_src_reg.bit.Y_AXIS &&
+                !click_src_reg.bit.Z_AXIS) {
                 int8_t sign = click_src_reg.bit.Sign ? -1 : 1;
                 printf("got Y-DCLICK, sign %d\n", sign);
             }
+
             /* Z-Double */
-            if (!click_src_reg.bit.X_AXIS && !click_src_reg.bit.Y_AXIS
-                && click_src_reg.bit.Z_AXIS) {
+            if (!click_src_reg.bit.X_AXIS &&
+                !click_src_reg.bit.Y_AXIS &&
+                 click_src_reg.bit.Z_AXIS) {
                 int8_t sign = click_src_reg.bit.Sign ? -1 : 1;
                 printf("got Z-DCLICK, sign %d\n", sign);
             }
@@ -411,6 +404,12 @@ void* lis2dh12_test_process(void* arg) {
 #endif /* MODULE_LIS2DH12_INT */
 
 int shell_lis2dh12_cmd(int argc, char **argv) {
+
+    /* Memory to print current data */
+    char str_out[3][8];
+
+    /* current lis acceleration data */
+    int16_t data_lis[3];
 
     printf("Command: lis %s %s\n", (argc > 1) ? argv[1] : "",
            (argc > 2) ? argv[2] : "");
@@ -452,7 +451,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         uint8_t amt = 0;
 
         /* read sensor data */
-        for (amt = 0; amt < amount; amt++){
+        for (amt = 0; amt < amount; amt++) {
             if (lis2dh12_read(&dev, data_lis) != LIS2DH12_OK) {
                 puts("error: no data from sensor");
                 return -1;
@@ -485,7 +484,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         DEBUG("[lis_command]: fifo_read %d elements.\n", number_read);
 
         /* print data */
-        for (int entry = 0; entry < number_read; entry++){
+        for (int entry = 0; entry < number_read; entry++) {
 
             /* format data */
             size_t len = fmt_s16_dfp(str_out[0], data_fifo[entry].X_AXIS, -3);
@@ -502,7 +501,6 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
 
     /* clear memory */
     else if (strncmp(argv[1], "clear_data", sizeof("clear_data")) == 0) {
-
         lis2dh12_clear_data(&dev);
         return 1;
     }
@@ -685,10 +683,17 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 }
 
+static const shell_command_t shell_commands[] = {
+    { "lis", "Command with multiple subcommands.", shell_lis2dh12_cmd },
+    { NULL, NULL, NULL },
+};
+
 int main(void)
 {
 
 #ifdef MODULE_LIS2DH12_INT
+    static char lis2dh12_process_stack[THREAD_STACKSIZE_MAIN];
+
     /* processing lis2dh12 acceleration data */
     lis2dh12_process = thread_create(lis2dh12_process_stack, sizeof(lis2dh12_process_stack),
                   THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST,
