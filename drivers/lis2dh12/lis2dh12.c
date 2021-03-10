@@ -18,6 +18,7 @@
  */
 
 #include "assert.h"
+#include "mutex.h"
 
 #include "lis2dh12.h"
 #include "lis2dh12_internal.h"
@@ -202,73 +203,80 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
 }
 
 #ifdef MODULE_LIS2DH12_INT
-int lis2dh12_set_int(const lis2dh12_t *dev, const lis2dh12_int_params_t *params, uint8_t int_line)
+static void _cb(void *lock)
 {
-    assert (int_line == LIS2DH12_INT1 || int_line == LIS2DH12_INT2);
-    assert (dev && params);
-    assert (params->cb);
-
-    _acquire(dev);
-
-    gpio_t pin = GPIO_UNDEF;
-
-    switch (int_line){
-        /* first interrupt line (INT1) */
-        case LIS2DH12_INT1:
-            pin = dev->p->int1_pin;
-            assert (gpio_is_valid(pin));
-
-            if (gpio_init_int(pin, GPIO_IN, GPIO_RISING, params->cb, params->arg)) {
-                return LIS2DH12_NOINT;
-            }
-
-            _write(dev, REG_CTRL_REG3, params->int_type);
-            _write(dev, REG_INT1_CFG, params->int_config);
-            _write(dev, REG_INT1_THS, params->int_threshold);
-            _write(dev, REG_INT1_DURATION, params->int_duration);
-            break;
-        /* second interrupt line (INT2) */
-        case LIS2DH12_INT2:
-            pin = dev->p->int2_pin;
-            assert (gpio_is_valid(pin));
-
-            if (gpio_init_int(pin, GPIO_IN, GPIO_RISING, params->cb, params->arg)) {
-                return LIS2DH12_NOINT;
-            }
-
-            _write(dev, REG_CTRL_REG6, params->int_type);
-            _write(dev, REG_INT2_CFG, params->int_config);
-            _write(dev, REG_INT2_THS, params->int_threshold);
-            _write(dev, REG_INT2_DURATION, params->int_duration);
-            break;
-    }
-
-    _release(dev);
-
-    return LIS2DH12_OK;
+    mutex_unlock(lock);
 }
 
-int lis2dh12_read_int_src(const lis2dh12_t *dev, uint8_t *data, uint8_t int_line)
+void lis2dh12_cfg_event(const lis2dh12_t *dev, const lis2dh12_int_params_t *event, uint8_t line)
 {
-    assert(dev && data);
-    assert(int_line == LIS2DH12_INT1 || int_line == LIS2DH12_INT2);
+    assert(line == LIS2DH12_INT1 || line == LIS2DH12_INT2);
+    assert(dev && event);
 
     _acquire(dev);
 
-    switch (int_line) {
-        /* first interrupt line (INT1) */
-        case LIS2DH12_INT1:
-            *data = _read(dev, REG_INT1_SRC);
-            break;
-        /* second interrupt line (INT2) */
-        case LIS2DH12_INT2:
-            *data = _read(dev, REG_INT2_SRC);
-            break;
+    /* configure interrupt */
+    switch (line) {
+    case LIS2DH12_INT1:
+        _write(dev, REG_CTRL_REG3, event->int_type);
+        _write(dev, REG_INT1_CFG, event->int_config);
+        _write(dev, REG_INT1_THS, event->int_threshold);
+        _write(dev, REG_INT1_DURATION, event->int_duration);
+        break;
+    case LIS2DH12_INT2:
+        _write(dev, REG_CTRL_REG6, event->int_type);
+        _write(dev, REG_INT2_CFG, event->int_config);
+        _write(dev, REG_INT2_THS, event->int_threshold);
+        _write(dev, REG_INT2_DURATION, event->int_duration);
+        break;
     }
 
     _release(dev);
+}
 
-    return LIS2DH12_OK;
+static inline uint8_t _read_int_src(const lis2dh12_t *dev, uint8_t line)
+{
+    if (line == LIS2DH12_INT1) {
+        return _read(dev, REG_INT1_SRC);
+    }
+
+    if (line == LIS2DH12_INT2) {
+        return _read(dev, REG_INT2_SRC);
+    }
+
+    return 0;
+}
+
+int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
+{
+    uint8_t int_src;
+    mutex_t lock = MUTEX_INIT_LOCKED;
+    gpio_t pin = line == LIS2DH12_INT2
+                       ? dev->p->int2_pin
+                       : dev->p->int1_pin;
+
+    assert(line == LIS2DH12_INT1 || line == LIS2DH12_INT2);
+
+    /* clear stale interrupt flag */
+    _acquire(dev);
+    _read_int_src(dev, line);
+    _release(dev);
+
+    /* enable interrupt pin */
+    assert(gpio_is_valid(pin));
+    if (gpio_init_int(pin, GPIO_IN, GPIO_RISING, _cb, &lock)) {
+        return LIS2DH12_NOINT;
+    }
+
+    /* wait for interrupt */
+    mutex_lock(&lock);
+    gpio_irq_disable(pin);
+
+    _acquire(dev);
+    int_src = _read_int_src(dev, line);
+    _release(dev);
+
+    return int_src;
 }
 #endif /* MODULE_LIS2DH12_INT */
 

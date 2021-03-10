@@ -37,7 +37,6 @@
 #define REFERENCE_DEFAULT 10 /* LSB according to SCALE */
 
 #define THOLD_SHOCK_MILLIG_DEFAULT 1500
-#define NUM_DATA_SHOCK_DETECT 7  /* detect shock in NUM last FIFO samples */
 
 /* device specific */
 #define NUM_AXES 3
@@ -73,20 +72,12 @@ static lis2dh12_click_t click_cfg = {
 static lis2dh12_t dev;
 
 #ifdef MODULE_LIS2DH12_INT
-/* Interrupt lines */
-static uint8_t line1 = 1;
-static uint8_t line2 = 2;
-
 /* Interrupt params */
 static lis2dh12_int_params_t params_int1 = {0};
 static lis2dh12_int_params_t params_int2 = {0};
-
-/* Interrupt source register */
-static uint8_t int1_src;
 #endif /* MODULE_LIS2DH12_INT */
 
 /* FIFO data memory */
-static lis2dh12_fifo_data_t data_fifo[NUM_FIFO_VALUES];
 /* FIFO configuration */
 static lis2dh12_fifo_t fifo_cfg = {
     .FIFO_set_INT2 = false,
@@ -104,42 +95,12 @@ static lis2dh12_highpass_t highpass_cfg = {
     .DATA_OUT_enable = false,
 };
 
-/* reference data */
-static uint8_t reference_value;
-
 /* shock threshold */
 static int16_t shock_thold;
 
 #ifdef MODULE_LIS2DH12_INT
 /* previous values */
 static int16_t old_data_lis[3];
-static uint8_t int1_src_old;
-
-static mutex_t _lock = MUTEX_INIT_LOCKED;
-
-/* lis2dh12 interrupt callback function. */
-static void lis2dh12_int_cb(void* l) {
-
-    /* reset click source */
-    lis2dh12_read_click_src(&dev, &click_src_reg);
-    DEBUG("[INT]: CLICK_SRC 0x%x\n", click_src_reg.reg);
-
-    uint8_t line = *(uint8_t*)l;
-    printf("Info: INT_line: %d\n", line);
-
-    lis2dh12_read_reference(&dev, &reference_value);
-    DEBUG("[INT]: REF: 0x%x\n", reference_value);
-
-    lis2dh12_read_int_src(&dev, &int1_src, 1);
-    DEBUG("[INT]: INT_SRC 0x%x\n", int1_src);
-    DEBUG("[INT]: INT_SRC - IA %d; ZH %d; ZL %d; YH %d; YL %d; XH %d; XL %d.\n",
-            int1_src & LIS2DH12_INT_SRC_IA,
-            int1_src & LIS2DH12_INT_SRC_ZH, int1_src & LIS2DH12_INT_SRC_ZL,
-            int1_src & LIS2DH12_INT_SRC_YH, int1_src & LIS2DH12_INT_SRC_YL,
-            int1_src & LIS2DH12_INT_SRC_XH, int1_src & LIS2DH12_INT_SRC_XL);
-
-    mutex_unlock(&_lock);
-}
 #endif /* MODULE_LIS2DH12_INT */
 
 void lis2dh12_test_init(void) {
@@ -175,29 +136,11 @@ void lis2dh12_test_init(void) {
                                | LIS2DH12_INT_CFG_YHIE
                                | LIS2DH12_INT_CFG_ZHIE;
         params_int1.int_duration = 1;
-        params_int1.cb = lis2dh12_int_cb;
-        params_int1.arg = &line1;
     }
     if (gpio_is_valid(pin2)) {
         /* enables interrupt on Y-axis below the threshold value */
         params_int2.int_config = LIS2DH12_INT_CFG_YLIE;
         params_int2.int_duration = 1;
-        params_int2.cb = lis2dh12_int_cb;
-        params_int2.arg = &line2;
-    }
-
-    if (gpio_init_int(pin1, GPIO_IN, GPIO_RISING, lis2dh12_int_cb, &line1)) {
-        DEBUG("[lis_init]: INT1 failed\n");
-    }
-    else {
-        DEBUG("[lis_init]: INT1 done\n");
-    }
-
-    if (gpio_init_int(pin2, GPIO_IN, GPIO_RISING, lis2dh12_int_cb, &line2)) {
-        DEBUG("[lis_init]: INT2 failed\n");
-    }
-    else {
-        DEBUG("[lis_init]: INT2 done\n");
     }
 #endif /* MODULE_LIS2DH12_INT */
 
@@ -209,13 +152,6 @@ void lis2dh12_test_init(void) {
 
     /* set default shock value */
     shock_thold = THOLD_SHOCK_MILLIG_DEFAULT;
-
-    /* read registers to reset device */
-    lis2dh12_read_click_src(&dev, &click_src_reg);
-    lis2dh12_read_reference(&dev, &reference_value);
-#ifdef MODULE_LIS2DH12_INT
-    lis2dh12_read_int_src(&dev, &int1_src, 1);
-#endif /* MODULE_LIS2DH12_INT */
 }
 
 #ifdef MODULE_LIS2DH12_INT
@@ -225,10 +161,17 @@ void* lis2dh12_test_process(void* arg) {
     /* start processing */
     DEBUG("[Process]: start process\n");
 
+    uint8_t int1_src_old = 0;
+
     while (1) {
 
         /* wait for interrupt */
-        mutex_lock(&_lock);
+        int int1_src = lis2dh12_wait_event(&dev, LIS2DH12_INT1);
+
+        if (int1_src <= 0) {
+            printf("error: %d\n", int1_src);
+            continue;
+        }
 
         /* read FIFO_src before getting data */
         LIS2DH12_FIFO_SRC_REG_t fifo_src;
@@ -238,6 +181,7 @@ void* lis2dh12_test_process(void* arg) {
               fifo_src.bit.WTM, fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
 
         /* get fifo data */
+        lis2dh12_fifo_data_t data_fifo[NUM_FIFO_VALUES];
         uint8_t number_read = lis2dh12_read_fifo_data(&dev, data_fifo, NUM_FIFO_VALUES);
 
         /* read FIFO_src after getting data */
@@ -267,8 +211,7 @@ void* lis2dh12_test_process(void* arg) {
         bool Y_shock_pos = false;
         bool Z_shock_pos = false;
 
-        for (uint8_t entry = NUM_FIFO_VALUES - NUM_DATA_SHOCK_DETECT;
-             entry < NUM_FIFO_VALUES;
+        for (uint8_t entry = 0; entry < NUM_FIFO_VALUES;
              entry++) {
 
             uint16_t abs_X = ABS(data_fifo[entry].X_AXIS);
@@ -479,6 +422,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         }
 
         /* read raw data from FIFO */
+        lis2dh12_fifo_data_t data_fifo[NUM_FIFO_VALUES];
         uint8_t number_read = lis2dh12_read_fifo_data(&dev, data_fifo, number);
 
         DEBUG("[lis_command]: fifo_read %d elements.\n", number_read);
@@ -523,7 +467,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
 
         /* enable click interrupt */
         params_int1.int_type = LIS2DH12_INT_TYPE_I1_CLICK;
-        lis2dh12_set_int(&dev, &params_int1, LIS2DH12_INT1);
+        lis2dh12_cfg_event(&dev, &params_int1, LIS2DH12_INT1);
 
         return 1;
     }
@@ -564,7 +508,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
             params_int1.int_type = LIS2DH12_INT_TYPE_I1_IA1;
             params_int1.int_threshold = thold;
 
-            lis2dh12_set_int(&dev, &params_int1, LIS2DH12_INT1);
+            lis2dh12_cfg_event(&dev, &params_int1, LIS2DH12_INT1);
         }
         else if (line == 2){
             if (!thold) {
@@ -576,7 +520,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
             }
             params_int2.int_type = LIS2DH12_INT_TYPE_I2_IA2;
             params_int2.int_threshold = thold;
-            lis2dh12_set_int(&dev, &params_int2, LIS2DH12_INT2);
+            lis2dh12_cfg_event(&dev, &params_int2, LIS2DH12_INT2);
         }
         if (thold) {
             printf("Info: Interrupt thold = %d on line %d.\n", thold, line);
@@ -690,6 +634,8 @@ static const shell_command_t shell_commands[] = {
 
 int main(void)
 {
+    /* init lis */
+    lis2dh12_test_init();
 
 #ifdef MODULE_LIS2DH12_INT
     static char lis2dh12_process_stack[THREAD_STACKSIZE_MAIN];
@@ -699,9 +645,6 @@ int main(void)
                   THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST,
                   lis2dh12_test_process, NULL, "lis2dh12_process");
 #endif /* MODULE_LIS2DH12_INT */
-
-    /* init lis */
-    lis2dh12_test_init();
 
     /* running shell */
     char line_buf[SHELL_DEFAULT_BUFSIZE];
