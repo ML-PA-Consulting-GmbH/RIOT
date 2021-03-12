@@ -253,6 +253,10 @@ extern const saul_driver_t lis2dh12_saul_driver;
  */
 void lis2dh12_cfg_event(const lis2dh12_t *dev, const lis2dh12_int_params_t *event, uint8_t line);
 
+void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
+                                  uint32_t mg, uint32_t us,
+                                  uint8_t axis, uint8_t event, uint8_t pin);
+
 /**
  * @brief   Wait for an interrupt event
  *          This function will block until an interrupt is received

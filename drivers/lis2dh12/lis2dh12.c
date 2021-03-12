@@ -19,6 +19,7 @@
 
 #include "assert.h"
 #include "mutex.h"
+#include "timex.h"
 
 #include "lis2dh12.h"
 #include "lis2dh12_internal.h"
@@ -203,6 +204,26 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
 }
 
 #ifdef MODULE_LIS2DH12_INT
+static const uint16_t mg_per_bit[] = {
+    16, /* scale = 2g  */
+    32, /* scale = 4g  */
+    62, /* scale = 8g  */
+    186 /* scale = 16g */
+};
+
+static const uint16_t hz_per_dr[] = {
+    0,      /* power down */
+    1,      /* Hz */
+    10,     /* Hz */
+    25,     /* Hz */
+    50,     /* Hz */
+    100,    /* Hz */
+    200,    /* Hz */
+    400,    /* Hz */
+    1620,   /* Hz */
+    5376,   /* Hz */
+};
+
 static void _cb(void *lock)
 {
     mutex_unlock(lock);
@@ -234,13 +255,67 @@ void lis2dh12_cfg_event(const lis2dh12_t *dev, const lis2dh12_int_params_t *even
     _release(dev);
 }
 
-static inline uint8_t _read_int_src(const lis2dh12_t *dev, uint8_t line)
+void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
+                                  uint32_t mg, uint32_t us,
+                                  uint8_t axis, uint8_t event, uint8_t line)
 {
+    assert(line == LIS2DH12_INT1 || line == LIS2DH12_INT2);
+    assert(event == LIS2DH12_EVENT_1 || event == LIS2DH12_EVENT_2);
+
+    _acquire(dev);
+
+    uint8_t odr   = _read(dev, REG_CTRL_REG1) >> 4;
+    uint8_t scale = _read(dev, REG_CTRL_REG4) >> 4;
+
+    /* configure interrupt */
+    switch (event) {
+    case LIS2DH12_EVENT_1:
+        _write(dev, REG_INT1_CFG, axis);
+        _write(dev, REG_INT1_THS, mg / mg_per_bit[scale]);
+        _write(dev, REG_INT1_DURATION, (us * hz_per_dr[odr]) / US_PER_SEC);
+        break;
+    case LIS2DH12_EVENT_2:
+        _write(dev, REG_INT2_CFG, axis);
+        _write(dev, REG_INT2_THS, mg / mg_per_bit[scale]);
+        _write(dev, REG_INT2_DURATION, (us * hz_per_dr[odr]) / US_PER_SEC);
+        break;
+    }
+
+    uint8_t reg = 0;
+    /* read current interrupt configuration */
     if (line == LIS2DH12_INT1) {
+        reg = _read(dev, REG_CTRL_REG3);
+    }
+    if (line == LIS2DH12_INT2) {
+        reg = _read(dev, REG_CTRL_REG6);
+    }
+
+    /* add new event */
+    if (event == LIS2DH12_EVENT_1) {
+        reg |= LIS2DH12_INT_TYPE_IA1;
+    }
+    if (event == LIS2DH12_EVENT_2) {
+        reg |= LIS2DH12_INT_TYPE_IA2;
+    }
+
+    /* write back configuration */
+    if (line == LIS2DH12_INT1) {
+        _write(dev, REG_CTRL_REG3, reg);
+    }
+    if (line == LIS2DH12_INT2) {
+        _write(dev, REG_CTRL_REG6, reg);
+    }
+
+    _release(dev);
+}
+
+static inline uint8_t _read_int_src(const lis2dh12_t *dev, uint8_t event)
+{
+    if (event == LIS2DH12_EVENT_1) {
         return _read(dev, REG_INT1_SRC);
     }
 
-    if (line == LIS2DH12_INT2) {
+    if (event == LIS2DH12_EVENT_2) {
         return _read(dev, REG_INT2_SRC);
     }
 
@@ -249,17 +324,31 @@ static inline uint8_t _read_int_src(const lis2dh12_t *dev, uint8_t line)
 
 int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
 {
-    uint8_t int_src;
+    uint32_t int_src = 0;
+    uint8_t events = 0;
     mutex_t lock = MUTEX_INIT_LOCKED;
     gpio_t pin = line == LIS2DH12_INT2
                        ? dev->p->int2_pin
                        : dev->p->int1_pin;
 
-    assert(line == LIS2DH12_INT1 || line == LIS2DH12_INT2);
+    _acquire(dev);
+
+    /* find out which events are configured */
+    if (line == LIS2DH12_INT1) {
+        events = _read(dev, REG_CTRL_REG3);
+    }
+    if (line == LIS2DH12_INT2) {
+        events = _read(dev, REG_CTRL_REG6);
+    }
 
     /* clear stale interrupt flag */
-    _acquire(dev);
-    _read_int_src(dev, line);
+    if (events & LIS2DH12_INT_TYPE_IA1) {
+        _read_int_src(dev, LIS2DH12_EVENT_1);
+    }
+    if (events & LIS2DH12_INT_TYPE_IA2) {
+        _read_int_src(dev, LIS2DH12_EVENT_2);
+    }
+
     _release(dev);
 
     /* enable interrupt pin */
@@ -272,8 +361,15 @@ int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
     mutex_lock(&lock);
     gpio_irq_disable(pin);
 
+    /* read interrupt source */
     _acquire(dev);
-    int_src = _read_int_src(dev, line);
+    if (events & LIS2DH12_INT_TYPE_IA1) {
+        int_src |= _read_int_src(dev, LIS2DH12_EVENT_1);
+    }
+
+    if (events & LIS2DH12_INT_TYPE_IA2) {
+        int_src |= _read_int_src(dev, LIS2DH12_EVENT_2) << 8;
+    }
     _release(dev);
 
     return int_src;
