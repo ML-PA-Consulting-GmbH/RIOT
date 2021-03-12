@@ -17,6 +17,7 @@
 #include <string.h>
 
 #include "errno.h"
+#include "irq.h"
 #include "net/netif.h"
 #include "utlist.h"
 
@@ -24,11 +25,14 @@ static list_node_t netif_list;
 
 int netif_register(netif_t *netif)
 {
-    if(netif == NULL) {
+    if (netif == NULL) {
         return -EINVAL;
     }
 
+    unsigned state = irq_disable();
     list_add(&netif_list, &netif->node);
+    irq_restore(state);
+
     return 0;
 }
 

@@ -5,3 +5,4 @@ RIOT-2021.04-mlpa-0 - Merge Notes
 
  - merged benpicco/cpu/sam0_common/flashpage_irq_disable
  - merged jan-mo/feat/20210120_lis2dh12_extension
+ - merged benpicco/gnrc_netif-register
