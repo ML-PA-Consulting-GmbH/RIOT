@@ -360,11 +360,11 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     const char * usage = "USAGE: lis <subcommand> [arg], with subcommand "
                          "in (enable, disable, read, read_fifo, clear_data, "
                          "set-click, set-thold-shock, set-thold-inter, "
-                         "set-highpass, change_rate, change_power, change_scale).";
+                         "set-highpass, set-rate, change_power, change_scale).";
 #else
     const char * usage = "USAGE: lis <subcommand> [arg], with subcommand "
                          "in (enable, disable, read, read_fifo, clear_data, "
-                         "change_rate, change_power, change_scale).";
+                         "set-rate, change_power, change_scale).";
 #endif /* MODULE_LIS2DH12_INT */
 
     /* MISSING command */
@@ -374,13 +374,13 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* enable disable device */
-    else if (strncmp(argv[1], "enable", sizeof("enable")) == 0) {
+    else if (strcmp(argv[1], "enable") == 0) {
         if (lis2dh12_poweron(&dev) != LIS2DH12_OK) {
             puts("unable to poweron device.");
         }
         return 1;
     }
-    else if (strncmp(argv[1], "disable", sizeof("disable")) == 0) {
+    else if (strcmp(argv[1], "disable") == 0) {
         if (lis2dh12_poweroff(&dev) != LIS2DH12_OK) {
             puts("unable to poweroff device.");
             return -1;
@@ -389,7 +389,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* read acceleration data */
-    else if (strncmp(argv[1], "read", sizeof("read")) == 0) {
+    else if (strcmp(argv[1], "read") == 0) {
         uint8_t amount = (argc < 3) ? 1 : atoi(argv[2]);
         uint8_t amt = 0;
 
@@ -412,7 +412,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         }
         return 1;
     }
-    else if (strncmp(argv[1], "read_fifo", sizeof("read_fifo")) == 0) {
+    else if (strcmp(argv[1], "read_fifo") == 0) {
         uint8_t number = 0;
         if ((argc < 3) || (number = atoi(argv[2])) > 32) {
             puts("Error: Missing parameter.");
@@ -444,14 +444,14 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* clear memory */
-    else if (strncmp(argv[1], "clear_data", sizeof("clear_data")) == 0) {
+    else if (strcmp(argv[1], "clear_data") == 0) {
         lis2dh12_clear_data(&dev);
         return 1;
     }
 
 #ifdef MODULE_LIS2DH12_INT
     /* set commands */
-    else if (strncmp(argv[1], "set-click", sizeof("set-click")) == 0) {
+    else if (strcmp(argv[1], "set-click") == 0) {
         uint8_t thold = 0;
         if ((argc < 3) || (thold = atoi(argv[2])) > 127) {
             puts("Error: Missing parameter.");
@@ -471,7 +471,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
 
         return 1;
     }
-    else if (strncmp(argv[1], "set-thold-shock", sizeof("set-thold-shock")) == 0) {
+    else if (strcmp(argv[1], "set-thold-shock") == 0) {
         uint16_t thold = 0;
         if ((argc < 3) || !(thold = atoi(argv[2]))) {
             puts("Error: Missing parameter.");
@@ -483,7 +483,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         shock_thold = thold;
         return 1;
     }
-    else if (strncmp(argv[1], "set-thold-inter", sizeof("set-thold-inter")) == 0) {
+    else if (strcmp(argv[1], "set-thold-inter") == 0) {
         uint8_t line = 0;
         if ((argc < 4) || (line = atoi(argv[3])) > 2) {
             puts("Error: Missing parameter.");
@@ -532,7 +532,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         return 1;
     }
 
-    else if (strncmp(argv[1], "set-highpass", sizeof("set-highpass")) == 0) {
+    else if (strcmp(argv[1], "set-highpass") == 0) {
         uint8_t out = 0;
         uint8_t reference = atoi(argv[2]);
         if ((argc < 4) || (out = atoi(argv[3])) > 3) {
@@ -573,14 +573,20 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
 #endif /* MODULE_LIS2DH12_INT */
 
     /* change sampling rate */
-    else if (strncmp(argv[1], "change_rate", sizeof("change_rate")) == 0) {
+    else if (strcmp(argv[1], "set-rate") == 0) {
         uint8_t rate = 0;
         if ((argc < 3) || (rate = atoi(argv[2])) > 9) {
             puts("Error: Missing parameter.");
-            puts("The command should contain a number for sampling rate. "
-                 "Possible outputs are 1Hz (1), 10Hz (2), 25Hz (3), "
-                 "50Hz (4), 100Hz (5), 200Hz (6) or 400Hz (7).");
-            puts("USAGE: lis change_rate [samplingrate]");
+            puts("The command should contain a number for sampling rate.");
+            puts("\t1: 1 Hz");
+            puts("\t2: 10 Hz");
+            puts("\t3: 25 Hz");
+            puts("\t4: 50 Hz");
+            puts("\t5: 100 Hz");
+            puts("\t6: 200 Hz");
+            puts("\t7: 400 Hz");
+            puts("\t8: 1620 Hz");
+            puts("\t9: 5376 Hz");
             return -1;
         }
 
@@ -589,7 +595,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* change power mode */
-    else if (strncmp(argv[1], "change_power", sizeof("change_power")) == 0) {
+    else if (strcmp(argv[1], "change_power") == 0) {
         uint8_t power = 0;
         if ((argc < 3) || (power = atoi(argv[2])) > 9) {
             puts("Error: Missing parameter.");
@@ -605,7 +611,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* change scale value */
-    else if (strncmp(argv[1], "change_scale", sizeof("change_scale")) == 0) {
+    else if (strcmp(argv[1], "change_scale") == 0) {
         uint8_t scale = 0;
         if ((argc < 3) || (scale = atoi(argv[2])) > 3) {
             puts("Error: Missing parameter.");
