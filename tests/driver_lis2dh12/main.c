@@ -79,11 +79,6 @@ static lis2dh12_int_params_t params_int2 = {0};
 
 /* FIFO data memory */
 /* FIFO configuration */
-static lis2dh12_fifo_t fifo_cfg = {
-    .FIFO_set_INT2 = false,
-    .FIFO_watermark = 10,
-    .FIFO_mode = LIS2DH12_FIFO_MODE_STREAMtoFIFO,
-};
 
 /* highpass configuration */
 static lis2dh12_highpass_t highpass_cfg = {
@@ -122,12 +117,11 @@ void lis2dh12_test_init(void) {
     /* change LIS settings */
     lis2dh12_set_powermode(&dev, LIS2DH12_POWER_LOW);
     lis2dh12_set_datarate(&dev, LIS2DH12_RATE_100HZ);
-    lis2dh12_set_scale(&dev, LIS2DH12_SCALE_4G);
+    lis2dh12_set_scale(&dev, LIS2DH12_SCALE_16G);
 
 #ifdef MODULE_LIS2DH12_INT
     /* set interrupt pins */
     gpio_t pin1 = dev.p->int1_pin;
-    gpio_t pin2 = dev.p->int2_pin;
 
     /* set Interrupt params */
     if (gpio_is_valid(pin1)) {
@@ -137,14 +131,15 @@ void lis2dh12_test_init(void) {
                                | LIS2DH12_INT_CFG_ZHIE;
         params_int1.int_duration = 1;
     }
-    if (gpio_is_valid(pin2)) {
-        /* enables interrupt on Y-axis below the threshold value */
-        params_int2.int_config = LIS2DH12_INT_CFG_YLIE;
-        params_int2.int_duration = 1;
-    }
 #endif /* MODULE_LIS2DH12_INT */
 
-    /* enable FIFO */
+    /* configure FIFO */
+    lis2dh12_fifo_t fifo_cfg = {
+        .FIFO_set_INT2 = false,
+        .FIFO_watermark = 10,
+        .FIFO_mode = LIS2DH12_FIFO_MODE_STREAMtoFIFO,
+    };
+
     lis2dh12_set_fifo(&dev, &fifo_cfg);
 
     /* enable click detection */
@@ -172,6 +167,15 @@ void* lis2dh12_test_process(void* arg) {
             printf("error: %d\n", int1_src);
             continue;
         }
+
+        if (LIS2DH12_INT_SRC_1(int1_src) & LIS2DH12_INT_SRC_IA) {
+            puts("event 1");
+        }
+        if (LIS2DH12_INT_SRC_2(int1_src) & LIS2DH12_INT_SRC_IA) {
+            puts("event 2");
+        }
+
+        continue;
 
         /* read FIFO_src before getting data */
         LIS2DH12_FIFO_SRC_REG_t fifo_src;
@@ -346,7 +350,8 @@ void* lis2dh12_test_process(void* arg) {
 }
 #endif /* MODULE_LIS2DH12_INT */
 
-int shell_lis2dh12_cmd(int argc, char **argv) {
+static int shell_lis2dh12_cmd(int argc, char **argv)
+{
 
     /* Memory to print current data */
     char str_out[3][8];
@@ -633,8 +638,40 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 }
 
+static int shell_is2dh12_treshold(int argc, char **argv)
+{
+    uint8_t slot;
+    uint32_t mg;
+    uint32_t us = 0;
+    uint8_t axis = LIS2DH12_INT_CFG_XHIE
+                 | LIS2DH12_INT_CFG_YHIE
+                 | LIS2DH12_INT_CFG_ZHIE;
+
+    if (argc < 3) {
+        printf("usage: %s <slot> <mg> [µs]\n", argv[0]);
+        return -1;
+    }
+
+    slot = atoi(argv[1]);
+    mg   = atoi(argv[2]);
+
+    if (argc > 3) {
+        us = atoi(argv[3]);
+    }
+
+    if (slot < 1 || slot > 2) {
+        puts("event slot must be either 1 or 2");
+        return -1;
+    }
+
+    lis2dh12_cfg_threshold_event(&dev, mg, us, axis, slot, LIS2DH12_INT1);
+
+    return 0;
+}
+
 static const shell_command_t shell_commands[] = {
     { "lis", "Command with multiple subcommands.", shell_lis2dh12_cmd },
+    { "treshold", "Configure threshold event", shell_is2dh12_treshold },
     { NULL, NULL, NULL },
 };
 
