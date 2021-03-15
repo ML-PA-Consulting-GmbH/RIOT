@@ -322,9 +322,24 @@ static inline uint8_t _read_int_src(const lis2dh12_t *dev, uint8_t event)
     return 0;
 }
 
-int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
+static uint32_t _merge_int_flags(const lis2dh12_t *dev, uint8_t events)
 {
     uint32_t int_src = 0;
+
+    /* merge interrupt flags (7 bit per event) into one word */
+    if (events & LIS2DH12_INT_TYPE_IA1) {
+        int_src |= _read_int_src(dev, LIS2DH12_EVENT_1);
+    }
+    if (events & LIS2DH12_INT_TYPE_IA2) {
+        int_src |= _read_int_src(dev, LIS2DH12_EVENT_2) << 8;
+    }
+
+    return int_src;
+}
+
+int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
+{
+    uint32_t int_src;
     uint8_t events = 0;
     mutex_t lock = MUTEX_INIT_LOCKED;
     gpio_t pin = line == LIS2DH12_INT2
@@ -341,15 +356,20 @@ int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
         events = _read(dev, REG_CTRL_REG6);
     }
 
-    /* clear stale interrupt flag */
-    if (events & LIS2DH12_INT_TYPE_IA1) {
-        _read_int_src(dev, LIS2DH12_EVENT_1);
-    }
-    if (events & LIS2DH12_INT_TYPE_IA2) {
-        _read_int_src(dev, LIS2DH12_EVENT_2);
+    /* check for stale interrupt */
+    int_src = _merge_int_flags(dev, events);
+
+    /* wait for int flags to actually clear */
+    if (int_src) {
+        while (_merge_int_flags(dev, events) == int_src) {}
     }
 
     _release(dev);
+
+    /* return early if stale interrupt is present */
+    if (int_src) {
+        return int_src;
+    }
 
     /* enable interrupt pin */
     assert(gpio_is_valid(pin));
@@ -363,13 +383,7 @@ int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
 
     /* read interrupt source */
     _acquire(dev);
-    if (events & LIS2DH12_INT_TYPE_IA1) {
-        int_src |= _read_int_src(dev, LIS2DH12_EVENT_1);
-    }
-
-    if (events & LIS2DH12_INT_TYPE_IA2) {
-        int_src |= _read_int_src(dev, LIS2DH12_EVENT_2) << 8;
-    }
+    int_src = _merge_int_flags(dev, events);
     _release(dev);
 
     return int_src;
