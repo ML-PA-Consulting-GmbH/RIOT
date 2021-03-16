@@ -25,6 +25,7 @@
 #include "fmt.h"
 #include "thread.h"
 #include "shell.h"
+#include "mutex.h"
 
 #include "lis2dh12.h"
 #include "lis2dh12_params.h"
@@ -36,7 +37,6 @@
 #define REFERENCE_DEFAULT 10 /* LSB according to SCALE */
 
 #define THOLD_SHOCK_MILLIG_DEFAULT 1500
-#define NUM_DATA_SHOCK_DETECT 7  /* detect shock in NUM last FIFO samples */
 
 /* device specific */
 #define NUM_AXES 3
@@ -48,18 +48,11 @@
 #define Z_CLICK 3
 #define DCLICK_DEFAULT 40   /* default threshold for double click */
 
+#define ABS(x) ((x) >= 0 ? (x) : -(x))
+
 #ifdef MODULE_LIS2DH12_INT
 static kernel_pid_t lis2dh12_process;
 #endif /* MODULE_LIS2DH12_INT */
-
-int __attribute__((weak)) shell_lis2dh12_cmd(int argc, char** argv);
-
-static const shell_command_t shell_commands[] = {
-                { "lis", "Command with multiple subcommands.", shell_lis2dh12_cmd },
-                { NULL, NULL, NULL },
-};
-
-char lis2dh12_process_stack[THREAD_STACKSIZE_MAIN];
 
 /* setting the double click order */
 static LIS2DH12_CLICK_SRC_t click_src_reg;
@@ -79,35 +72,16 @@ static lis2dh12_click_t click_cfg = {
 static lis2dh12_t dev;
 
 #ifdef MODULE_LIS2DH12_INT
-/* Interrupt lines */
-static uint8_t line1 = 1;
-static uint8_t line2 = 2;
-
 /* Interrupt params */
 static lis2dh12_int_params_t params_int1 = {0};
 static lis2dh12_int_params_t params_int2 = {0};
-
-/* Interrupt source register */
-static uint8_t int1_src;
 #endif /* MODULE_LIS2DH12_INT */
 
 /* FIFO data memory */
-static lis2dh12_fifo_data_t data_fifo[NUM_FIFO_VALUES];
 /* FIFO configuration */
-static lis2dh12_fifo_t fifo_cfg = {
-    .FIFO_set_INT2 = false,
-    .FIFO_watermark = 10,
-    .FIFO_mode = LIS2DH12_FIFO_MODE_STREAMtoFIFO,
-};
-
-/* Memory to print current data */
-static char str_out[3][8];
-
-/* current lis acceleration data */
-static int16_t data_lis[3];
 
 /* highpass configuration */
-lis2dh12_highpass_t highpass_cfg = {
+static lis2dh12_highpass_t highpass_cfg = {
     .Highpass_mode = LIS2DH12_HP_MODE_REFERENCE,
     .Highpass_freq = LIS2DH12_HP_FREQ_DIV100,
     .CLICK_enable = false,
@@ -116,44 +90,12 @@ lis2dh12_highpass_t highpass_cfg = {
     .DATA_OUT_enable = false,
 };
 
-/* reference data */
-static uint8_t reference_value;
-
 /* shock threshold */
 static int16_t shock_thold;
 
 #ifdef MODULE_LIS2DH12_INT
 /* previous values */
 static int16_t old_data_lis[3];
-static uint8_t int1_src_old;
-
-/* lis2dh12 interrupt callback function. */
-static void lis2dh12_int_cb(void* l) {
-
-    /* disable IRQ until lis_process is done */
-    gpio_irq_disable(dev.p->int1_pin);
-    gpio_irq_disable(dev.p->int2_pin);
-
-    /* reset click source */
-    lis2dh12_read_click_src(&dev, &click_src_reg);
-    DEBUG("[INT]: CLICK_SRC 0x%x\n", click_src_reg.reg);
-
-    uint8_t line = *(uint8_t*)l;
-    printf("Info: INT_line: %d\n", line);
-
-    lis2dh12_read_reference(&dev, &reference_value);
-    DEBUG("[INT]: REF: 0x%x\n", reference_value);
-
-    lis2dh12_read_int_src(&dev, &int1_src, 1);
-    DEBUG("[INT]: INT_SRC 0x%x\n", int1_src);
-    DEBUG("[INT]: INT_SRC - IA %d; ZH %d; ZL %d; YH %d; YL %d; XH %d; XL %d.\n",
-            int1_src & LIS2DH12_INT_SRC_IA,
-            int1_src & LIS2DH12_INT_SRC_ZH, int1_src & LIS2DH12_INT_SRC_ZL,
-            int1_src & LIS2DH12_INT_SRC_YH, int1_src & LIS2DH12_INT_SRC_YL,
-            int1_src & LIS2DH12_INT_SRC_XH, int1_src & LIS2DH12_INT_SRC_XL);
-
-    thread_wakeup(lis2dh12_process);
-}
 #endif /* MODULE_LIS2DH12_INT */
 
 void lis2dh12_test_init(void) {
@@ -175,12 +117,11 @@ void lis2dh12_test_init(void) {
     /* change LIS settings */
     lis2dh12_set_powermode(&dev, LIS2DH12_POWER_LOW);
     lis2dh12_set_datarate(&dev, LIS2DH12_RATE_100HZ);
-    lis2dh12_set_scale(&dev, LIS2DH12_SCALE_4G);
+    lis2dh12_set_scale(&dev, LIS2DH12_SCALE_16G);
 
 #ifdef MODULE_LIS2DH12_INT
     /* set interrupt pins */
     gpio_t pin1 = dev.p->int1_pin;
-    gpio_t pin2 = dev.p->int2_pin;
 
     /* set Interrupt params */
     if (gpio_is_valid(pin1)) {
@@ -189,33 +130,16 @@ void lis2dh12_test_init(void) {
                                | LIS2DH12_INT_CFG_YHIE
                                | LIS2DH12_INT_CFG_ZHIE;
         params_int1.int_duration = 1;
-        params_int1.cb = lis2dh12_int_cb;
-        params_int1.arg = &line1;
-    }
-    if (gpio_is_valid(pin2)) {
-        /* enables interrupt on Y-axis below the threshold value */
-        params_int2.int_config = LIS2DH12_INT_CFG_YLIE;
-        params_int2.int_duration = 1;
-        params_int2.cb = lis2dh12_int_cb;
-        params_int2.arg = &line2;
-    }
-
-    if (gpio_init_int(pin1, GPIO_IN, GPIO_RISING, lis2dh12_int_cb, &line1)) {
-        DEBUG("[lis_init]: INT1 failed\n");
-    }
-    else {
-        DEBUG("[lis_init]: INT1 done\n");
-    }
-
-    if (gpio_init_int(pin2, GPIO_IN, GPIO_RISING, lis2dh12_int_cb, &line2)) {
-        DEBUG("[lis_init]: INT2 failed\n");
-    }
-    else {
-        DEBUG("[lis_init]: INT2 done\n");
     }
 #endif /* MODULE_LIS2DH12_INT */
 
-    /* enable FIFO */
+    /* configure FIFO */
+    lis2dh12_fifo_t fifo_cfg = {
+        .FIFO_set_INT2 = false,
+        .FIFO_watermark = 10,
+        .FIFO_mode = LIS2DH12_FIFO_MODE_STREAMtoFIFO,
+    };
+
     lis2dh12_set_fifo(&dev, &fifo_cfg);
 
     /* enable click detection */
@@ -223,37 +147,52 @@ void lis2dh12_test_init(void) {
 
     /* set default shock value */
     shock_thold = THOLD_SHOCK_MILLIG_DEFAULT;
-
-    /* read registers to reset device */
-    lis2dh12_read_click_src(&dev, &click_src_reg);
-    lis2dh12_read_reference(&dev, &reference_value);
-#ifdef MODULE_LIS2DH12_INT
-    lis2dh12_read_int_src(&dev, &int1_src, 1);
-#endif /* MODULE_LIS2DH12_INT */
 }
 
 #ifdef MODULE_LIS2DH12_INT
 void* lis2dh12_test_process(void* arg) {
     (void) arg;
+
+    /* start processing */
+    DEBUG("[Process]: start process\n");
+
+    uint8_t int1_src_old = 0;
+
     while (1) {
-        /* start processing */
-        DEBUG("[Process]: start process\n");
+
+        /* wait for interrupt */
+        int int1_src = lis2dh12_wait_event(&dev, LIS2DH12_INT1);
+
+        if (int1_src <= 0) {
+            printf("error: %d\n", int1_src);
+            continue;
+        }
+
+        if (LIS2DH12_INT_SRC_1(int1_src) & LIS2DH12_INT_SRC_IA) {
+            puts("event 1");
+        }
+        if (LIS2DH12_INT_SRC_2(int1_src) & LIS2DH12_INT_SRC_IA) {
+            puts("event 2");
+        }
+
+        continue;
 
         /* read FIFO_src before getting data */
         LIS2DH12_FIFO_SRC_REG_t fifo_src;
         lis2dh12_read_fifo_src(&dev, &fifo_src);
         DEBUG("[Process]: FIFO SRC 0x%x\n", fifo_src.reg);
-        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n", fifo_src.bit.WTM,
-                                fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
+        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n",
+              fifo_src.bit.WTM, fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
 
         /* get fifo data */
+        lis2dh12_fifo_data_t data_fifo[NUM_FIFO_VALUES];
         uint8_t number_read = lis2dh12_read_fifo_data(&dev, data_fifo, NUM_FIFO_VALUES);
 
         /* read FIFO_src after getting data */
         lis2dh12_read_fifo_src(&dev, &fifo_src);
         DEBUG("[Process]: FIFO SRC 0x%x\n", fifo_src.reg);
-        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n", fifo_src.bit.WTM,
-                                fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
+        DEBUG("[Process]: WTM %x, OVRN %d, EMPTY %d, FSS %d\n",
+              fifo_src.bit.WTM, fifo_src.bit.OVRN_FIFO, fifo_src.bit.EMPTY, fifo_src.bit.FSS);
 
         /* display FIFO data */
         if (ENABLE_DEBUG) {
@@ -276,14 +215,12 @@ void* lis2dh12_test_process(void* arg) {
         bool Y_shock_pos = false;
         bool Z_shock_pos = false;
 
-        for (uint8_t entry = NUM_FIFO_VALUES - NUM_DATA_SHOCK_DETECT; entry < NUM_FIFO_VALUES;
-                entry++) {
-            uint16_t abs_X = data_fifo[entry].X_AXIS >= 0 ? data_fifo[entry].X_AXIS :
-                                                            -1*data_fifo[entry].X_AXIS;
-            uint16_t abs_Y = data_fifo[entry].Y_AXIS >= 0 ? data_fifo[entry].Y_AXIS :
-                                                            -1*data_fifo[entry].Y_AXIS;
-            uint16_t abs_Z = data_fifo[entry].Z_AXIS >= 0 ? data_fifo[entry].Z_AXIS :
-                                                            -1*data_fifo[entry].Z_AXIS;
+        for (uint8_t entry = 0; entry < NUM_FIFO_VALUES;
+             entry++) {
+
+            uint16_t abs_X = ABS(data_fifo[entry].X_AXIS);
+            uint16_t abs_Y = ABS(data_fifo[entry].Y_AXIS);
+            uint16_t abs_Z = ABS(data_fifo[entry].Z_AXIS);
 
             /* check X shock direction */
             if (max_data_X <= abs_X) {
@@ -302,9 +239,10 @@ void* lis2dh12_test_process(void* arg) {
             }
         }
 
-        DEBUG("[Process]: oldX %d, oldY %d, oldZ %d\n", old_data_lis[0], old_data_lis[1],
-                    old_data_lis[2]);
-        DEBUG("[Process]: maxX %d, maxY %d, maxZ %d\n", max_data_X, max_data_Y, max_data_Z);
+        DEBUG("[Process]: oldX %d, oldY %d, oldZ %d\n",
+              old_data_lis[0], old_data_lis[1], old_data_lis[2]);
+        DEBUG("[Process]: maxX %d, maxY %d, maxZ %d\n",
+              max_data_X, max_data_Y, max_data_Z);
 
         /* X shock */
         int16_t diff_value = max_data_X - old_data_lis[0];
@@ -337,8 +275,7 @@ void* lis2dh12_test_process(void* arg) {
             }
         }
 
-        /* check for roll */
-        /* roll conditions
+        /* check for roll conditions
          *
          * only 180°, changes can be detected with 6D reg in INT1_SRC
          * change in ZH and ZL -> X-roll (device flipped from top to bottom)
@@ -346,74 +283,81 @@ void* lis2dh12_test_process(void* arg) {
          * change in XH and XL -> Y-roll
          */
         DEBUG("[Process]: OLD - IA %d; ZH %d; ZL %d; YH %d; YL %d; XH %d; XL %d.\n",
-                    int1_src_old & LIS2DH12_INT_SRC_IA,
-                    int1_src_old & LIS2DH12_INT_SRC_ZH, int1_src_old & LIS2DH12_INT_SRC_ZL,
-                    int1_src_old & LIS2DH12_INT_SRC_YH, int1_src_old & LIS2DH12_INT_SRC_YL,
-                    int1_src_old & LIS2DH12_INT_SRC_XH, int1_src_old & LIS2DH12_INT_SRC_XL);
+              int1_src_old & LIS2DH12_INT_SRC_IA,
+              int1_src_old & LIS2DH12_INT_SRC_ZH, int1_src_old & LIS2DH12_INT_SRC_ZL,
+              int1_src_old & LIS2DH12_INT_SRC_YH, int1_src_old & LIS2DH12_INT_SRC_YL,
+              int1_src_old & LIS2DH12_INT_SRC_XH, int1_src_old & LIS2DH12_INT_SRC_XL);
 
         DEBUG("[Process]: NEW - IA %d; ZH %d; ZL %d; YH %d; YL %d; XH %d; XL %d.\n",
-                    int1_src & LIS2DH12_INT_SRC_IA,
-                    int1_src & LIS2DH12_INT_SRC_ZH, int1_src & LIS2DH12_INT_SRC_ZL,
-                    int1_src & LIS2DH12_INT_SRC_YH, int1_src & LIS2DH12_INT_SRC_YL,
-                    int1_src & LIS2DH12_INT_SRC_XH, int1_src & LIS2DH12_INT_SRC_XL);
+              int1_src & LIS2DH12_INT_SRC_IA,
+              int1_src & LIS2DH12_INT_SRC_ZH, int1_src & LIS2DH12_INT_SRC_ZL,
+              int1_src & LIS2DH12_INT_SRC_YH, int1_src & LIS2DH12_INT_SRC_YL,
+              int1_src & LIS2DH12_INT_SRC_XH, int1_src & LIS2DH12_INT_SRC_XL);
 
-        if (((int1_src_old & LIS2DH12_INT_SRC_ZH) != (int1_src & LIS2DH12_INT_SRC_ZH))
-                && ((int1_src_old & LIS2DH12_INT_SRC_ZL) != (int1_src & LIS2DH12_INT_SRC_ZL))) {
+        if (((int1_src_old & LIS2DH12_INT_SRC_ZH) != (int1_src & LIS2DH12_INT_SRC_ZH)) &&
+            ((int1_src_old & LIS2DH12_INT_SRC_ZL) != (int1_src & LIS2DH12_INT_SRC_ZL))) {
             printf("X roll detected.\n");
         }
-        if (((int1_src_old & LIS2DH12_INT_SRC_XH) != (int1_src & LIS2DH12_INT_SRC_XH))
-                && ((int1_src_old & LIS2DH12_INT_SRC_YL) != (int1_src & LIS2DH12_INT_SRC_YL))) {
+        if (((int1_src_old & LIS2DH12_INT_SRC_XH) != (int1_src & LIS2DH12_INT_SRC_XH)) &&
+            ((int1_src_old & LIS2DH12_INT_SRC_YL) != (int1_src & LIS2DH12_INT_SRC_YL))) {
             printf("Z roll detected.\n");
         }
-        if (((int1_src_old & LIS2DH12_INT_SRC_YH) != (int1_src & LIS2DH12_INT_SRC_YH))
-                && ((int1_src_old & LIS2DH12_INT_SRC_XL) != (int1_src & LIS2DH12_INT_SRC_XL))) {
+        if (((int1_src_old & LIS2DH12_INT_SRC_YH) != (int1_src & LIS2DH12_INT_SRC_YH)) &&
+            ((int1_src_old & LIS2DH12_INT_SRC_XL) != (int1_src & LIS2DH12_INT_SRC_XL))) {
             printf("Y roll detected.\n");
         }
 
         int1_src_old = int1_src;
 
-        /* check click order */
-        /*
+        /* check click order
+         *
          * idea is to do a sequence of double clicks, to enable the device
          *
          */
+
         /* click_src read during interrupt callback */
         DEBUG("[Process]: clickSRC 0x%x\n", click_src_reg.reg);
 
         if (click_src_reg.bit.IA && click_src_reg.bit.DClick) {
+
             /* X-Double */
-            if (click_src_reg.bit.X_AXIS && !click_src_reg.bit.Y_AXIS
-                && !click_src_reg.bit.Z_AXIS) {
+            if ( click_src_reg.bit.X_AXIS &&
+                !click_src_reg.bit.Y_AXIS &&
+                !click_src_reg.bit.Z_AXIS) {
                 int8_t sign = click_src_reg.bit.Sign ? -1 : 1;
                 printf("got X-DCLICK, sign %d\n", sign);
             }
+
             /* Y-Double */
-            if (!click_src_reg.bit.X_AXIS && click_src_reg.bit.Y_AXIS
-                && !click_src_reg.bit.Z_AXIS) {
+            if (!click_src_reg.bit.X_AXIS &&
+                 click_src_reg.bit.Y_AXIS &&
+                !click_src_reg.bit.Z_AXIS) {
                 int8_t sign = click_src_reg.bit.Sign ? -1 : 1;
                 printf("got Y-DCLICK, sign %d\n", sign);
             }
+
             /* Z-Double */
-            if (!click_src_reg.bit.X_AXIS && !click_src_reg.bit.Y_AXIS
-                && click_src_reg.bit.Z_AXIS) {
+            if (!click_src_reg.bit.X_AXIS &&
+                !click_src_reg.bit.Y_AXIS &&
+                 click_src_reg.bit.Z_AXIS) {
                 int8_t sign = click_src_reg.bit.Sign ? -1 : 1;
                 printf("got Z-DCLICK, sign %d\n", sign);
             }
         }
-
-        /* enable IRQ again */
-        gpio_irq_enable(dev.p->int1_pin);
-        gpio_irq_enable(dev.p->int2_pin);
-
-        /* thread will sleep until next wokeup_lis */
-        thread_sleep();
     }
 
     return NULL;
 }
 #endif /* MODULE_LIS2DH12_INT */
 
-int shell_lis2dh12_cmd(int argc, char **argv) {
+static int shell_lis2dh12_cmd(int argc, char **argv)
+{
+
+    /* Memory to print current data */
+    char str_out[3][8];
+
+    /* current lis acceleration data */
+    int16_t data_lis[3];
 
     printf("Command: lis %s %s\n", (argc > 1) ? argv[1] : "",
            (argc > 2) ? argv[2] : "");
@@ -421,11 +365,11 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     const char * usage = "USAGE: lis <subcommand> [arg], with subcommand "
                          "in (enable, disable, read, read_fifo, clear_data, "
                          "set-click, set-thold-shock, set-thold-inter, "
-                         "set-highpass, change_rate, change_power, change_scale).";
+                         "set-highpass, set-rate, change_power, change_scale).";
 #else
     const char * usage = "USAGE: lis <subcommand> [arg], with subcommand "
                          "in (enable, disable, read, read_fifo, clear_data, "
-                         "change_rate, change_power, change_scale).";
+                         "set-rate, change_power, change_scale).";
 #endif /* MODULE_LIS2DH12_INT */
 
     /* MISSING command */
@@ -435,13 +379,13 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* enable disable device */
-    else if (strncmp(argv[1], "enable", sizeof("enable")) == 0) {
+    else if (strcmp(argv[1], "enable") == 0) {
         if (lis2dh12_poweron(&dev) != LIS2DH12_OK) {
             puts("unable to poweron device.");
         }
         return 1;
     }
-    else if (strncmp(argv[1], "disable", sizeof("disable")) == 0) {
+    else if (strcmp(argv[1], "disable") == 0) {
         if (lis2dh12_poweroff(&dev) != LIS2DH12_OK) {
             puts("unable to poweroff device.");
             return -1;
@@ -450,12 +394,12 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* read acceleration data */
-    else if (strncmp(argv[1], "read", sizeof("read")) == 0) {
+    else if (strcmp(argv[1], "read") == 0) {
         uint8_t amount = (argc < 3) ? 1 : atoi(argv[2]);
         uint8_t amt = 0;
 
         /* read sensor data */
-        for (amt = 0; amt < amount; amt++){
+        for (amt = 0; amt < amount; amt++) {
             if (lis2dh12_read(&dev, data_lis) != LIS2DH12_OK) {
                 puts("error: no data from sensor");
                 return -1;
@@ -473,7 +417,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         }
         return 1;
     }
-    else if (strncmp(argv[1], "read_fifo", sizeof("read_fifo")) == 0) {
+    else if (strcmp(argv[1], "read_fifo") == 0) {
         uint8_t number = 0;
         if ((argc < 3) || (number = atoi(argv[2])) > 32) {
             puts("Error: Missing parameter.");
@@ -483,12 +427,13 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         }
 
         /* read raw data from FIFO */
+        lis2dh12_fifo_data_t data_fifo[NUM_FIFO_VALUES];
         uint8_t number_read = lis2dh12_read_fifo_data(&dev, data_fifo, number);
 
         DEBUG("[lis_command]: fifo_read %d elements.\n", number_read);
 
         /* print data */
-        for (int entry = 0; entry < number_read; entry++){
+        for (int entry = 0; entry < number_read; entry++) {
 
             /* format data */
             size_t len = fmt_s16_dfp(str_out[0], data_fifo[entry].X_AXIS, -3);
@@ -504,15 +449,14 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* clear memory */
-    else if (strncmp(argv[1], "clear_data", sizeof("clear_data")) == 0) {
-
+    else if (strcmp(argv[1], "clear_data") == 0) {
         lis2dh12_clear_data(&dev);
         return 1;
     }
 
 #ifdef MODULE_LIS2DH12_INT
     /* set commands */
-    else if (strncmp(argv[1], "set-click", sizeof("set-click")) == 0) {
+    else if (strcmp(argv[1], "set-click") == 0) {
         uint8_t thold = 0;
         if ((argc < 3) || (thold = atoi(argv[2])) > 127) {
             puts("Error: Missing parameter.");
@@ -528,11 +472,11 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
 
         /* enable click interrupt */
         params_int1.int_type = LIS2DH12_INT_TYPE_I1_CLICK;
-        lis2dh12_set_int(&dev, &params_int1, LIS2DH12_INT1);
+        lis2dh12_cfg_event(&dev, &params_int1, LIS2DH12_INT1);
 
         return 1;
     }
-    else if (strncmp(argv[1], "set-thold-shock", sizeof("set-thold-shock")) == 0) {
+    else if (strcmp(argv[1], "set-thold-shock") == 0) {
         uint16_t thold = 0;
         if ((argc < 3) || !(thold = atoi(argv[2]))) {
             puts("Error: Missing parameter.");
@@ -544,7 +488,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         shock_thold = thold;
         return 1;
     }
-    else if (strncmp(argv[1], "set-thold-inter", sizeof("set-thold-inter")) == 0) {
+    else if (strcmp(argv[1], "set-thold-inter") == 0) {
         uint8_t line = 0;
         if ((argc < 4) || (line = atoi(argv[3])) > 2) {
             puts("Error: Missing parameter.");
@@ -569,7 +513,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
             params_int1.int_type = LIS2DH12_INT_TYPE_I1_IA1;
             params_int1.int_threshold = thold;
 
-            lis2dh12_set_int(&dev, &params_int1, LIS2DH12_INT1);
+            lis2dh12_cfg_event(&dev, &params_int1, LIS2DH12_INT1);
         }
         else if (line == 2){
             if (!thold) {
@@ -581,7 +525,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
             }
             params_int2.int_type = LIS2DH12_INT_TYPE_I2_IA2;
             params_int2.int_threshold = thold;
-            lis2dh12_set_int(&dev, &params_int2, LIS2DH12_INT2);
+            lis2dh12_cfg_event(&dev, &params_int2, LIS2DH12_INT2);
         }
         if (thold) {
             printf("Info: Interrupt thold = %d on line %d.\n", thold, line);
@@ -593,7 +537,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
         return 1;
     }
 
-    else if (strncmp(argv[1], "set-highpass", sizeof("set-highpass")) == 0) {
+    else if (strcmp(argv[1], "set-highpass") == 0) {
         uint8_t out = 0;
         uint8_t reference = atoi(argv[2]);
         if ((argc < 4) || (out = atoi(argv[3])) > 3) {
@@ -634,14 +578,20 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
 #endif /* MODULE_LIS2DH12_INT */
 
     /* change sampling rate */
-    else if (strncmp(argv[1], "change_rate", sizeof("change_rate")) == 0) {
+    else if (strcmp(argv[1], "set-rate") == 0) {
         uint8_t rate = 0;
         if ((argc < 3) || (rate = atoi(argv[2])) > 9) {
             puts("Error: Missing parameter.");
-            puts("The command should contain a number for sampling rate. "
-                 "Possible outputs are 1Hz (1), 10Hz (2), 25Hz (3), "
-                 "50Hz (4), 100Hz (5), 200Hz (6) or 400Hz (7).");
-            puts("USAGE: lis change_rate [samplingrate]");
+            puts("The command should contain a number for sampling rate.");
+            puts("\t1: 1 Hz");
+            puts("\t2: 10 Hz");
+            puts("\t3: 25 Hz");
+            puts("\t4: 50 Hz");
+            puts("\t5: 100 Hz");
+            puts("\t6: 200 Hz");
+            puts("\t7: 400 Hz");
+            puts("\t8: 1620 Hz");
+            puts("\t9: 5376 Hz");
             return -1;
         }
 
@@ -650,7 +600,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* change power mode */
-    else if (strncmp(argv[1], "change_power", sizeof("change_power")) == 0) {
+    else if (strcmp(argv[1], "change_power") == 0) {
         uint8_t power = 0;
         if ((argc < 3) || (power = atoi(argv[2])) > 9) {
             puts("Error: Missing parameter.");
@@ -666,7 +616,7 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 
     /* change scale value */
-    else if (strncmp(argv[1], "change_scale", sizeof("change_scale")) == 0) {
+    else if (strcmp(argv[1], "change_scale") == 0) {
         uint8_t scale = 0;
         if ((argc < 3) || (scale = atoi(argv[2])) > 3) {
             puts("Error: Missing parameter.");
@@ -688,18 +638,56 @@ int shell_lis2dh12_cmd(int argc, char **argv) {
     }
 }
 
+static int shell_is2dh12_treshold(int argc, char **argv)
+{
+    uint8_t slot;
+    uint32_t mg;
+    uint32_t us = 0;
+    uint8_t axis = LIS2DH12_INT_CFG_XHIE
+                 | LIS2DH12_INT_CFG_YHIE
+                 | LIS2DH12_INT_CFG_ZHIE;
+
+    if (argc < 3) {
+        printf("usage: %s <slot> <mg> [µs]\n", argv[0]);
+        return -1;
+    }
+
+    slot = atoi(argv[1]);
+    mg   = atoi(argv[2]);
+
+    if (argc > 3) {
+        us = atoi(argv[3]);
+    }
+
+    if (slot < 1 || slot > 2) {
+        puts("event slot must be either 1 or 2");
+        return -1;
+    }
+
+    lis2dh12_cfg_threshold_event(&dev, mg, us, axis, slot, LIS2DH12_INT1);
+
+    return 0;
+}
+
+static const shell_command_t shell_commands[] = {
+    { "lis", "Command with multiple subcommands.", shell_lis2dh12_cmd },
+    { "treshold", "Configure threshold event", shell_is2dh12_treshold },
+    { NULL, NULL, NULL },
+};
+
 int main(void)
 {
-
-#ifdef MODULE_LIS2DH12_INT
-    /* processing lis2dh12 acceleration data */
-    lis2dh12_process = thread_create(lis2dh12_process_stack, sizeof(lis2dh12_process_stack),
-                  THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_SLEEPING,
-                  lis2dh12_test_process, NULL, "lis2dh12_process");
-#endif /* MODULE_LIS2DH12_INT */
-
     /* init lis */
     lis2dh12_test_init();
+
+#ifdef MODULE_LIS2DH12_INT
+    static char lis2dh12_process_stack[THREAD_STACKSIZE_MAIN];
+
+    /* processing lis2dh12 acceleration data */
+    lis2dh12_process = thread_create(lis2dh12_process_stack, sizeof(lis2dh12_process_stack),
+                  THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST,
+                  lis2dh12_test_process, NULL, "lis2dh12_process");
+#endif /* MODULE_LIS2DH12_INT */
 
     /* running shell */
     char line_buf[SHELL_DEFAULT_BUFSIZE];

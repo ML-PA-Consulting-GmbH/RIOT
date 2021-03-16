@@ -94,7 +94,19 @@ enum {
     LIS2DH12_INT_TYPE_I2_IA2       = 0x20, /**< IA2 on INT2 */
     LIS2DH12_INT_TYPE_I2_IA1       = 0x40, /**< IA1 on INT2 */
     LIS2DH12_INT_TYPE_I2_CLICK     = 0x80, /**< click interrupt on INT2 */
+
+    LIS2DH12_INT_TYPE_IA2          = 0x20, /**< Event 2 */
+    LIS2DH12_INT_TYPE_IA1          = 0x40, /**< Event 1 */
+    LIS2DH12_INT_TYPE_CLICK        = 0x80, /**< click interrupt */
 };
+
+enum {
+    LIS2DH12_EVENT_1               = 0x1,
+    LIS2DH12_EVENT_2               = 0x2,
+};
+
+#define LIS2DH12_INT_SRC_1(ret) (((ret) >> 0) & 0x7F)
+#define LIS2DH12_INT_SRC_2(ret) (((ret) >> 8) & 0x7F)
 
 /**
  * @brief   CLICK_SRC definitions
