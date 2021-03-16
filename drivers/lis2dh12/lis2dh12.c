@@ -143,6 +143,9 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
         return LIS2DH12_NOBUS;
     }
 
+    /* set powermode */
+    lis2dh12_set_powermode(dev, dev->p->powermode);
+
     /* acquire the bus and verify that our parameters are valid */
     if (_acquire(dev) != BUS_OK) {
         DEBUG("[lis2dh12] error: unable to acquire the bus\n");
@@ -156,6 +159,13 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
         return LIS2DH12_NODEV;
     }
 
+    /* clear events */
+    _write(dev, REG_CTRL_REG3, 0);
+    _write(dev, REG_CTRL_REG6, 0);
+
+    /* disable fifo */
+    _write(dev, REG_FIFO_CTRL_REG, 0);
+
     /* enable all axes, set sampling rate and scale */
     LIS2DH12_CTRL_REG1_t reg1 = {0};
 
@@ -168,9 +178,6 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
     _write(dev, REG_CTRL_REG1, reg1.reg);
 
     _release(dev);
-
-    /* set powermode */
-    lis2dh12_set_powermode(dev, dev->p->powermode);
 
     DEBUG("[lis2dh12] initialization successful\n");
     return LIS2DH12_OK;
@@ -309,19 +316,6 @@ void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
     _release(dev);
 }
 
-static inline uint8_t _read_int_src(const lis2dh12_t *dev, uint8_t event)
-{
-    if (event == LIS2DH12_EVENT_1) {
-        return _read(dev, REG_INT1_SRC);
-    }
-
-    if (event == LIS2DH12_EVENT_2) {
-        return _read(dev, REG_INT2_SRC);
-    }
-
-    return 0;
-}
-
 static uint32_t _merge_int_flags(const lis2dh12_t *dev, uint8_t events)
 {
     uint32_t int_src = 0;
@@ -359,15 +353,10 @@ int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
     /* check for stale interrupt */
     int_src = _merge_int_flags(dev, events);
 
-    /* wait for int flags to actually clear */
-    if (int_src) {
-        while (_merge_int_flags(dev, events) == int_src) {}
-    }
-
     _release(dev);
 
     /* return early if stale interrupt is present */
-    if (int_src) {
+    if (int_src & (LIS2DH12_INT_SRC_IA | (LIS2DH12_INT_SRC_IA << 8))) {
         return int_src;
     }
 
@@ -397,8 +386,13 @@ int lis2dh12_set_fifo(const lis2dh12_t *dev, const lis2dh12_fifo_t *config) {
     LIS2DH12_CTRL_REG5_t reg5 = {0};
     LIS2DH12_FIFO_CTRL_REG_t fifo_reg = {0};
 
+     reg5.bit.LIR_INT1 = 1;
+     reg5.bit.LIR_INT2 = 1;
+
     if (config->FIFO_mode != LIS2DH12_FIFO_MODE_BYPASS) {
         reg5.bit.FIFO_EN = 1;
+    } else {
+        reg5.bit.FIFO_EN = 0;
     }
     fifo_reg.bit.TR = config->FIFO_set_INT2;
     fifo_reg.bit.FM = config->FIFO_mode;
@@ -418,7 +412,7 @@ int lis2dh12_restart_fifo(const lis2dh12_t *dev) {
 
     _acquire(dev);
     uint8_t reg5 = _read(dev, REG_CTRL_REG5);
-    LIS2DH12_FIFO_CTRL_REG_t fifo_reg = {0};
+    LIS2DH12_FIFO_CTRL_REG_t fifo_reg;
     fifo_reg.reg = _read(dev, REG_FIFO_CTRL_REG);
 
     uint8_t fifo_mode_old = fifo_reg.bit.FM;
@@ -486,8 +480,11 @@ int lis2dh12_clear_data(const lis2dh12_t *dev) {
 
     assert(dev);
 
-    LIS2DH12_CTRL_REG5_t ctrl_reg5 = {0};
-    ctrl_reg5.bit.BOOT = 1;
+    LIS2DH12_CTRL_REG5_t ctrl_reg5 = {
+        .bit.BOOT = 1,
+        .bit.LIR_INT1 = 1,
+        .bit.LIR_INT2 = 1,
+    };
 
     _acquire(dev);
     _write(dev, REG_CTRL_REG5, ctrl_reg5.reg);
