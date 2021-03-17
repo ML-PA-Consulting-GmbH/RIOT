@@ -146,6 +146,9 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
     /* set powermode */
     lis2dh12_set_powermode(dev, dev->p->powermode);
 
+    /* clear stale data */
+    lis2dh12_clear_data(dev);
+
     /* acquire the bus and verify that our parameters are valid */
     if (_acquire(dev) != BUS_OK) {
         DEBUG("[lis2dh12] error: unable to acquire the bus\n");
@@ -274,6 +277,8 @@ void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
     uint8_t odr   = _read(dev, REG_CTRL_REG1) >> 4;
     uint8_t scale = _read(dev, REG_CTRL_REG4) >> 4;
 
+    DEBUG("[%u] treshold: %lu mg\n", event, mg);
+
     /* configure interrupt */
     switch (event) {
     case LIS2DH12_EVENT_1:
@@ -316,17 +321,58 @@ void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
     _release(dev);
 }
 
+void lis2dh12_cfg_disable_event(const lis2dh12_t *dev, uint8_t event, uint8_t line)
+{
+    uint8_t reg = 0;
+
+    _release(dev);
+
+    /* read current interrupt configuration */
+    if (line == LIS2DH12_INT1) {
+        reg = _read(dev, REG_CTRL_REG3);
+    }
+    if (line == LIS2DH12_INT2) {
+        reg = _read(dev, REG_CTRL_REG6);
+    }
+
+    /* remove event */
+    if (event == LIS2DH12_EVENT_1) {
+        reg &= ~LIS2DH12_INT_TYPE_IA1;
+
+        /* clear INT flags */
+        _read(dev, REG_INT1_SRC);
+    }
+    if (event == LIS2DH12_EVENT_2) {
+        reg &= ~LIS2DH12_INT_TYPE_IA2;
+
+        /* clear INT flags */
+        _read(dev, REG_INT2_SRC);
+    }
+
+    /* write back configuration */
+    if (line == LIS2DH12_INT1) {
+        _write(dev, REG_CTRL_REG3, reg);
+    }
+    if (line == LIS2DH12_INT2) {
+        _write(dev, REG_CTRL_REG6, reg);
+    }
+
+    _release(dev);
+}
+
 static uint32_t _merge_int_flags(const lis2dh12_t *dev, uint8_t events)
 {
     uint32_t int_src = 0;
 
     /* merge interrupt flags (7 bit per event) into one word */
     if (events & LIS2DH12_INT_TYPE_IA1) {
-        int_src |= _read_int_src(dev, LIS2DH12_EVENT_1);
+        int_src |= _read(dev, REG_INT1_SRC);
     }
     if (events & LIS2DH12_INT_TYPE_IA2) {
-        int_src |= _read_int_src(dev, LIS2DH12_EVENT_2) << 8;
+        int_src |= _read(dev, REG_INT2_SRC) << 8;
     }
+
+    DEBUG("int_src: %lx\n", int_src);
 
     return int_src;
 }
@@ -631,7 +677,10 @@ int lis2dh12_set_datarate(const lis2dh12_t *dev, lis2dh12_rate_t rate) {
 int lis2dh12_set_scale(lis2dh12_t *dev, lis2dh12_scale_t scale) {
 
     assert(dev);
-    assert((scale>>4) <= 0x3);
+    assert((scale == LIS2DH12_SCALE_2G) |
+           (scale == LIS2DH12_SCALE_4G) |
+           (scale == LIS2DH12_SCALE_8G) |
+           (scale == LIS2DH12_SCALE_16G));
 
     LIS2DH12_CTRL_REG4_t reg4 = {0};
 
