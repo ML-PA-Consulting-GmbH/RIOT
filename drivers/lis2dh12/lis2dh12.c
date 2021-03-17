@@ -307,9 +307,15 @@ void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
     /* add new event */
     if (event == LIS2DH12_EVENT_1) {
         reg |= LIS2DH12_INT_TYPE_IA1;
+
+        /* clear INT flags */
+        _read(dev, REG_INT1_SRC);
     }
     if (event == LIS2DH12_EVENT_2) {
         reg |= LIS2DH12_INT_TYPE_IA2;
+
+        /* clear INT flags */
+        _read(dev, REG_INT2_SRC);
     }
 
     /* write back configuration */
