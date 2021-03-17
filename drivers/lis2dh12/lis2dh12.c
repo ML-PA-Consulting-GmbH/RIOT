@@ -135,7 +135,7 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
 
     dev->p = params;
     /* calculate shift amount to convert raw acceleration data */
-    dev->comp = 4 - (dev->p->scale >> 4);
+    dev->comp = 4 - dev->p->scale;
 
     /* initialize the chip select line */
     if (_init_bus(dev) != LIS2DH12_OK) {
@@ -148,6 +148,9 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
 
     /* clear stale data */
     lis2dh12_clear_data(dev);
+
+    /* set data range */
+    lis2dh12_set_scale(dev, dev->p->scale);
 
     /* acquire the bus and verify that our parameters are valid */
     if (_acquire(dev) != BUS_OK) {
@@ -177,7 +180,6 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
     reg1.bit.Yen = 1;
     reg1.bit.Zen = 1;
 
-    _write(dev, REG_CTRL_REG4, dev->p->scale);
     _write(dev, REG_CTRL_REG1, reg1.reg);
 
     _release(dev);
@@ -275,7 +277,7 @@ void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
     _acquire(dev);
 
     uint8_t odr   = _read(dev, REG_CTRL_REG1) >> 4;
-    uint8_t scale = _read(dev, REG_CTRL_REG4) >> 4;
+    uint8_t scale = (_read(dev, REG_CTRL_REG4) >> 4) & 0x3;
 
     DEBUG("[%u] treshold: %lu mg\n", event, mg);
 
@@ -677,22 +679,17 @@ int lis2dh12_set_datarate(const lis2dh12_t *dev, lis2dh12_rate_t rate) {
 int lis2dh12_set_scale(lis2dh12_t *dev, lis2dh12_scale_t scale) {
 
     assert(dev);
-    assert((scale == LIS2DH12_SCALE_2G) |
-           (scale == LIS2DH12_SCALE_4G) |
-           (scale == LIS2DH12_SCALE_8G) |
-           (scale == LIS2DH12_SCALE_16G));
+    assert(scale <= LIS2DH12_SCALE_16G);
 
-    LIS2DH12_CTRL_REG4_t reg4 = {0};
+    LIS2DH12_CTRL_REG4_t reg4;
 
     _acquire(dev);
     reg4.reg = _read(dev, REG_CTRL_REG4);
-
-    reg4.bit.FS = scale >> 4;
-
+    reg4.bit.FS = scale;
     _write(dev, REG_CTRL_REG4, reg4.reg);
     _release(dev);
 
-    dev->comp = 4 - (scale >> 4);
+    dev->comp = 4 - scale;
 
     return LIS2DH12_OK;
 }

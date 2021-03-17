@@ -63,10 +63,10 @@ extern "C" {
  * @brief   Available scale values
  */
 typedef enum {
-    LIS2DH12_SCALE_2G  = 0x00,      /**< +- 2g */
-    LIS2DH12_SCALE_4G  = 0x10,      /**< +- 4g */
-    LIS2DH12_SCALE_8G  = 0x20,      /**< +- 8g */
-    LIS2DH12_SCALE_16G = 0x30,      /**< +- 16g */
+    LIS2DH12_SCALE_2G  = 0x0,       /**< +- 2g */
+    LIS2DH12_SCALE_4G  = 0x1,       /**< +- 4g */
+    LIS2DH12_SCALE_8G  = 0x2,       /**< +- 8g */
+    LIS2DH12_SCALE_16G = 0x3,       /**< +- 16g */
 } lis2dh12_scale_t;
 
 /**
