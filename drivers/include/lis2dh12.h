@@ -257,6 +257,8 @@ void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
                                   uint32_t mg, uint32_t us,
                                   uint8_t axis, uint8_t event, uint8_t pin);
 
+void lis2dh12_cfg_disable_event(const lis2dh12_t *dev, uint8_t event, uint8_t line);
+
 /**
  * @brief   Wait for an interrupt event
  *          This function will block until an interrupt is received
