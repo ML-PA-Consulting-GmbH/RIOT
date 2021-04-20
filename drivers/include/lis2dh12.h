@@ -63,10 +63,10 @@ extern "C" {
  * @brief   Available scale values
  */
 typedef enum {
-    LIS2DH12_SCALE_2G  = 0x0,       /**< +- 2g */
-    LIS2DH12_SCALE_4G  = 0x1,       /**< +- 4g */
-    LIS2DH12_SCALE_8G  = 0x2,       /**< +- 8g */
-    LIS2DH12_SCALE_16G = 0x3,       /**< +- 16g */
+    LIS2DH12_SCALE_2G  = 0x00,      /**< +- 2g */
+    LIS2DH12_SCALE_4G  = 0x10,      /**< +- 4g */
+    LIS2DH12_SCALE_8G  = 0x20,      /**< +- 8g */
+    LIS2DH12_SCALE_16G = 0x30,      /**< +- 16g */
 } lis2dh12_scale_t;
 
 /**
@@ -204,6 +204,8 @@ typedef struct {
     uint8_t int_duration:7;         /**< time between two interrupts ODR section in CTRL_REG1,
                                         duration in range 0-127 */
     uint8_t int_type;               /**< values for type of interrupts */
+    gpio_cb_t cb;                   /**< the callback to execute */
+    void *arg;                      /**< the callback argument */
 } lis2dh12_int_params_t;
 #endif /* MODULE_LIS2DH12_INT */
 
@@ -242,7 +244,7 @@ extern const saul_driver_t lis2dh12_saul_driver;
 
 #if MODULE_LIS2DH12_INT || DOXYGEN
 /**
- * @brief   Configure an interrupt event
+ * @brief   Set the interrupt values in LIS2DH12 sensor device
  *
  * @param[in] dev      device descriptor
  * @param[in] params   device interrupt configuration
@@ -251,25 +253,19 @@ extern const saul_driver_t lis2dh12_saul_driver;
  * @return  LIS2DH12_OK on success
  * @return  LIS2DH12_NOBUS on bus errors
  */
-void lis2dh12_cfg_event(const lis2dh12_t *dev, const lis2dh12_int_params_t *event, uint8_t line);
-
-void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
-                                  uint32_t mg, uint32_t us,
-                                  uint8_t axis, uint8_t event, uint8_t pin);
-
-void lis2dh12_cfg_disable_event(const lis2dh12_t *dev, uint8_t event, uint8_t line);
+int lis2dh12_set_int(const lis2dh12_t *dev, const lis2dh12_int_params_t *params, uint8_t int_line);
 
 /**
- * @brief   Wait for an interrupt event
- *          This function will block until an interrupt is received
+ * @brief   Read an interrupt event on LIS2DH12 sensor device
  *
  * @param[in] dev      device descriptor
+ * @param[out] data    device interrupt data
  * @param[in] int_line number of interrupt line (LIS2DH12_INT1 or LIS2DH12_INT2)
  *
- * @return  negative error
- * @return  positive LIS2DH12_INT_SRC bit mask on success
+ * @return  LIS2DH12_OK on success
+ * @return  LIS2DH12_NOBUS on bus errors
  */
-int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line);
+int lis2dh12_read_int_src(const lis2dh12_t *dev, uint8_t *data, uint8_t int_line);
 #endif /* MODULE_LIS2DH12_INT */
 
 /**

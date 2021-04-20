@@ -18,8 +18,6 @@
  */
 
 #include "assert.h"
-#include "mutex.h"
-#include "timex.h"
 
 #include "lis2dh12.h"
 #include "lis2dh12_internal.h"
@@ -135,22 +133,13 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
 
     dev->p = params;
     /* calculate shift amount to convert raw acceleration data */
-    dev->comp = 4 - dev->p->scale;
+    dev->comp = 4 - (dev->p->scale >> 4);
 
     /* initialize the chip select line */
     if (_init_bus(dev) != LIS2DH12_OK) {
         DEBUG("[lis2dh12] error: unable to initialize the bus\n");
         return LIS2DH12_NOBUS;
     }
-
-    /* set powermode */
-    lis2dh12_set_powermode(dev, dev->p->powermode);
-
-    /* clear stale data */
-    lis2dh12_clear_data(dev);
-
-    /* set data range */
-    lis2dh12_set_scale(dev, dev->p->scale);
 
     /* acquire the bus and verify that our parameters are valid */
     if (_acquire(dev) != BUS_OK) {
@@ -165,13 +154,6 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
         return LIS2DH12_NODEV;
     }
 
-    /* clear events */
-    _write(dev, REG_CTRL_REG3, 0);
-    _write(dev, REG_CTRL_REG6, 0);
-
-    /* disable fifo */
-    _write(dev, REG_FIFO_CTRL_REG, 0);
-
     /* enable all axes, set sampling rate and scale */
     LIS2DH12_CTRL_REG1_t reg1 = {0};
 
@@ -180,9 +162,13 @@ int lis2dh12_init(lis2dh12_t *dev, const lis2dh12_params_t *params)
     reg1.bit.Yen = 1;
     reg1.bit.Zen = 1;
 
+    _write(dev, REG_CTRL_REG4, dev->p->scale);
     _write(dev, REG_CTRL_REG1, reg1.reg);
 
     _release(dev);
+
+    /* set powermode */
+    lis2dh12_set_powermode(dev, dev->p->powermode);
 
     DEBUG("[lis2dh12] initialization successful\n");
     return LIS2DH12_OK;
@@ -216,220 +202,73 @@ int lis2dh12_read(const lis2dh12_t *dev, int16_t *data)
 }
 
 #ifdef MODULE_LIS2DH12_INT
-static const uint16_t mg_per_bit[] = {
-    16, /* scale = 2g  */
-    32, /* scale = 4g  */
-    62, /* scale = 8g  */
-    186 /* scale = 16g */
-};
-
-static const uint16_t hz_per_dr[] = {
-    0,      /* power down */
-    1,      /* Hz */
-    10,     /* Hz */
-    25,     /* Hz */
-    50,     /* Hz */
-    100,    /* Hz */
-    200,    /* Hz */
-    400,    /* Hz */
-    1620,   /* Hz */
-    5376,   /* Hz */
-};
-
-static void _cb(void *lock)
+int lis2dh12_set_int(const lis2dh12_t *dev, const lis2dh12_int_params_t *params, uint8_t int_line)
 {
-    mutex_unlock(lock);
-}
-
-void lis2dh12_cfg_event(const lis2dh12_t *dev, const lis2dh12_int_params_t *event, uint8_t line)
-{
-    assert(line == LIS2DH12_INT1 || line == LIS2DH12_INT2);
-    assert(dev && event);
+    assert (int_line == LIS2DH12_INT1 || int_line == LIS2DH12_INT2);
+    assert (dev && params);
+    assert (params->cb);
 
     _acquire(dev);
 
-    /* configure interrupt */
-    switch (line) {
-    case LIS2DH12_INT1:
-        _write(dev, REG_CTRL_REG3, event->int_type);
-        _write(dev, REG_INT1_CFG, event->int_config);
-        _write(dev, REG_INT1_THS, event->int_threshold);
-        _write(dev, REG_INT1_DURATION, event->int_duration);
-        break;
-    case LIS2DH12_INT2:
-        _write(dev, REG_CTRL_REG6, event->int_type);
-        _write(dev, REG_INT2_CFG, event->int_config);
-        _write(dev, REG_INT2_THS, event->int_threshold);
-        _write(dev, REG_INT2_DURATION, event->int_duration);
-        break;
+    gpio_t pin = GPIO_UNDEF;
+
+    switch (int_line){
+        /* first interrupt line (INT1) */
+        case LIS2DH12_INT1:
+            pin = dev->p->int1_pin;
+            assert (gpio_is_valid(pin));
+
+            if (gpio_init_int(pin, GPIO_IN, GPIO_RISING, params->cb, params->arg)) {
+                return LIS2DH12_NOINT;
+            }
+
+            _write(dev, REG_CTRL_REG3, params->int_type);
+            _write(dev, REG_INT1_CFG, params->int_config);
+            _write(dev, REG_INT1_THS, params->int_threshold);
+            _write(dev, REG_INT1_DURATION, params->int_duration);
+            break;
+        /* second interrupt line (INT2) */
+        case LIS2DH12_INT2:
+            pin = dev->p->int2_pin;
+            assert (gpio_is_valid(pin));
+
+            if (gpio_init_int(pin, GPIO_IN, GPIO_RISING, params->cb, params->arg)) {
+                return LIS2DH12_NOINT;
+            }
+
+            _write(dev, REG_CTRL_REG6, params->int_type);
+            _write(dev, REG_INT2_CFG, params->int_config);
+            _write(dev, REG_INT2_THS, params->int_threshold);
+            _write(dev, REG_INT2_DURATION, params->int_duration);
+            break;
     }
 
     _release(dev);
+
+    return LIS2DH12_OK;
 }
 
-void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
-                                  uint32_t mg, uint32_t us,
-                                  uint8_t axis, uint8_t event, uint8_t line)
+int lis2dh12_read_int_src(const lis2dh12_t *dev, uint8_t *data, uint8_t int_line)
 {
-    assert(line == LIS2DH12_INT1 || line == LIS2DH12_INT2);
-    assert(event == LIS2DH12_EVENT_1 || event == LIS2DH12_EVENT_2);
+    assert(dev && data);
+    assert(int_line == LIS2DH12_INT1 || int_line == LIS2DH12_INT2);
 
     _acquire(dev);
 
-    uint8_t odr   = _read(dev, REG_CTRL_REG1) >> 4;
-    uint8_t scale = (_read(dev, REG_CTRL_REG4) >> 4) & 0x3;
-
-    DEBUG("[%u] treshold: %lu mg\n", event, mg);
-
-    /* configure interrupt */
-    switch (event) {
-    case LIS2DH12_EVENT_1:
-        _write(dev, REG_INT1_CFG, axis);
-        _write(dev, REG_INT1_THS, mg / mg_per_bit[scale]);
-        _write(dev, REG_INT1_DURATION, (us * hz_per_dr[odr]) / US_PER_SEC);
-        break;
-    case LIS2DH12_EVENT_2:
-        _write(dev, REG_INT2_CFG, axis);
-        _write(dev, REG_INT2_THS, mg / mg_per_bit[scale]);
-        _write(dev, REG_INT2_DURATION, (us * hz_per_dr[odr]) / US_PER_SEC);
-        break;
-    }
-
-    uint8_t reg = 0;
-    /* read current interrupt configuration */
-    if (line == LIS2DH12_INT1) {
-        reg = _read(dev, REG_CTRL_REG3);
-    }
-    if (line == LIS2DH12_INT2) {
-        reg = _read(dev, REG_CTRL_REG6);
-    }
-
-    /* add new event */
-    if (event == LIS2DH12_EVENT_1) {
-        reg |= LIS2DH12_INT_TYPE_IA1;
-
-        /* clear INT flags */
-        _read(dev, REG_INT1_SRC);
-    }
-    if (event == LIS2DH12_EVENT_2) {
-        reg |= LIS2DH12_INT_TYPE_IA2;
-
-        /* clear INT flags */
-        _read(dev, REG_INT2_SRC);
-    }
-
-    /* write back configuration */
-    if (line == LIS2DH12_INT1) {
-        _write(dev, REG_CTRL_REG3, reg);
-    }
-    if (line == LIS2DH12_INT2) {
-        _write(dev, REG_CTRL_REG6, reg);
+    switch (int_line) {
+        /* first interrupt line (INT1) */
+        case LIS2DH12_INT1:
+            *data = _read(dev, REG_INT1_SRC);
+            break;
+        /* second interrupt line (INT2) */
+        case LIS2DH12_INT2:
+            *data = _read(dev, REG_INT2_SRC);
+            break;
     }
 
     _release(dev);
-}
 
-void lis2dh12_cfg_disable_event(const lis2dh12_t *dev, uint8_t event, uint8_t line)
-{
-    uint8_t reg = 0;
-
-    _release(dev);
-
-    /* read current interrupt configuration */
-    if (line == LIS2DH12_INT1) {
-        reg = _read(dev, REG_CTRL_REG3);
-    }
-    if (line == LIS2DH12_INT2) {
-        reg = _read(dev, REG_CTRL_REG6);
-    }
-
-    /* remove event */
-    if (event == LIS2DH12_EVENT_1) {
-        reg &= ~LIS2DH12_INT_TYPE_IA1;
-
-        /* clear INT flags */
-        _read(dev, REG_INT1_SRC);
-    }
-    if (event == LIS2DH12_EVENT_2) {
-        reg &= ~LIS2DH12_INT_TYPE_IA2;
-
-        /* clear INT flags */
-        _read(dev, REG_INT2_SRC);
-    }
-
-    /* write back configuration */
-    if (line == LIS2DH12_INT1) {
-        _write(dev, REG_CTRL_REG3, reg);
-    }
-    if (line == LIS2DH12_INT2) {
-        _write(dev, REG_CTRL_REG6, reg);
-    }
-
-    _release(dev);
-}
-
-static uint32_t _merge_int_flags(const lis2dh12_t *dev, uint8_t events)
-{
-    uint32_t int_src = 0;
-
-    /* merge interrupt flags (7 bit per event) into one word */
-    if (events & LIS2DH12_INT_TYPE_IA1) {
-        int_src |= _read(dev, REG_INT1_SRC);
-    }
-    if (events & LIS2DH12_INT_TYPE_IA2) {
-        int_src |= _read(dev, REG_INT2_SRC) << 8;
-    }
-
-    DEBUG("int_src: %lx\n", int_src);
-
-    return int_src;
-}
-
-int lis2dh12_wait_event(const lis2dh12_t *dev, uint8_t line)
-{
-    uint32_t int_src;
-    uint8_t events = 0;
-    mutex_t lock = MUTEX_INIT_LOCKED;
-    gpio_t pin = line == LIS2DH12_INT2
-                       ? dev->p->int2_pin
-                       : dev->p->int1_pin;
-
-    _acquire(dev);
-
-    /* find out which events are configured */
-    if (line == LIS2DH12_INT1) {
-        events = _read(dev, REG_CTRL_REG3);
-    }
-    if (line == LIS2DH12_INT2) {
-        events = _read(dev, REG_CTRL_REG6);
-    }
-
-    /* check for stale interrupt */
-    int_src = _merge_int_flags(dev, events);
-
-    _release(dev);
-
-    /* return early if stale interrupt is present */
-    if (int_src & (LIS2DH12_INT_SRC_IA | (LIS2DH12_INT_SRC_IA << 8))) {
-        return int_src;
-    }
-
-    /* enable interrupt pin */
-    assert(gpio_is_valid(pin));
-    if (gpio_init_int(pin, GPIO_IN, GPIO_RISING, _cb, &lock)) {
-        return LIS2DH12_NOINT;
-    }
-
-    /* wait for interrupt */
-    mutex_lock(&lock);
-    gpio_irq_disable(pin);
-
-    /* read interrupt source */
-    _acquire(dev);
-    int_src = _merge_int_flags(dev, events);
-    _release(dev);
-
-    return int_src;
+    return LIS2DH12_OK;
 }
 #endif /* MODULE_LIS2DH12_INT */
 
@@ -440,13 +279,8 @@ int lis2dh12_set_fifo(const lis2dh12_t *dev, const lis2dh12_fifo_t *config) {
     LIS2DH12_CTRL_REG5_t reg5 = {0};
     LIS2DH12_FIFO_CTRL_REG_t fifo_reg = {0};
 
-     reg5.bit.LIR_INT1 = 1;
-     reg5.bit.LIR_INT2 = 1;
-
     if (config->FIFO_mode != LIS2DH12_FIFO_MODE_BYPASS) {
         reg5.bit.FIFO_EN = 1;
-    } else {
-        reg5.bit.FIFO_EN = 0;
     }
     fifo_reg.bit.TR = config->FIFO_set_INT2;
     fifo_reg.bit.FM = config->FIFO_mode;
@@ -466,7 +300,7 @@ int lis2dh12_restart_fifo(const lis2dh12_t *dev) {
 
     _acquire(dev);
     uint8_t reg5 = _read(dev, REG_CTRL_REG5);
-    LIS2DH12_FIFO_CTRL_REG_t fifo_reg;
+    LIS2DH12_FIFO_CTRL_REG_t fifo_reg = {0};
     fifo_reg.reg = _read(dev, REG_FIFO_CTRL_REG);
 
     uint8_t fifo_mode_old = fifo_reg.bit.FM;
@@ -534,11 +368,8 @@ int lis2dh12_clear_data(const lis2dh12_t *dev) {
 
     assert(dev);
 
-    LIS2DH12_CTRL_REG5_t ctrl_reg5 = {
-        .bit.BOOT = 1,
-        .bit.LIR_INT1 = 1,
-        .bit.LIR_INT2 = 1,
-    };
+    LIS2DH12_CTRL_REG5_t ctrl_reg5 = {0};
+    ctrl_reg5.bit.BOOT = 1;
 
     _acquire(dev);
     _write(dev, REG_CTRL_REG5, ctrl_reg5.reg);
@@ -685,17 +516,19 @@ int lis2dh12_set_datarate(const lis2dh12_t *dev, lis2dh12_rate_t rate) {
 int lis2dh12_set_scale(lis2dh12_t *dev, lis2dh12_scale_t scale) {
 
     assert(dev);
-    assert(scale <= LIS2DH12_SCALE_16G);
+    assert((scale>>4) <= 0x3);
 
-    LIS2DH12_CTRL_REG4_t reg4;
+    LIS2DH12_CTRL_REG4_t reg4 = {0};
 
     _acquire(dev);
     reg4.reg = _read(dev, REG_CTRL_REG4);
-    reg4.bit.FS = scale;
+
+    reg4.bit.FS = scale >> 4;
+
     _write(dev, REG_CTRL_REG4, reg4.reg);
     _release(dev);
 
-    dev->comp = 4 - scale;
+    dev->comp = 4 - (scale >> 4);
 
     return LIS2DH12_OK;
 }
