@@ -224,7 +224,6 @@ int lis2dh12_read(const lis2dh12_t *dev, lis2dh12_fifo_data_t *data)
     return LIS2DH12_OK;
 }
 
-#ifdef MODULE_LIS2DH12_INT
 static const uint16_t mg_per_bit[] = {
     16, /* scale = 2g  */
     32, /* scale = 4g  */
@@ -244,11 +243,6 @@ static const uint16_t hz_per_dr[] = {
     1620,   /* Hz */
     5376,   /* Hz */
 };
-
-static void _cb(void *lock)
-{
-    mutex_unlock(lock);
-}
 
 void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
                                   uint32_t mg, uint32_t us,
@@ -405,6 +399,12 @@ void lis2dh12_cfg_disable_event(const lis2dh12_t *dev, uint8_t event, uint8_t li
     }
 
     _release(dev);
+}
+
+#ifdef MODULE_LIS2DH12_INT
+static void _cb(void *lock)
+{
+    mutex_unlock(lock);
 }
 
 static uint32_t _merge_int_flags(const lis2dh12_t *dev, uint8_t events)
@@ -617,8 +617,8 @@ int lis2dh12_set_powermode(const lis2dh12_t *dev, lis2dh12_powermode_t powermode
 
     assert(dev);
 
-    LIS2DH12_CTRL_REG1_t reg1 = {0};
-    LIS2DH12_CTRL_REG4_t reg4 = {0};
+    LIS2DH12_CTRL_REG1_t reg1;
+    LIS2DH12_CTRL_REG4_t reg4;
 
     _acquire(dev);
     reg1.reg = _read(dev, REG_CTRL_REG1);

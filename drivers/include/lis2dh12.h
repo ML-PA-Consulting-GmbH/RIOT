@@ -191,7 +191,6 @@ enum {
     LIS2DH12_NODATA= -4,            /**< no data available */
 };
 
-#if MODULE_LIS2DH12_INT || DOXYGEN
 /*
  * @brief Interrupt lines
  */
@@ -211,7 +210,6 @@ typedef struct {
                                         duration in range 0-127 */
     uint8_t int_type;               /**< values for type of interrupts */
 } lis2dh12_int_params_t;
-#endif /* MODULE_LIS2DH12_INT */
 
 /**
  * @brief   LIS2DH12 FIFO data struct
