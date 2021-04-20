@@ -276,62 +276,54 @@ void lis2dh12_cfg_threshold_event(const lis2dh12_t *dev,
 
     _acquire(dev);
 
-    LIS2DH12_CTRL_REG2_t reg2;
-    reg2.reg = _read(dev, REG_CTRL_REG2);
     uint8_t odr   = _read(dev, REG_CTRL_REG1) >> 4;
     uint8_t scale = (_read(dev, REG_CTRL_REG4) >> 4) & 0x3;
-    uint8_t int_reg = 0;
-
-    /* read current interrupt configuration */
-    if (line == LIS2DH12_INT1) {
-        int_reg = _read(dev, REG_CTRL_REG3);
-    }
-    if (line == LIS2DH12_INT2) {
-        int_reg = _read(dev, REG_CTRL_REG6);
-    }
 
     DEBUG("[%u] treshold: %lu mg\n", event, mg);
-
-    /* read reference to set it to current data */
-    _read(dev, REG_REFERENCE);
 
     /* configure interrupt */
     switch (event) {
     case LIS2DH12_EVENT_1:
-        /* apply high-pass to interrupt */
-        reg2.bit.HP_IA1 = 1;
-        int_reg |= LIS2DH12_INT_TYPE_IA1;
-
-        /* clear INT flags */
-        _read(dev, REG_INT1_SRC);
-
         _write(dev, REG_INT1_CFG, axis);
         _write(dev, REG_INT1_THS, mg / mg_per_bit[scale]);
         _write(dev, REG_INT1_DURATION, (us * hz_per_dr[odr]) / US_PER_SEC);
         break;
     case LIS2DH12_EVENT_2:
-        /* apply high-pass to interrupt */
-        reg2.bit.HP_IA2 = 1;
-        int_reg |= LIS2DH12_INT_TYPE_IA2;
-
-        /* clear INT flags */
-        _read(dev, REG_INT2_SRC);
-
         _write(dev, REG_INT2_CFG, axis);
         _write(dev, REG_INT2_THS, mg / mg_per_bit[scale]);
         _write(dev, REG_INT2_DURATION, (us * hz_per_dr[odr]) / US_PER_SEC);
         break;
     }
 
-    /* configure high-pass */
-    _write(dev, REG_CTRL_REG2, reg2.reg);
+    uint8_t reg = 0;
+    /* read current interrupt configuration */
+    if (line == LIS2DH12_INT1) {
+        reg = _read(dev, REG_CTRL_REG3);
+    }
+    if (line == LIS2DH12_INT2) {
+        reg = _read(dev, REG_CTRL_REG6);
+    }
+
+    /* add new event */
+    if (event == LIS2DH12_EVENT_1) {
+        reg |= LIS2DH12_INT_TYPE_IA1;
+
+        /* clear INT flags */
+        _read(dev, REG_INT1_SRC);
+    }
+    if (event == LIS2DH12_EVENT_2) {
+        reg |= LIS2DH12_INT_TYPE_IA2;
+
+        /* clear INT flags */
+        _read(dev, REG_INT2_SRC);
+    }
 
     /* write back configuration */
     if (line == LIS2DH12_INT1) {
-        _write(dev, REG_CTRL_REG3, int_reg);
+        _write(dev, REG_CTRL_REG3, reg);
     }
     if (line == LIS2DH12_INT2) {
-        _write(dev, REG_CTRL_REG6, int_reg);
+        _write(dev, REG_CTRL_REG6, reg);
     }
 
     _release(dev);
