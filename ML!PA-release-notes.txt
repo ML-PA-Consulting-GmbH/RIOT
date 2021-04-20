@@ -5,6 +5,6 @@ RIOT-2021.04-mlpa-3 - Merge Notes
 
  - merged benpicco/cpu/sam0_common/flashpage_irq_disable
  - merged benpicco/cpu/sam0_common/get_tamper
- - merged driver/lis2dh12-cleanup (WIP)
+ - merged driver/lis2dh12-cleanup
  - DL: pick adc hack from 2021.04-mlpa-2
  - DL: enable debug in sys/net/gnrc/network_layer/ipv6/nib/nib.c to work around border router bug

@@ -14,6 +14,7 @@ LOW_MEMORY_BOARDS += \
   arduino-nano-33-iot \
   atmega1284p \
   b-l072z-lrwan1 \
+  bastwan \
   blackpill \
   blackpill-128kib \
   bluepill \
@@ -79,6 +80,7 @@ SUPER_LOW_MEMORY_BOARDS += \
   arduino-nano \
   arduino-uno \
   atmega328p \
+  atmega328p-xplained-mini \
   nucleo-f031k6 \
   stm32f030f4-demo \
   #

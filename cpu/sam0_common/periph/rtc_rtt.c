@@ -392,7 +392,7 @@ uint8_t rtc_get_tamper_event(void)
     RTC->MODE0.INTFLAG.reg = RTC_MODE0_INTFLAG_TAMPER;
     RTC->MODE0.TAMPID.reg  = ret;
 
-    return ret & 0x1F;
+    return ret & RTC_TAMPID_TAMPID_Msk;
 }
 
 uint8_t rtc_tamper_pin_mask(gpio_t pin)

@@ -182,12 +182,20 @@
  *
  * For now, there are:
  *
- * ZTIMER_USEC: clock providing microsecond ticks
+ * ZTIMER_USEC: clock providing microsecond ticks, always uses a basic timer
+ *              (ztimer_periph_timer)
  *
- * ZTIMER_MSEC: clock providing millisecond ticks, using a low power timer if
- *              available on the platform
+ * ZTIMER_MSEC: clock providing millisecond ticks, using a low power timer
+ *              (ztimer_periph_rtt) if it is available on the platform
+ *              and it running at 1kHz or above else it uses the same
+ *              basic timer as ZTIMER_USEC does.
  *
- * ZTIMER_SEC:  clock providing second time, possibly using epoch semantics
+ * ZTIMER_SEC:  clock providing second time, possibly using epoch semantics,
+ *              it will use a low power timer (ztimer_periph_rtt)
+ *              if it is available on the platform alternately it uses
+ *              ztimer_periph_rtc if it is available and configured
+ *              if if these are missing it will use same basic timer
+ *              as ZTIMER_USEC does.
  *
  * These pointers are defined in `ztimer.h` and can be used like this:
  *
@@ -329,7 +337,7 @@ struct ztimer_clock {
     ztimer_now_t checkpoint;        /**< cumulated time at last now() call  */
 #endif
 #if MODULE_PM_LAYERED || DOXYGEN
-    uint8_t required_pm_mode;       /**< min. pm mode required for the clock to run */
+    uint8_t block_pm_mode;          /**< min. pm mode to block for the clock to run */
 #endif
 };
 
@@ -594,6 +602,11 @@ extern ztimer_clock_t *const ZTIMER_USEC;
  * @brief   Default ztimer millisecond clock
  */
 extern ztimer_clock_t *const ZTIMER_MSEC;
+
+/**
+ * @brief   Default ztimer second clock
+ */
+extern ztimer_clock_t *const ZTIMER_SEC;
 
 /**
  * @brief   Base ztimer for the microsecond clock (ZTIMER_USEC)

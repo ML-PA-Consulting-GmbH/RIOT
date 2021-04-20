@@ -28,6 +28,11 @@ config MODULE_ZTIMER_PERIPH_RTT
     select MODULE_PERIPH_RTT
     default y if !MODULE_ZTIMER_PERIPH_TIMER
 
+config MODULE_ZTIMER_PERIPH_PTP
+    bool "PTP peripheral"
+    depends on HAS_PERIPH_PTP_TIMER
+    select MODULE_PERIPH_PTP_TIMER
+
 config MODULE_ZTIMER_PERIPH_TIMER
     bool "Timer peripheral"
     depends on HAS_PERIPH_TIMER
@@ -45,6 +50,10 @@ config MODULE_ZTIMER_USEC
 config MODULE_ZTIMER_MSEC
     bool "Milliseconds"
     depends on MODULE_ZTIMER_PERIPH_TIMER || MODULE_ZTIMER_PERIPH_RTT
+
+config MODULE_ZTIMER_SEC
+    bool "Seconds"
+    depends on MODULE_ZTIMER_PERIPH_TIMER || MODULE_ZTIMER_PERIPH_RTT || MODULE_ZTIMER_PERIPH_RTC
 
 endmenu # Clocks
 

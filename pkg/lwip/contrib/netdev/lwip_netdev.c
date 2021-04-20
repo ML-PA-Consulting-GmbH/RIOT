@@ -17,12 +17,10 @@
 #include <sys/uio.h>
 #include <inttypes.h>
 
-#if MODULE_LWIP_DHCP_AUTO
-#include "lwip/dhcp.h"
-#endif
 #include "lwip/err.h"
 #include "lwip/ethip6.h"
 #include "lwip/netif.h"
+#include "lwip/netifapi.h"
 #include "lwip/netif/netdev.h"
 #include "lwip/opt.h"
 #include "lwip/pbuf.h"
@@ -81,6 +79,7 @@ err_t lwip_netdev_init(struct netif *netif)
     LWIP_ASSERT("netif != NULL", (netif != NULL));
     LWIP_ASSERT("netif->state != NULL", (netif->state != NULL));
     netdev_t *netdev;
+    netopt_enable_t enabled = 0;
     uint16_t dev_type;
     err_t res = ERR_OK;
 
@@ -186,7 +185,11 @@ err_t lwip_netdev_init(struct netif *netif)
             return ERR_IF;  /* device type not supported yet */
     }
     netif->flags |= NETIF_FLAG_UP;
-    netif->flags |= NETIF_FLAG_LINK_UP;
+    /* Set link state up if link state is unsupported, or if it is up */
+    if (netdev->driver->get(netdev, NETOPT_LINK, &enabled, sizeof(enabled)) <= 0 ||
+        enabled) {
+        netif->flags |= NETIF_FLAG_LINK_UP;
+    }
     netif->flags |= NETIF_FLAG_IGMP;
     netif->flags |= NETIF_FLAG_MLD6;
     netdev->context = netif;
@@ -290,12 +293,15 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
                 }
                 break;
             }
-#ifdef MODULE_LWIP_DHCP_AUTO
             case NETDEV_EVENT_LINK_UP: {
-                dhcp_start(netif);
+                /* Will wake up DHCP state machine */
+                netifapi_netif_set_link_up(netif);
                 break;
             }
-#endif
+            case NETDEV_EVENT_LINK_DOWN: {
+                netifapi_netif_set_link_down(netif);
+                break;
+            }
             default:
                 break;
         }
