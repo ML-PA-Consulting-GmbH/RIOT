@@ -8,3 +8,4 @@ RIOT-2021.04-mlpa-3 - Merge Notes
  - merged driver/lis2dh12-cleanup
  - DL: pick adc hack from 2021.04-mlpa-2
  - DL: enable debug in sys/net/gnrc/network_layer/ipv6/nib/nib.c to work around border router bug
+ - patch NanoCBOR for fix underflow in nanocbor_leave_container(): 71ba7c46d64
