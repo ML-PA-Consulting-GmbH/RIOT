@@ -423,6 +423,10 @@ static int send_octet(dose_t *ctx, uint8_t c)
     uart_write(ctx->uart, (uint8_t *) &c, sizeof(c));
     uint32_t t1 = SysTick->VAL;
 
+#ifdef MODULE_PERIPH_UART_COLLISION
+    return uart_collision_detected(ctx->uart);
+#endif
+
     /* Wait for a state transition */
     uint8_t state = wait_for_state(ctx, DOSE_STATE_ANY);
     ctx->send_octet_wait_ticks += (t1 - SysTick->VAL) & 0x00FFFFFF;
@@ -459,6 +463,24 @@ static int send_data_octet(dose_t *ctx, uint8_t c)
     return rc;
 }
 
+static inline void _send_start(dose_t *ctx)
+{
+#ifdef MODULE_PERIPH_UART_COLLISION
+    uart_collision_detect_enable(ctx->uart);
+#else
+    (void)ctx;
+#endif
+}
+
+static inline void _send_done(dose_t *ctx)
+{
+#ifdef MODULE_PERIPH_UART_COLLISION
+    uart_collision_detect_disable(ctx->uart);
+#else
+    (void)ctx;
+#endif
+}
+
 static int _send(netdev_t *dev, const iolist_t *iolist)
 {
     dose_t *ctx = container_of(dev, dose_t, netdev);
@@ -477,6 +499,8 @@ send:
         state(ctx, DOSE_SIGNAL_SEND);
     } while (wait_for_state(ctx, DOSE_STATE_ANY) != DOSE_STATE_SEND);
     ctx->send_init_wait_ticks += (tw0 - SysTick->VAL) & 0x00FFFFFF;
+
+    _send_start(ctx);
 
     /* Send packet buffer */
     for (const iolist_t *iol = iolist; iol; iol = iol->iol_next) {
@@ -510,6 +534,8 @@ send:
         goto collision;
     }
 
+    _send_done(ctx);
+
     /* We probably sent the whole packet?! */
     uint32_t tc0 = SysTick->VAL;
     dev->event_callback(dev, NETDEV_EVENT_TX_COMPLETE);
@@ -521,6 +547,7 @@ send:
     return pktlen;
 
 collision:
+    _send_done(ctx);
     DEBUG("dose _send(): collision!\n");
     if (--retries < 0) {
         uint32_t tc0 = SysTick->VAL;
