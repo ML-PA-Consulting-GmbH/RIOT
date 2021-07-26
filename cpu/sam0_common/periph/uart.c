@@ -322,6 +322,44 @@ void uart_poweroff(uart_t uart)
     sercom_clk_dis(dev(uart));
 }
 
+#ifdef MODULE_PERIPH_UART_COLLISION
+bool uart_collision_detected(uart_t uart)
+{
+    bool collision = dev(uart)->STATUS.bit.COLL;
+    dev(uart)->STATUS.reg = SERCOM_USART_STATUS_COLL;
+    return collision;
+}
+
+void uart_collision_detect_enable(uart_t uart)
+{
+    /* clear stale collision flag */
+    dev(uart)->STATUS.reg = SERCOM_USART_STATUS_COLL;
+
+    /* enable collision detection */
+    dev(uart)->CTRLB.bit.COLDEN = 1;
+
+    /* disable RX interrupt */
+    dev(uart)->INTENCLR.bit.RXC = 1;
+}
+
+void uart_collision_detect_disable(uart_t uart)
+{
+    uint32_t ctrlb = dev(uart)->CTRLB.reg;
+
+    /* re-enable TX after collision */
+    ctrlb |= SERCOM_USART_CTRLB_TXEN;
+
+    /* disable collision detection */
+    ctrlb &= ~SERCOM_USART_CTRLB_COLDEN;
+
+    dev(uart)->CTRLB.reg = ctrlb;
+
+    if (uart_ctx[uart].rx_cb) {
+        dev(uart)->INTENSET.bit.RXC = 1;
+    }
+}
+#endif
+
 #ifdef MODULE_PERIPH_UART_MODECFG
 int uart_mode(uart_t uart, uart_data_bits_t data_bits, uart_parity_t parity,
               uart_stop_bits_t stop_bits)
