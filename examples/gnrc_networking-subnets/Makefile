@@ -26,8 +26,6 @@ USEMODULE += netstats_ipv6
 
 CFLAGS += -DDEBUG_ASSERT_VERBOSE=1
 CFLAGS += -DCONFIG_GNRC_IPV6_NIB_NUMOF=16
-CFLAGS += -DCONFIG_GNRC_IPV6_NIB_ADV_ROUTER=0
-CFLAGS += -DCONFIG_GNRC_IPV6_NIB_ADD_RIO_IN_LAST_RA=1
 
 ifeq (native, $(BOARD))
   USEMODULE += netdev_tap
@@ -60,7 +58,7 @@ ifeq (1, $(GATEWAY))
   USEMODULE += gnrc_netdev_default
   USEMODULE += gnrc_dhcpv6_client_simple_pd
 else ifneq (1, $(LEAF))
-  USEMODULE += gnrc_ipv6_nib_subnets
+  USEMODULE += gnrc_simple_subnets
 endif
 
 # Optionally include DNS support. This includes resolution of names at an
@@ -68,9 +66,6 @@ endif
 # to auto-configure that upstream DNS server.
 USEMODULE += sock_dns              # include DNS client
 USEMODULE += gnrc_ipv6_nib_dns     # include RDNSS option handling
-
-# Enable handling of the Route Information Option
-USEMODULE += gnrc_ipv6_nib_rio
 
 # Comment this out to disable code in RIOT that does safety checking
 # which is not needed in a production environment but helps in the
