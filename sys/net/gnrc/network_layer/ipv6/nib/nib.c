@@ -769,7 +769,7 @@ static void _handle_rtr_adv(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
 #endif  /* CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C */
                 next_timeout = _min(next_timeout, min_pfx_timeout);
 
-                /* automatically configure subnets on downstream interfaces */
+                /* notify optional PIO consumer */
                 gnrc_nib_rtr_adv_pio_cb(netif, (ndp_opt_pi_t *)opt);
                 break;
             }
