@@ -1,0 +1,40 @@
+@startuml
+nwdiag {
+
+	network uplink {
+		address = "2001:dbc::/64";
+
+		gateway [address = "2001:dbc::1848:79ff:fe20:cf5a", description = "Gateway\ngot /60 via DHCPv6 IA_PD" ];
+	}
+
+	network level1 {
+		address = "2001:db8:0:10::/60";
+
+		gateway  [address = "2001:db8:0:10:8cca:efff:fe8b:d64f"];
+		router_a [address = "2001:db8:0:10:c8f4:13ff:fece:3f43"];
+		leaf_a   [address = "2001:db8:0:10:804b:fcff:feb6:43fb"];
+	}
+
+	network level2 {
+		address = "2001:db8:0:18::/61";
+
+		router_a [address = "2001:db8:0:1e:3c27:6dff:fe25:e95d"];
+		router_b [address = "2001:db8:0:18:5075:35ff:fefa:30bc"];
+	}
+
+	network level3 {
+		address = "2001:db8:0:1c::/62";
+
+		router_b [address = "2001:db8:0:1e:2ca3:9eff:fea9:68f7"];
+		router_c [address = "2001:db8:0:1c:fc33:13ff:fe93:5ae4"];
+		leaf_b   [address = "2001:db8:0:18:5491:a2ff:fe98:61a2"];
+	}
+
+	network level4 {
+		address = "2001:db8:0:1e::/63";
+
+		router_c [address = "2001:db8:0:1e:a8d9:e1ff:feab:d544"];
+		leaf_c   [address = "2001:db8:0:1e:e488:66ff:fedd:12cd"];
+	}
+}
+@enduml

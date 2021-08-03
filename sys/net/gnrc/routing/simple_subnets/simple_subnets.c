@@ -7,6 +7,43 @@
  */
 
 /**
+ * @defgroup    net_gnrc_simple_subnets Simple-Subnet auto-configuration
+ * @ingroup     net_gnrc
+ * @brief       Automatic configuration for cascading subnets
+ *
+ * About
+ * =====
+ *
+ * This module provides an automatic configuration for networks with a simple
+ * tree tolpology.
+ *
+ * If a sufficiently large IPv6 prefix is provided via Router Advertisements, a
+ * routing node with this module will automatically configure subnets from it for
+ * each downstream interface.
+ *
+ * There can only be a single routing node on each level of the network but an
+ * arbitrary number of leaf nodes.
+ *
+ * ![Example Topology](simple_subnets.svg)
+ *
+ * The downstream network(s) get the reduced prefix via Router Advertisements and
+ * the process repeats until the bits of prefix are exhausted. (The smallest
+ * must still have a /64 prefix.)
+ *
+ * The downstream router will send an otherwise empty router advertisement with only
+ * the Route Information Option set to the upstream network.
+ * The Route Information Option contains the prefix of the downstream network so that
+ * upstream hosts will no longer consider hosts in this subnet on-link but instead
+ * will use the downstream router to route to the new subnet.
+ *
+ * Usage
+ * =====
+ *
+ * Simply add the `gnrc_simple_subnets` module to the nodes that should act as routers
+ * in the cascading network.
+ * The upstream network will be automatically chosen as the one that first receives a
+ * router advertisement.
+ *
  * @{
  *
  * @file
