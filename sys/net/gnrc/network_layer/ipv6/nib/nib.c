@@ -86,6 +86,14 @@ static void _handle_rdnss_timeout(sock_udp_ep_t *dns_server);
 #endif
 /** @} */
 
+/* Callback to hook into Prefix Information Option */
+__attribute__ ((weak))
+void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *netif, const ndp_opt_pi_t *pio)
+{
+    (void) netif;
+    (void) pio;
+}
+
 void gnrc_ipv6_nib_init(void)
 {
     evtimer_event_t *tmp;
@@ -754,6 +762,9 @@ static void _handle_rtr_adv(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
                                               (ndp_opt_pi_t *)opt);
 #endif  /* CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C */
                 next_timeout = _min(next_timeout, min_pfx_timeout);
+
+                /* notify optional PIO consumer */
+                gnrc_ipv6_nib_rtr_adv_pio_cb(netif, (ndp_opt_pi_t *)opt);
                 break;
             }
             /* ABRO was already secured in the option check above */
