@@ -391,25 +391,12 @@ void gnrc_ipv6_nib_handle_timer_event(void *ctx, uint16_t type);
  *                      router.
  */
 void gnrc_ipv6_nib_change_rtr_adv_iface(gnrc_netif_t *netif, bool enable);
-
-/**
- * @brief   Immediately send a 'last router advertisement', that is a RA that
- *          does not advertise this host as a default router.
- *
- *          If the @ref CONFIG_GNRC_IPV6_NIB_ADD_RIO_IN_LAST_RA option is set,
- *          this will include a Route Information Option and nothing else.
- *
- * @param[in] netif     The interface on which the router advertisement should
- *                      be sent.
- */
-void gnrc_ipv6_nib_send_final_rtr_adv(gnrc_netif_t *netif);
 #else
 /**
  * @brief   Optimization to NOP for non-routers
  */
 #define gnrc_ipv6_nib_change_rtr_adv_iface(netif, enable) \
     (void)netif; (void)enable
-#define gnrc_ipv6_nib_send_final_rtr_adv(netif) (void)netif
 #endif
 
 #ifdef __cplusplus
