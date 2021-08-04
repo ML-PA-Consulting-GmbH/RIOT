@@ -121,6 +121,10 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
     }
 
     /* immediately send an RA with RIO */
-    gnrc_ndp_rtr_adv_send(upstream, NULL, &ipv6_addr_all_nodes_link_local, true, ext_opts);
+    if (ext_opts) {
+        gnrc_ndp_rtr_adv_send(upstream, NULL, &ipv6_addr_all_nodes_link_local, true, ext_opts);
+    } else {
+        DEBUG("simple_subnets: Options empty, not sending RA\n");
+    }
 }
 /** @} */
