@@ -1,3 +1,4 @@
+' to generate SVG run plantuml -tsvg simple_subnets.puml
 @startuml
 nwdiag {
 

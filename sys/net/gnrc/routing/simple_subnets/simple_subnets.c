@@ -15,7 +15,7 @@
  * =====
  *
  * This module provides an automatic configuration for networks with a simple
- * tree tolpology.
+ * tree topology.
  *
  * If a sufficiently large IPv6 prefix is provided via Router Advertisements, a
  * routing node with this module will automatically configure subnets from it for
@@ -27,11 +27,11 @@
  * ![Example Topology](simple_subnets.svg)
  *
  * The downstream network(s) get the reduced prefix via Router Advertisements and
- * the process repeats until the bits of prefix are exhausted. (The smallest
+ * the process repeats until the bits of prefix are exhausted. (The smallest subnet
  * must still have a /64 prefix.)
  *
- * The downstream router will send an otherwise empty router advertisement with only
- * the Route Information Option set to the upstream network.
+ * The downstream router will send a router advertisement with only a
+ * Route Information Option included to the upstream network.
  * The Route Information Option contains the prefix of the downstream network so that
  * upstream hosts will no longer consider hosts in this subnet on-link but instead
  * will use the downstream router to route to the new subnet.
@@ -76,6 +76,10 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
         return;
     }
 
+    /* Calculate remaining prefix length. For n subnets we consume ⌊log₂ n⌋ + 1 bits.
+     * To calculate ⌊log₂ n⌋ quickly, find the position of the most significant set bit
+     * by counting leading zeros.
+     */
     new_prefix_len = prefix_len + 32 - __builtin_clz(subnets);
 
     if (new_prefix_len > 64) {
@@ -90,15 +94,18 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
             continue;
         }
 
-        /* create subnet by adding interface index */
+        /* convert prefix to host byte order to ease calculation */
         new_prefix.u64[0].u64 = byteorder_ntohll(prefix->u64[0]);
+        /* create subnet by adding subnet index */
         new_prefix.u64[0].u64 |= (uint64_t)subnets-- << (63 - prefix_len);
+        /* convert prefix back to network byte order */
         new_prefix.u64[0] = byteorder_htonll(new_prefix.u64[0].u64);
 
         DEBUG("simple_subnets: configure prefix %s/%u on %u\n",
               ipv6_addr_to_str(addr_str, &new_prefix, sizeof(addr_str)),
               new_prefix_len, downstream->pid);
 
+        /* configure subnet on downstream interface */
         gnrc_netif_ipv6_add_prefix(downstream, &new_prefix, new_prefix_len,
                                    valid_ltime, pref_ltime);
 
