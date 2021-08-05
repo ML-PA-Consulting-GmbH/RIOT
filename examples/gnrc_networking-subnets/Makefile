@@ -8,6 +8,7 @@ BOARD ?= native
 RIOTBASE ?= $(CURDIR)/../..
 
 # Include packages that pull up and auto-init the link layer.
+USEMODULE += gnrc_netdev_default
 USEMODULE += auto_init_gnrc_netif
 # Activate ICMPv6 error messages
 USEMODULE += gnrc_icmpv6_error
@@ -24,41 +25,14 @@ USEMODULE += ps
 USEMODULE += netstats_l2
 USEMODULE += netstats_ipv6
 
-CFLAGS += -DDEBUG_ASSERT_VERBOSE=1
-CFLAGS += -DCONFIG_GNRC_IPV6_NIB_NUMOF=16
-
-ifeq (native, $(BOARD))
-  USEMODULE += netdev_tap
-  CFLAGS += -DCONFIG_GNRC_DHCPV6_CLIENT_6LBR_UPSTREAM=6
-else ifeq (1, $(SLIP))
-  USEMODULE += slipdev_l2addr
-  CFLAGS += -DCONFIG_GNRC_DHCPV6_CLIENT_6LBR_UPSTREAM=5
-else
-  USEMODULE += ethos
-  CFLAGS += -DCONFIG_GNRC_DHCPV6_CLIENT_6LBR_UPSTREAM=6
-endif
-
-CFLAGS += -DSLIPDEV_PARAM_UART=UART_DEV\(1\)
-CFLAGS += -DETHOS_UART=UART_DEV\(1\)
-CFLAGS += -DETHOS_BAUDRATE=115200
-
 # leaf nodes only have a single interface
 ifeq (1, $(LEAF))
   APPLICATION := $(APPLICATION)_leaf
   USEMODULE += gnrc_ipv6_default
 else
   USEMODULE += gnrc_ipv6_router_default
-  CFLAGS += -DNETDEV_TAP_MAX=2
-endif
-
-# gateway gets prefix via DHCPv6
-ifeq (1, $(GATEWAY))
-  APPLICATION := $(APPLICATION)_gateway
-
-  USEMODULE += gnrc_netdev_default
-  USEMODULE += gnrc_dhcpv6_client_simple_pd
-else ifneq (1, $(LEAF))
   USEMODULE += gnrc_simple_subnets
+  CFLAGS += -DNETDEV_TAP_MAX=2
 endif
 
 # Comment this out to disable code in RIOT that does safety checking
