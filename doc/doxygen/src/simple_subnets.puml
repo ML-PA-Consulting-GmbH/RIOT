@@ -28,8 +28,8 @@ nwdiag {
 
 		router_b [address = "2001:db8:0:c:2ca3:9eff:fea9:68f7"];
 		router_c [address = "2001:db8:0:c:fc33:13ff:fe93:5ae4", description = "3rd level router"];
-		leaf_b1   [address = "2001:db8:0:c:209e:deff:fea9:fd1b", description = "3rd level leaf node"];
-		leaf_b2   [address = "2001:db8:0:c:5491:a2ff:fe98:61a2", description = "3rd level leaf node"];
+		leaf_b1  [address = "2001:db8:0:c:209e:deff:fea9:fd1b", description = "3rd level leaf node"];
+		leaf_b2  [address = "2001:db8:0:c:5491:a2ff:fe98:61a2", description = "3rd level leaf node"];
 	}
 
 	network level4 {
