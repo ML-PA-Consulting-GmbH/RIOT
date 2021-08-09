@@ -97,7 +97,7 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
         /* convert prefix to host byte order to ease calculation */
         new_prefix.u64[0].u64 = byteorder_ntohll(prefix->u64[0]);
         /* create subnet by adding subnet index */
-        new_prefix.u64[0].u64 |= (uint64_t)subnets-- << (63 - prefix_len);
+        new_prefix.u64[0].u64 |= (uint64_t)subnets-- << (64 - new_prefix_len);
         /* convert prefix back to network byte order */
         new_prefix.u64[0] = byteorder_htonll(new_prefix.u64[0].u64);
 
