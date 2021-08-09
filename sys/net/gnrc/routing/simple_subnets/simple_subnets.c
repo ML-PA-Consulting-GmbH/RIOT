@@ -58,6 +58,35 @@
 
 static char addr_str[IPV6_ADDR_MAX_STR_LEN];
 
+static void _init_sub_prefix(ipv6_addr_t *out,
+                             const ipv6_addr_t *prefix, uint8_t bits,
+                             uint8_t idx, uint8_t idx_bits)
+{
+    uint8_t bytes = bits / 8;
+    uint8_t rem   = bits % 8;
+    int8_t shift  = 8 - rem - idx_bits;
+
+    /* first copy old prefix */
+    memcpy(out, prefix, bytes);
+
+    if (rem) {
+        uint8_t mask = 0xff << (8 - rem);
+        out->u8[bytes] = prefix->u8[bytes] & mask;
+    } else {
+        out->u8[bytes] = 0;
+    }
+
+    /* if new bits are between bytes, first copy over the most significant bits */
+    if (shift < 0) {
+        out->u8[bytes] |= idx >> -shift;
+        out->u8[++bytes] = 0;
+        shift += 8;
+    }
+
+    /* shift remaining bits at the end of the prefix */
+    out->u8[bytes] |= idx << shift;
+}
+
 void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pio)
 {
     gnrc_netif_t *downstream = NULL;
@@ -70,7 +99,7 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
     unsigned subnets = gnrc_netif_numof() - 1;
 
     const uint8_t prefix_len = pio->prefix_len;
-    uint8_t new_prefix_len;
+    uint8_t new_prefix_len, subnet_len;
 
     if (subnets == 0) {
         return;
@@ -80,7 +109,8 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
      * To calculate ⌊log₂ n⌋ quickly, find the position of the most significant set bit
      * by counting leading zeros.
      */
-    new_prefix_len = prefix_len + 32 - __builtin_clz(subnets);
+    subnet_len = 32 - __builtin_clz(subnets);
+    new_prefix_len = prefix_len + subnet_len;
 
     if (new_prefix_len > 64) {
         DEBUG("simple_subnets: can't split /%u into %u subnets\n", prefix_len, subnets);
@@ -94,12 +124,8 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
             continue;
         }
 
-        /* convert prefix to host byte order to ease calculation */
-        new_prefix.u64[0].u64 = byteorder_ntohll(prefix->u64[0]);
-        /* create subnet by adding subnet index */
-        new_prefix.u64[0].u64 |= (uint64_t)subnets-- << (64 - new_prefix_len);
-        /* convert prefix back to network byte order */
-        new_prefix.u64[0] = byteorder_htonll(new_prefix.u64[0].u64);
+        /* create subnet from upstream prefix */
+        _init_sub_prefix(&new_prefix, prefix, prefix_len, subnets--, subnet_len);
 
         DEBUG("simple_subnets: configure prefix %s/%u on %u\n",
               ipv6_addr_to_str(addr_str, &new_prefix, sizeof(addr_str)),
