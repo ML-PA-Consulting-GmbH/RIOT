@@ -1,0 +1,8 @@
+RIOT-2021.07-mlpa-4 - Merge Notes
+==========================
+
+ - based on 2021.10-devel-333-gde3e5f964a
+
+ - cherry-pick 7ae42ee7b951ea7d94ae9d38288cd8e387b5d5d7 (sam0 ADC hack)
+ - cherry-pick aa0d1d3c5172cf68264d82277234598aa2bbe0eb (enable nib.c debug hack)
+ - merged benpicco/cpu/sam0_common/flashpage_irq_disable
