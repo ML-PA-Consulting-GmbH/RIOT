@@ -113,9 +113,17 @@ ifneq (,$(filter gnrc_rpl,$(USEMODULE)))
   USEMODULE += evtimer
 endif
 
-ifneq (,$(filter gnrc_ipv6_simple_subnets,$(USEMODULE)))
+ifneq (,$(filter gnrc_ipv6_auto_subnets_simple,$(USEMODULE)))
+  USEMODULE += gnrc_ipv6_auto_subnets
+endif
+
+ifneq (,$(filter gnrc_ipv6_auto_subnets,$(USEMODULE)))
   CFLAGS += -DCONFIG_GNRC_IPV6_NIB_ADV_ROUTER=0
   CFLAGS += -DCONFIG_GNRC_IPV6_NIB_ADD_RIO_IN_LAST_RA=1
+
+  ifeq (,$(filter gnrc_ipv6_auto_subnets_simple,$(USEMODULE)))
+    DEFAULT_MODULE += gnrc_ipv6_auto_subnets_auto_init
+  endif
 endif
 
 ifneq (,$(filter gnrc_netif,$(USEMODULE)))

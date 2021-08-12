@@ -88,8 +88,8 @@ endif
 ifneq (,$(filter gnrc_rpl_p2p,$(USEMODULE)))
   DIRS += routing/rpl/p2p
 endif
-ifneq (,$(filter gnrc_ipv6_simple_subnets,$(USEMODULE)))
-  DIRS += routing/ipv6_simple_subnets
+ifneq (,$(filter gnrc_ipv6_auto_subnets,$(USEMODULE)))
+  DIRS += routing/ipv6_auto_subnets
 endif
 ifneq (,$(filter gnrc_sixlowpan,$(USEMODULE)))
   DIRS += network_layer/sixlowpan

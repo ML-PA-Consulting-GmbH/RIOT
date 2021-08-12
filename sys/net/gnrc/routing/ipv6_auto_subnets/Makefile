@@ -1,3 +1,3 @@
-MODULE = gnrc_ipv6_simple_subnets
+MODULE = gnrc_ipv6_auto_subnets
 
 include $(RIOTBASE)/Makefile.base
