@@ -679,6 +679,31 @@ void _nib_pl_remove(_nib_offl_entry_t *nib_offl)
 #endif  /* CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C */
 }
 
+void _nib_offl_remove_prefix(_nib_offl_entry_t *pfx)
+{
+    gnrc_netif_t *netif;
+
+    /* remove prefix timer */
+    evtimer_del(&_nib_evtimer, &pfx->pfx_timeout.event);
+
+    /* get interface associated with prefix */
+    netif = gnrc_netif_get_by_pid(_nib_onl_get_if(pfx->next_hop));
+
+    if (netif != NULL) {
+        /* remove address associated with prefix */
+        for (int i = 0; i < CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF; i++) {
+            if (ipv6_addr_match_prefix(&netif->ipv6.addrs[i],
+                                       &pfx->pfx) >= pfx->pfx_len) {
+                gnrc_netif_ipv6_addr_remove_internal(netif,
+                                                     &netif->ipv6.addrs[i]);
+            }
+        }
+    }
+
+    /* remove prefix */
+    _nib_pl_remove(pfx);
+}
+
 #if IS_ACTIVE(CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C)
 _nib_abr_entry_t *_nib_abr_add(const ipv6_addr_t *addr)
 {
