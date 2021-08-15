@@ -186,6 +186,36 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
                    &_timeout_msg, _server_pid);
 }
 
+static bool _purge_prefix(gnrc_netif_t *netif, const ipv6_addr_t *pfx, uint8_t pfx_len,
+                          gnrc_pktsnip_t **ext_opts)
+{
+    gnrc_ipv6_nib_pl_t entry;
+    void *state = NULL;
+
+    while (gnrc_ipv6_nib_pl_iter(netif->pid, &state, &entry)) {
+        gnrc_pktsnip_t *tmp;
+
+        if ((ipv6_addr_match_prefix(&entry.pfx, pfx) >= pfx_len) &&
+            pfx_len == entry.pfx_len) {
+            return true;
+        }
+
+        DEBUG("simple_subnets: remove old prefix %s/%u\n",
+               ipv6_addr_to_str(addr_str, &entry.pfx, sizeof(addr_str)), entry.pfx_len);
+
+        /* invalidate old prefix in RIO */
+        tmp = gnrc_ndp_opt_ri_build(&entry.pfx, entry.pfx_len, 0,
+                                    NDP_OPT_RI_FLAGS_PRF_NONE, *ext_opts);
+        if (tmp) {
+            *ext_opts = tmp;
+        }
+
+        /* remove the prefix */
+        gnrc_ipv6_nib_pl_del(entry.iface, &entry.pfx, entry.pfx_len);
+    }
+
+    return false;
+}
 
 static void _configure_subnets(uint8_t subnets, uint8_t start_idx)
 {
@@ -207,6 +237,7 @@ static void _configure_subnets(uint8_t subnets, uint8_t start_idx)
     }
 
     while ((downstream = gnrc_netif_iter(downstream))) {
+        gnrc_pktsnip_t *tmp;
         ipv6_addr_t new_prefix;
 
         if (downstream == _pio_cache.iface) {
@@ -221,6 +252,9 @@ static void _configure_subnets(uint8_t subnets, uint8_t start_idx)
               ipv6_addr_to_str(addr_str, &new_prefix, sizeof(addr_str)),
               new_prefix_len, downstream->pid);
 
+        /* first remove old prefix if the prefix changed */
+        _purge_prefix(downstream, &new_prefix, new_prefix_len, &ext_opts);
+
         /* configure subnet on downstream interface */
         gnrc_netif_ipv6_add_prefix(downstream, &new_prefix, new_prefix_len,
                                    _pio_cache.valid_ltime, _pio_cache.pref_ltime);
@@ -229,10 +263,12 @@ static void _configure_subnets(uint8_t subnets, uint8_t start_idx)
         gnrc_ipv6_nib_change_rtr_adv_iface(downstream, true);
 
         /* add route information option with new subnet */
-        ext_opts = gnrc_ndp_opt_ri_build(&new_prefix, new_prefix_len, _pio_cache.valid_ltime,
-                                         NDP_OPT_RI_FLAGS_PRF_NONE, ext_opts);
-        if (ext_opts == NULL) {
+        tmp = gnrc_ndp_opt_ri_build(&new_prefix, new_prefix_len, _pio_cache.valid_ltime,
+                                    NDP_OPT_RI_FLAGS_PRF_NONE, ext_opts);
+        if (tmp == NULL) {
             DEBUG("simple_subnets: No space left in packet buffer. Not adding RIO\n");
+        } else {
+            ext_opts = tmp;
         }
     }
 
