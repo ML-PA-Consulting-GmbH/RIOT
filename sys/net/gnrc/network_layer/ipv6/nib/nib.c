@@ -86,6 +86,14 @@ static void _handle_rdnss_timeout(sock_udp_ep_t *dns_server);
 #endif
 /** @} */
 
+/* Callback to hook into Prefix Information Option */
+__attribute__ ((weak))
+void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *netif, const ndp_opt_pi_t *pio)
+{
+    (void) netif;
+    (void) pio;
+}
+
 void gnrc_ipv6_nib_init(void)
 {
     evtimer_event_t *tmp;
@@ -754,6 +762,9 @@ static void _handle_rtr_adv(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
                                               (ndp_opt_pi_t *)opt);
 #endif  /* CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C */
                 next_timeout = _min(next_timeout, min_pfx_timeout);
+
+                /* notify optional PIO consumer */
+                gnrc_ipv6_nib_rtr_adv_pio_cb(netif, (ndp_opt_pi_t *)opt);
                 break;
             }
             /* ABRO was already secured in the option check above */
@@ -1331,16 +1342,7 @@ static void _handle_pfx_timeout(_nib_offl_entry_t *pfx)
 
     gnrc_netif_acquire(netif);
     if (now >= pfx->valid_until) {
-        evtimer_del(&_nib_evtimer, &pfx->pfx_timeout.event);
-        for (int i = 0; i < CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF; i++) {
-            if (ipv6_addr_match_prefix(&netif->ipv6.addrs[i],
-                                       &pfx->pfx) >= pfx->pfx_len) {
-                gnrc_netif_ipv6_addr_remove_internal(netif,
-                                                     &netif->ipv6.addrs[i]);
-            }
-        }
-        pfx->mode &= ~_PL;
-        _nib_offl_clear(pfx);
+        _nib_offl_remove_prefix(pfx);
     }
     else if (now >= pfx->pref_until) {
         for (int i = 0; i < CONFIG_GNRC_NETIF_IPV6_ADDRS_NUMOF; i++) {
@@ -1495,10 +1497,9 @@ static void _remove_prefix(const ipv6_addr_t *pfx, unsigned pfx_len)
         if ((offl->mode & _PL) &&
             (offl->pfx_len == pfx_len) &&
             (ipv6_addr_match_prefix(&offl->pfx, pfx) >= pfx_len)) {
-            _nib_pl_remove(offl);
+            _nib_offl_remove_prefix(offl);
         }
     }
-    return;
 }
 
 #if IS_ACTIVE(CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C)
@@ -1633,8 +1634,12 @@ static uint32_t _handle_rio(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
                       (UINT32_MAX - 1) : route_ltime * MS_PER_SEC;
     }
 
-    gnrc_ipv6_nib_ft_add(&rio->prefix, rio->prefix_len, &ipv6->src,
-                         netif->pid, route_ltime);
+    if (route_ltime == 0) {
+        gnrc_ipv6_nib_ft_del(&rio->prefix, rio->prefix_len);
+    } else {
+        gnrc_ipv6_nib_ft_add(&rio->prefix, rio->prefix_len, &ipv6->src,
+                             netif->pid, route_ltime);
+    }
 
     return route_ltime;
 }
