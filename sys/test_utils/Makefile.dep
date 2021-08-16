@@ -4,3 +4,6 @@ endif
 ifneq (,$(filter test_utils_result_output_%,$(USEMODULE)))
   USEMODULE += fmt
 endif
+ifneq (,$(filter benchmark_udp,$(USEMODULE)))
+  USEMODULE += sock_udp
+endif
