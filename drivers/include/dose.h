@@ -160,6 +160,11 @@ typedef struct {
 #endif
     xtimer_t timeout;                       /**< Timeout timer ensuring always to get back to IDLE state */
     uint32_t timeout_base;                  /**< Base timeout in us */
+    uint32_t send_time;
+    uint32_t recv_time;
+    uint64_t time_isr_uart_spent;
+    uint64_t time_isr_gpio_spent;
+    kernel_pid_t netif_thread_pid;
 } dose_t;
 
 /**
