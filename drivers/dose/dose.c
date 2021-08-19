@@ -28,8 +28,18 @@
 #include "net/eui_provider.h"
 #include "net/netdev/eth.h"
 
+#include "schedstatistics.h"
+
 #define ENABLE_DEBUG 0
 #include "debug.h"
+
+static void *_logging_thread(void *arg);
+static char logging_thread_stack[THREAD_STACKSIZE_MAIN];
+static uint32_t send_time;
+static uint32_t recv_time;
+static uint32_t  time_isr_uart, time_isr_uart_spent,
+				time_isr_gpio, time_isr_gpio_spent;
+int overall_stacksz = 0, overall_used = 0;
 
 static uint16_t crc16_update(uint16_t crc, uint8_t octet);
 static dose_signal_t state_transit_blocked(dose_t *ctx, dose_signal_t signal);
@@ -252,16 +262,18 @@ static void state(dose_t *ctx, dose_signal_t signal)
 static void _isr_uart(void *arg, uint8_t c)
 {
     dose_t *dev = arg;
-
+    time_isr_uart = SysTick->VAL;
     dev->uart_octet = c;
     state(dev, DOSE_SIGNAL_UART);
+    time_isr_uart_spent += (time_isr_uart - SysTick->VAL) & 0x00FFFFFF;
 }
 
 static void _isr_gpio(void *arg)
 {
     dose_t *dev = arg;
-
+    time_isr_gpio = SysTick->VAL;
     state(dev, DOSE_SIGNAL_GPIO);
+    time_isr_gpio_spent += (time_isr_gpio - SysTick->VAL) & 0x00FFFFFF;
 }
 
 static void _isr_xtimer(void *arg)
@@ -350,6 +362,7 @@ static int _recv(netdev_t *dev, void *buf, size_t len, void *info)
 
     (void)info;
 
+    recv_time = xtimer_now_usec();
     size_t pktlen = ctx->recv_buf_ptr - DOSE_FRAME_CRC_LEN;
     if (!buf && !len) {
         /* Return the amount of received bytes */
@@ -369,6 +382,7 @@ static int _recv(netdev_t *dev, void *buf, size_t len, void *info)
     else {
         /* Copy the packet to the provided buffer. */
         memcpy(buf, ctx->recv_buf, pktlen);
+        recv_time = xtimer_now_usec() - recv_time;
         clear_recv_buf(ctx);
         return pktlen;
     }
@@ -432,7 +446,7 @@ static int _send(netdev_t *dev, const iolist_t *iolist)
 send:
     crc = 0xffff;
     pktlen = 0;
-
+    send_time = xtimer_now_usec();
     /* Switch to state SEND */
     do {
         wait_for_state(ctx, DOSE_STATE_IDLE);
@@ -476,7 +490,7 @@ send:
 
     /* Get out of the SEND state */
     state(ctx, DOSE_SIGNAL_END);
-
+    send_time = xtimer_now_usec() - send_time;
     return pktlen;
 
 collision:
@@ -561,6 +575,13 @@ static int _init(netdev_t *dev)
 
     state(ctx, DOSE_SIGNAL_INIT);
 
+    SysTick->VAL  = 0;
+    SysTick->LOAD = SysTick_LOAD_RELOAD_Msk;
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
+
+    /* create logging thread*/
+    thread_create(logging_thread_stack, sizeof(logging_thread_stack), THREAD_PRIORITY_MAIN + 2,
+    		THREAD_CREATE_STACKTEST, _logging_thread, NULL, "data logging");
     return 0;
 }
 
@@ -605,4 +626,76 @@ void dose_setup(dose_t *ctx, const dose_params_t *params, uint8_t index)
     }
     ctx->timeout.callback = _isr_xtimer;
     ctx->timeout.arg = ctx;
+}
+
+static void *_logging_thread(void *arg)
+{
+	(void) arg;
+
+	while(1) {
+		DEBUG("time spent in send routine %ld\n",send_time);
+		DEBUG("time spent in recv routine %ld\n", recv_time);
+		DEBUG("time spent in isr uart IRQ %ld\n", time_isr_uart_spent);
+		DEBUG("time spent in gpio uart IRQ %ld\n", time_isr_gpio_spent);
+		printf("\tpid | "
+				"%-21s| "
+				"%-9sQ | pri "
+				"| stack  ( used) ( free) | base addr  | current     "
+				"| runtime  | switches  | runtime_usec | DT send + recv | DT ISR"
+				"\n",
+				"name",
+				"state");
+		int isr_usage = thread_isr_stack_usage();
+		overall_stacksz += ISR_STACKSIZE;
+		if (isr_usage > 0) {
+			overall_used += isr_usage;
+			uint64_t rt_sum = 0;
+			if (!IS_ACTIVE(MODULE_CORE_IDLE_THREAD)) {
+				rt_sum = sched_pidlist[KERNEL_PID_UNDEF].runtime_ticks;
+			}
+			for (kernel_pid_t i = KERNEL_PID_FIRST; i <= KERNEL_PID_LAST; i++) {
+				thread_t *p = thread_get(i);
+				if (p != NULL) {
+					rt_sum += sched_pidlist[i].runtime_ticks;
+				}
+			}
+			for (kernel_pid_t i = KERNEL_PID_FIRST; i <= KERNEL_PID_LAST; i++) {
+				thread_t *p = thread_get(i);
+				if (p != NULL) {
+					thread_status_t state = thread_get_status(p);                   /* copy state */
+					const char *sname = thread_state_to_string(state);              /* get state name */
+					const char *queued = thread_is_active(p) ? "Q" : "_";           /* get queued flag */
+					int stacksz = p->stack_size;                                    /* get stack size */
+					overall_stacksz += stacksz;
+					int stack_free = thread_measure_stack_free(p->stack_start);
+					stacksz -= stack_free;
+					overall_used += stacksz;
+					/* multiply with 100 for percentage and to avoid floats/doubles */
+					uint64_t runtime_ticks = sched_pidlist[i].runtime_ticks * 100;
+					xtimer_ticks32_t xtimer_ticks = {sched_pidlist[i].runtime_ticks};
+					unsigned runtime_major = runtime_ticks / rt_sum;
+					unsigned runtime_minor = ((runtime_ticks % rt_sum) * 1000) / rt_sum;
+					unsigned switches = sched_pidlist[i].schedules;
+					if(memcmp(p->name, "dose", sizeof("dose")) == 0) {
+						DEBUG("\t%3" PRIkernel_pid
+								" | %-20s"
+								" | %-8s %.1s | %3i"
+								" | %6i (%5i) (%5i) | %10p | %10p "
+								" | %2d.%03d%% |  %8u  | %10"PRIu32" | %ld | %ld "
+								"\n",
+								p->pid,
+								p->name,
+								sname, queued, p->priority
+								, p->stack_size, stacksz, stack_free,
+								(void *)p->stack_start, (void *)p->sp
+								, runtime_major, runtime_minor, switches, xtimer_usec_from_ticks(xtimer_ticks)
+								, send_time+recv_time, time_isr_uart_spent + time_isr_gpio_spent);
+					}
+				}
+			}
+		}
+		xtimer_sleep(10);
+	}
+
+	return NULL;
 }
