@@ -260,10 +260,25 @@ static void state(dose_t *ctx, dose_signal_t signal)
 static void _isr_uart(void *arg, uint8_t c)
 {
     dose_t *dev = arg;
+    dev->count_isr_uart++;
     uint32_t time_isr_uart = SysTick->VAL;
     dev->uart_octet = c;
     state(dev, DOSE_SIGNAL_UART);
-    dev->time_isr_uart_spent += (time_isr_uart - SysTick->VAL) & 0x00FFFFFF;
+    uint32_t dt = (time_isr_uart - SysTick->VAL) & 0x00FFFFFF;
+    switch (dev->state) {
+    case DOSE_STATE_SEND:
+    {
+        dev->time_isr_uart_send += dt;
+        dev->count_isr_uart_send++;
+    } break;
+    case DOSE_STATE_RECV:
+    {
+        dev->time_isr_uart_recv += dt;
+        dev->count_isr_uart_recv++;
+    } break;
+    default:
+        break;
+    }
 }
 
 static void _isr_gpio(void *arg)
@@ -271,7 +286,8 @@ static void _isr_gpio(void *arg)
     dose_t *dev = arg;
     uint32_t time_isr_gpio = SysTick->VAL;
     state(dev, DOSE_SIGNAL_GPIO);
-    dev->time_isr_gpio_spent += (time_isr_gpio - SysTick->VAL) & 0x00FFFFFF;
+    dev->time_isr_gpio += (time_isr_gpio - SysTick->VAL) & 0x00FFFFFF;
+    dev->count_isr_gpio++;
 }
 
 static void _isr_xtimer(void *arg)
@@ -575,8 +591,12 @@ static int _init(netdev_t *dev)
     ctx->state = DOSE_STATE_INIT;
     ctx->send_time = 0;
     ctx->recv_time = 0;
-    ctx->time_isr_uart_spent = 0;
-    ctx->time_isr_gpio_spent = 0;
+    ctx->time_isr_uart_send = 0;
+    ctx->count_isr_uart_send = 0;
+    ctx->time_isr_uart_recv = 0;
+    ctx->count_isr_uart_recv = 0;
+    ctx->time_isr_gpio = 0;
+    ctx->count_isr_gpio = 0;
     ctx->netif_thread_pid = thread_getpid();
     irq_restore(irq_state);
 
@@ -671,12 +691,14 @@ static void *_logging_thread(void *arg)
             dose_t *ctx = *ctx_copy_p;
             ctx_copy_p++;
             i++;
-            uint32_t t_isr_uart = (uint32_t)(ctx->time_isr_uart_spent / (CLOCK_CORECLOCK / 1000000ULL));
-            uint32_t t_isr_gpio = (uint32_t)(ctx->time_isr_gpio_spent / (CLOCK_CORECLOCK / 1000000ULL));
+            uint32_t t_isr_uart_send = (uint32_t)(ctx->time_isr_uart_send / (CLOCK_CORECLOCK / 1000000ULL));
+            uint32_t t_isr_uart_recv = (uint32_t)(ctx->time_isr_uart_recv / (CLOCK_CORECLOCK / 1000000ULL));
+            uint32_t t_isr_gpio = (uint32_t)(ctx->time_isr_gpio / (CLOCK_CORECLOCK / 1000000ULL));
             printf("DOSE INTERFACE #%d:\ntime spent in send routine %"PRIu32"\n", i, ctx->send_time);
             printf("time spent in recv routine %"PRIu32"\n", ctx->recv_time);
-            printf("time spent in isr uart IRQ %"PRIu32"\n", t_isr_uart);
-            printf("time spent in isr gpio IRQ %"PRIu32"\n", t_isr_gpio);
+            printf("time spent in isr uart IRQ for SEND: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_send, ctx->count_isr_uart_send, ctx->count_isr_uart);
+            printf("time spent in isr uart IRQ for RECV: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_recv, ctx->count_isr_uart_recv, ctx->count_isr_uart);
+            printf("time spent in isr gpio IRQ: %"PRIu32" in %"PRIu32" executions\n", t_isr_gpio, ctx->count_isr_gpio);
             printf("\tpid | "
                     "%-21s| "
                     "%-9sQ | pri "
@@ -711,7 +733,7 @@ static void *_logging_thread(void *arg)
                             , p->stack_size, stacksz, stack_free,
                             (void *)p->stack_start, (void *)p->sp
                             , runtime_major, runtime_minor, switches, xtimer_usec_from_ticks(xtimer_ticks)
-                            , ctx->send_time + ctx->recv_time, t_isr_uart + t_isr_gpio);
+                            , ctx->send_time + ctx->recv_time, t_isr_uart_send + t_isr_uart_recv + t_isr_gpio);
                 }
             }
         }

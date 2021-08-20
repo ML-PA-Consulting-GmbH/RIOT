@@ -162,8 +162,13 @@ typedef struct {
     uint32_t timeout_base;                  /**< Base timeout in us */
     uint32_t send_time;
     uint32_t recv_time;
-    uint64_t time_isr_uart_spent;
-    uint64_t time_isr_gpio_spent;
+    uint64_t time_isr_uart_send;
+    uint32_t count_isr_uart_send;
+    uint64_t time_isr_uart_recv;
+    uint32_t count_isr_uart_recv;
+    uint32_t count_isr_uart;
+    uint64_t time_isr_gpio;
+    uint32_t count_isr_gpio;
     kernel_pid_t netif_thread_pid;
 } dose_t;
 
