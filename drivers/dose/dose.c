@@ -491,13 +491,13 @@ send:
 
     /* Get out of the SEND state */
     state(ctx, DOSE_SIGNAL_END);
-    ctx->send_time += xtimer_now_usec() + t0_send;
+    ctx->send_time += xtimer_now_usec() - t0_send;
     return pktlen;
 
 collision:
     DEBUG("dose _send(): collision!\n");
     if (--retries < 0) {
-        ctx->send_time += xtimer_now_usec() + t0_send;
+        ctx->send_time += xtimer_now_usec() - t0_send;
         dev->event_callback(dev, NETDEV_EVENT_TX_MEDIUM_BUSY);
         return -EBUSY;
     }
@@ -672,10 +672,10 @@ static void *_logging_thread(void *arg)
             i++;
             uint32_t t_isr_uart = (uint32_t)(ctx->time_isr_uart_spent / (CLOCK_CORECLOCK / 1000000ULL));
             uint32_t t_isr_gpio = (uint32_t)(ctx->time_isr_gpio_spent / (CLOCK_CORECLOCK / 1000000ULL));
-            DEBUG("DOSE INTERFACE #%d:\ntime spent in send routine %"PRIu32"\n", i, ctx->send_time);
-            DEBUG("time spent in recv routine %"PRIu32"\n", ctx->recv_time);
-            DEBUG("time spent in isr uart IRQ %"PRIu32"\n", t_isr_uart);
-            DEBUG("time spent in isr gpio IRQ %"PRIu32"\n", t_isr_gpio);
+            printf("DOSE INTERFACE #%d:\ntime spent in send routine %"PRIu32"\n", i, ctx->send_time);
+            printf("time spent in recv routine %"PRIu32"\n", ctx->recv_time);
+            printf("time spent in isr uart IRQ %"PRIu32"\n", t_isr_uart);
+            printf("time spent in isr gpio IRQ %"PRIu32"\n", t_isr_gpio);
             printf("\tpid | "
                     "%-21s| "
                     "%-9sQ | pri "
@@ -699,7 +699,7 @@ static void *_logging_thread(void *arg)
                 unsigned runtime_minor = ((runtime_ticks % rt_sum) * 1000) / rt_sum;
                 unsigned switches = sched_pidlist[ctx->netif_thread_pid].schedules;
                 if(memcmp(p->name, "dose", sizeof("dose")) == 0) {
-                    DEBUG("\t%3" PRIkernel_pid
+                    printf("\t%3" PRIkernel_pid
                             " | %-20s"
                             " | %-8s %.1s | %3i"
                             " | %6i (%5i) (%5i) | %10p | %10p "
