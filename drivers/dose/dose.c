@@ -666,7 +666,7 @@ static void *_logging_thread(void *arg)
         }
         dose_t **ctx_copy_p = logging_dose_ctxs;
         int i = 0;
-        while ((*ctx_copy_p) && (ctx_copy_p < logging_dose_ctxs + ARRAY_SIZE(logging_dose_ctxs))) {
+        while ((ctx_copy_p < logging_dose_ctxs + ARRAY_SIZE(logging_dose_ctxs)) && (*ctx_copy_p)) {
             dose_t *ctx = *ctx_copy_p;
             ctx_copy_p++;
             i++;
