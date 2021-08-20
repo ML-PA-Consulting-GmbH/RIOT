@@ -664,6 +664,7 @@ static void *_logging_thread(void *arg)
                 rt_sum += sched_pidlist[i].runtime_ticks;
             }
         }
+        printf("DOSE LOG @ t = %"PRIu32"\n", xtimer_now_usec());
         dose_t **ctx_copy_p = logging_dose_ctxs;
         int i = 0;
         while ((ctx_copy_p < logging_dose_ctxs + ARRAY_SIZE(logging_dose_ctxs)) && (*ctx_copy_p)) {
