@@ -34,6 +34,8 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
+#define CORE_TICKS_TO_USEC(x) ((uint32_t)((uint64_t)(x) / (CLOCK_CORECLOCK / 1000000ULL)))
+
 static void *_logging_thread(void *arg);
 static char logging_thread_stack[THREAD_STACKSIZE_MAIN];
 static kernel_pid_t logging_thread_pid = KERNEL_PID_UNDEF;
@@ -417,10 +419,14 @@ static uint8_t wait_for_state(dose_t *ctx, uint8_t state)
 
 static int send_octet(dose_t *ctx, uint8_t c)
 {
+    uint32_t t0 = SysTick->VAL;
     uart_write(ctx->uart, (uint8_t *) &c, sizeof(c));
+    uint32_t t1 = SysTick->VAL;
 
     /* Wait for a state transition */
     uint8_t state = wait_for_state(ctx, DOSE_STATE_ANY);
+    ctx->send_octet_wait_ticks += (t1 - SysTick->VAL) & 0x00FFFFFF;
+    ctx->send_octet_uart_ticks += (t0 - t1) & 0x00FFFFFF;
     if (state != DOSE_STATE_SEND) {
         /* Timeout */
         DEBUG("dose send_octet(): timeout\n");
@@ -465,10 +471,12 @@ send:
     crc = 0xffff;
     pktlen = 0;
     /* Switch to state SEND */
+    uint32_t tw0 = SysTick->VAL;
     do {
         wait_for_state(ctx, DOSE_STATE_IDLE);
         state(ctx, DOSE_SIGNAL_SEND);
     } while (wait_for_state(ctx, DOSE_STATE_ANY) != DOSE_STATE_SEND);
+    ctx->send_init_wait_ticks += (tw0 - SysTick->VAL) & 0x00FFFFFF;
 
     /* Send packet buffer */
     for (const iolist_t *iol = iolist; iol; iol = iol->iol_next) {
@@ -503,18 +511,22 @@ send:
     }
 
     /* We probably sent the whole packet?! */
+    uint32_t tc0 = SysTick->VAL;
     dev->event_callback(dev, NETDEV_EVENT_TX_COMPLETE);
+    ctx->send_event_callback_ticks += (tc0 - SysTick->VAL) & 0x00FFFFFF;
 
     /* Get out of the SEND state */
     state(ctx, DOSE_SIGNAL_END);
-    ctx->send_time += xtimer_now_usec() - t0_send;
+    ctx->send_total_time += xtimer_now_usec() - t0_send;
     return pktlen;
 
 collision:
     DEBUG("dose _send(): collision!\n");
     if (--retries < 0) {
-        ctx->send_time += xtimer_now_usec() - t0_send;
+        uint32_t tc0 = SysTick->VAL;
         dev->event_callback(dev, NETDEV_EVENT_TX_MEDIUM_BUSY);
+        ctx->send_event_callback_ticks += (tc0 - SysTick->VAL) & 0x00FFFFFF;
+        ctx->send_total_time += xtimer_now_usec() - t0_send;
         return -EBUSY;
     }
     goto send;
@@ -589,7 +601,11 @@ static int _init(netdev_t *dev)
     ctx->recv_buf_ptr = 0;
     ctx->flags = 0;
     ctx->state = DOSE_STATE_INIT;
-    ctx->send_time = 0;
+    ctx->send_total_time = 0;
+    ctx->send_init_wait_ticks = 0;
+    ctx->send_octet_uart_ticks = 0;
+    ctx->send_octet_wait_ticks = 0;
+    ctx->send_event_callback_ticks = 0;
     ctx->recv_time = 0;
     ctx->time_isr_uart_send = 0;
     ctx->count_isr_uart_send = 0;
@@ -598,19 +614,20 @@ static int _init(netdev_t *dev)
     ctx->time_isr_gpio = 0;
     ctx->count_isr_gpio = 0;
     ctx->netif_thread_pid = thread_getpid();
-    irq_restore(irq_state);
+    if (logging_thread_pid == KERNEL_PID_UNDEF) {
+        /* initialize the SysTick timer */
+        SysTick->VAL  = 0;
+        SysTick->LOAD = SysTick_LOAD_RELOAD_Msk;
+        SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk
+                | SysTick_CTRL_ENABLE_Msk;
+    }
 
-    state(ctx, DOSE_SIGNAL_INIT);
+    irq_restore(irq_state);
 
     if (logging_thread_pid == KERNEL_PID_UNDEF) {
         /* create logging thread*/
         logging_thread_pid = thread_create(logging_thread_stack, sizeof(logging_thread_stack), THREAD_PRIORITY_MAIN + 2,
                 THREAD_CREATE_STACKTEST, _logging_thread, NULL, "data logging");
-
-        /* initialize the SysTick timer */
-        SysTick->VAL  = 0;
-        SysTick->LOAD = SysTick_LOAD_RELOAD_Msk;
-        SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk | SysTick_CTRL_ENABLE_Msk;
     }
 
     dose_t **ctx_copy_p = logging_dose_ctxs;
@@ -621,6 +638,8 @@ static int _init(netdev_t *dev)
         }
         ctx_copy_p++;
     }
+
+    state(ctx, DOSE_SIGNAL_INIT);
 
     return 0;
 }
@@ -691,10 +710,23 @@ static void *_logging_thread(void *arg)
             dose_t *ctx = *ctx_copy_p;
             ctx_copy_p++;
             i++;
-            uint32_t t_isr_uart_send = (uint32_t)(ctx->time_isr_uart_send / (CLOCK_CORECLOCK / 1000000ULL));
-            uint32_t t_isr_uart_recv = (uint32_t)(ctx->time_isr_uart_recv / (CLOCK_CORECLOCK / 1000000ULL));
-            uint32_t t_isr_gpio = (uint32_t)(ctx->time_isr_gpio / (CLOCK_CORECLOCK / 1000000ULL));
-            printf("DOSE INTERFACE #%d:\ntime spent in send routine %"PRIu32"\n", i, ctx->send_time);
+            uint32_t t_isr_uart_send = CORE_TICKS_TO_USEC(ctx->time_isr_uart_send);
+            uint32_t t_isr_uart_recv = CORE_TICKS_TO_USEC(ctx->time_isr_uart_recv);
+            uint32_t t_isr_gpio = CORE_TICKS_TO_USEC(ctx->time_isr_gpio);
+            uint32_t t_send_init_wait = CORE_TICKS_TO_USEC(ctx->send_init_wait_ticks);
+            uint32_t t_send_octet_uart = CORE_TICKS_TO_USEC(ctx->send_octet_uart_ticks);
+            uint32_t t_send_octet_wait = CORE_TICKS_TO_USEC(ctx->send_octet_wait_ticks);
+            uint32_t t_send_event_callback = CORE_TICKS_TO_USEC(ctx->send_event_callback_ticks);
+            printf("DOSE INTERFACE #%d:\ntime spent in send routine %"PRIu32
+                   " [init. wait = %"PRIu32
+                   ", send oct. uart = %"PRIu32
+                   ", send oct. wait = %"PRIu32
+                   ", evt. cb. = %"PRIu32
+                   "]\n", i, ctx->send_total_time,
+                   t_send_init_wait,
+                   t_send_octet_uart,
+                   t_send_octet_wait,
+                   t_send_event_callback);
             printf("time spent in recv routine %"PRIu32"\n", ctx->recv_time);
             printf("time spent in isr uart IRQ for SEND: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_send, ctx->count_isr_uart_send, ctx->count_isr_uart);
             printf("time spent in isr uart IRQ for RECV: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_recv, ctx->count_isr_uart_recv, ctx->count_isr_uart);
@@ -733,7 +765,7 @@ static void *_logging_thread(void *arg)
                             , p->stack_size, stacksz, stack_free,
                             (void *)p->stack_start, (void *)p->sp
                             , runtime_major, runtime_minor, switches, xtimer_usec_from_ticks(xtimer_ticks)
-                            , ctx->send_time + ctx->recv_time, t_isr_uart_send + t_isr_uart_recv + t_isr_gpio);
+                            , ctx->send_total_time + ctx->recv_time, t_isr_uart_send + t_isr_uart_recv + t_isr_gpio);
                 }
             }
         }
