@@ -710,7 +710,7 @@ void dose_setup(dose_t *ctx, const dose_params_t *params, uint8_t index)
     if (ctx->timeout_base < xtimer_usec_from_ticks(min_timeout)) {
         ctx->timeout_base = xtimer_usec_from_ticks(min_timeout);
     }
-    DEBUG("dose timeout set to %" PRIu32 " µs\n", ctx->timeout_base);
+    printf("dose timeout set to %" PRIu32 " µs\n", ctx->timeout_base);
     ctx->timeout.callback = _isr_xtimer;
     ctx->timeout.arg = ctx;
 }
