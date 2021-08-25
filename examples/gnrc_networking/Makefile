@@ -7,31 +7,59 @@ BOARD ?= native
 # This has to be the absolute path to the RIOT base directory:
 RIOTBASE ?= $(CURDIR)/../..
 
+CFLAGS += -DCONFIG_GNRC_IPV6_NIB_NUMOF=16
+CFLAGS += -DCONFIG_GNRC_IPV6_NIB_ADV_ROUTER=0
 # Include packages that pull up and auto-init the link layer.
 # NOTE: 6LoWPAN will be included if IEEE802.15.4 devices are present
-USEMODULE += gnrc_netdev_default
+#USEMODULE += gnrc_netdev_default
 USEMODULE += auto_init_gnrc_netif
 # Activate ICMPv6 error messages
 USEMODULE += gnrc_icmpv6_error
 # Specify the mandatory networking modules for IPv6 and UDP
 USEMODULE += gnrc_ipv6_router_default
 USEMODULE += gnrc_udp
+USEMODULE += gnrc_sock_udp
 # Add a routing protocol
-USEMODULE += gnrc_rpl
-USEMODULE += auto_init_gnrc_rpl
+#USEMODULE += gnrc_rpl
+#USEMODULE += auto_init_gnrc_rpl
 # This application dumps received packets to STDIO using the pktdump module
 USEMODULE += gnrc_pktdump
 # Additional networking modules that can be dropped if not needed
 USEMODULE += gnrc_icmpv6_echo
-USEMODULE += netutils
 # Add also the shell, some shell commands
 USEMODULE += shell
 USEMODULE += shell_commands
 USEMODULE += ps
 USEMODULE += netstats_l2
 USEMODULE += netstats_ipv6
-USEMODULE += netstats_rpl
-
+USEMODULE += dose
+USEMODULE += schedstatistics
+USEMODULE += xtimer
+ifeq (1, $(GATEWAY))
+      #USEMODULE += gnrc_dhcpv6_client_simple_pd
+      USEMODULE += gnrc_ipv6_auto_subnets
+      USEMODULE += usbus_cdc_ecm
+      USEMODULE += auto_init_usbus
+      USEMODULE += gnrc_ipv6_router_default
+      CFLAGS += -DCONFIG_GNRC_DHCPV6_CLIENT_6LBR_UPSTREAM=7
+endif    
+ifeq (1, $(LEAF))
+    USEMODULE += gnrc_ipv6_default
+else
+	USEMODULE += gnrc_ipv6_router_default
+	USEMODULE += gnrc_ipv6_auto_subnets
+	#USEMODULE += gnrc_simple_subnets
+	#USEMODULE +=gnrc_ipv6_nib_subnets
+endif
+# Network performance improvements
+CFLAGS += -DCONFIG_GNRC_PKTBUF_SIZE=32768
+CFLAGS += -DCONFIG_GCOAP_PDU_BUF_SIZE=1024
+CFLAGS += -DCONFIG_GCOAP_RESEND_BUFS_MAX=4
+CFLAGS += -DCONFIG_GNRC_NETIF_PKTQ_POOL_SIZE=32
+CFLAGS += -DXFER_BUFFER_SIZE=4096
+CFLAGS += -DDOSE_PARAM_BAUDRATE="MHZ(1)"
+CFLAGS += -DCONFIG_DOSE_TIMEOUT_USEC="(2000)"
+#FEATURES_PROVIDED += periph_usbdev
 # Optionally include DNS support. This includes resolution of names at an
 # upstream DNS server and the handling of RDNSS options in Router Advertisements
 # to auto-configure that upstream DNS server.
