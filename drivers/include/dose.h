@@ -173,6 +173,13 @@ typedef struct {
     uint32_t count_isr_uart;
     uint64_t time_isr_gpio;
     uint32_t count_isr_gpio;
+    uint32_t collision_counter;
+    uint32_t no_frame_counter;
+    uint32_t no_valid_end_octet_counter;
+    uint32_t short_frame_counter;
+    uint32_t wrong_crc_counter;
+    uint32_t wrong_dst_mac_counter;
+    uint32_t send_done;
     kernel_pid_t netif_thread_pid;
 } dose_t;
 

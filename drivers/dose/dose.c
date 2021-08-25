@@ -325,12 +325,14 @@ static void _isr(netdev_t *netdev)
     /* If the receive buffer does not contain any data just abort ... */
     if (!dirty) {
         DEBUG("dose _isr(): no frame -> drop\n");
+        ctx->no_frame_counter++;
         return;
     }
 
     /* If we haven't received a valid END octet just drop the incomplete frame. */
     if (!end) {
         DEBUG("dose _isr(): incomplete frame -> drop\n");
+        ctx->no_valid_end_octet_counter++;
         clear_recv_buf(ctx);
         return;
     }
@@ -342,6 +344,7 @@ static void _isr(netdev_t *netdev)
     /* Check for minimum length of an Ethernet packet */
     if (ctx->recv_buf_ptr < sizeof(ethernet_hdr_t) + DOSE_FRAME_CRC_LEN) {
         DEBUG("dose _isr(): frame too short -> drop\n");
+        ctx->short_frame_counter++;
         clear_recv_buf(ctx);
         return;
     }
@@ -351,6 +354,7 @@ static void _isr(netdev_t *netdev)
         ethernet_hdr_t *hdr = (ethernet_hdr_t *) ctx->recv_buf;
         if ((hdr->dst[0] & 0x1) == 0 && memcmp(hdr->dst, ctx->mac_addr.uint8, ETHERNET_ADDR_LEN) != 0) {
             DEBUG("dose _isr(): dst mac not matching -> drop\n");
+            ctx->wrong_dst_mac_counter++;
             clear_recv_buf(ctx);
             return;
         }
@@ -363,6 +367,7 @@ static void _isr(netdev_t *netdev)
     }
     if (crc != 0x0000) {
         DEBUG("dose _isr(): wrong crc 0x%04x -> drop\n", crc);
+        ctx->wrong_crc_counter++;
         clear_recv_buf(ctx);
         return;
     }
@@ -420,9 +425,10 @@ static uint8_t wait_for_state(dose_t *ctx, uint8_t state)
 static int send_octet(dose_t *ctx, uint8_t c)
 {
     uint32_t t0 = SysTick->VAL;
+
+
     uart_write(ctx->uart, (uint8_t *) &c, sizeof(c));
     uint32_t t1 = SysTick->VAL;
-
 #ifdef MODULE_PERIPH_UART_COLLISION
     return uart_collision_detected(ctx->uart);
 #endif
@@ -510,6 +516,7 @@ send:
         while (n--) {
             /* Send data octet */
             if (send_data_octet(ctx, *ptr)) {
+            	ctx->collision_counter++;
                 goto collision;
             }
 
@@ -523,19 +530,22 @@ send:
     /* Send CRC */
     network_uint16_t crc_nw = byteorder_htons(crc);
     if (send_data_octet(ctx, crc_nw.u8[0])) {
+    	ctx->collision_counter++;
         goto collision;
     }
     if (send_data_octet(ctx, crc_nw.u8[1])) {
+    	ctx->collision_counter++;
         goto collision;
     }
 
     /* Send END octet */
     if (send_octet(ctx, DOSE_OCTET_END)) {
+    	ctx->collision_counter++;
         goto collision;
     }
 
     _send_done(ctx);
-
+    ctx->send_done++;
     /* We probably sent the whole packet?! */
     uint32_t tc0 = SysTick->VAL;
     dev->event_callback(dev, NETDEV_EVENT_TX_COMPLETE);
@@ -548,7 +558,7 @@ send:
 
 collision:
     _send_done(ctx);
-    DEBUG("dose _send(): collision!\n");
+    printf("dose _send(): collision!\n");
     if (--retries < 0) {
         uint32_t tc0 = SysTick->VAL;
         dev->event_callback(dev, NETDEV_EVENT_TX_MEDIUM_BUSY);
@@ -640,6 +650,13 @@ static int _init(netdev_t *dev)
     ctx->count_isr_uart_recv = 0;
     ctx->time_isr_gpio = 0;
     ctx->count_isr_gpio = 0;
+    ctx->collision_counter = 0;
+    ctx->no_frame_counter = 0;
+    ctx->no_valid_end_octet_counter = 0;
+    ctx->short_frame_counter = 0;
+    ctx->wrong_crc_counter = 0;
+    ctx->wrong_dst_mac_counter = 0;
+    ctx->send_done = 0;
     ctx->netif_thread_pid = thread_getpid();
     if (logging_thread_pid == KERNEL_PID_UNDEF) {
         /* initialize the SysTick timer */
@@ -759,6 +776,13 @@ static void *_logging_thread(void *arg)
             printf("time spent in isr uart IRQ for SEND: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_send, ctx->count_isr_uart_send, ctx->count_isr_uart);
             printf("time spent in isr uart IRQ for RECV: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_recv, ctx->count_isr_uart_recv, ctx->count_isr_uart);
             printf("time spent in isr gpio IRQ: %"PRIu32" in %"PRIu32" executions\n", t_isr_gpio, ctx->count_isr_gpio);
+            printf("number of totall send done %"PRIu32"\n", ctx->send_done);
+            printf("number of collisions: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->collision_counter, (ctx->collision_counter/ctx->send_done));
+            printf("number of no data in the buffer: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->no_frame_counter, (ctx->no_frame_counter/ctx->send_done));
+            printf("number of no valid end octet: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->no_valid_end_octet_counter, (ctx->no_valid_end_octet_counter/ctx->send_done));
+            printf("number of short frame dropped: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->short_frame_counter, (ctx->short_frame_counter/ctx->send_done));
+            printf("number of wrong crc: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->wrong_crc_counter, (ctx->wrong_crc_counter/ctx->send_done));
+            printf("number of wrong dst mac: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->wrong_dst_mac_counter, (ctx->wrong_dst_mac_counter/ctx->send_done));
             printf("\tpid | "
                     "%-21s| "
                     "%-9sQ | pri "
