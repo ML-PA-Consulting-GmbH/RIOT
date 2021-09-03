@@ -29,17 +29,8 @@
 #include "net/eui_provider.h"
 #include "net/netdev/eth.h"
 
-#include "schedstatistics.h"
-
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 #include "debug.h"
-
-#define CORE_TICKS_TO_USEC(x) ((uint32_t)((uint64_t)(x) / (CLOCK_CORECLOCK / 1000000ULL)))
-
-static void *_logging_thread(void *arg);
-static char logging_thread_stack[THREAD_STACKSIZE_MAIN];
-static kernel_pid_t logging_thread_pid = KERNEL_PID_UNDEF;
-static dose_t *logging_dose_ctxs[ARRAY_SIZE(dose_params)];
 
 static uint16_t crc16_update(uint16_t crc, uint8_t octet);
 static dose_signal_t state_transit_blocked(dose_t *ctx, dose_signal_t signal);
@@ -149,12 +140,16 @@ static dose_signal_t state_transit_idle(dose_t *ctx, dose_signal_t signal)
 
 static dose_signal_t state_transit_recv(dose_t *ctx, dose_signal_t signal)
 {
+    const uint8_t cnt_max = 64;
+    static uint8_t cnt = 0;
+
     dose_signal_t rc = DOSE_SIGNAL_NONE;
 
     if (ctx->state != DOSE_STATE_RECV) {
         /* We freshly entered this state. Thus, no start bit sensing is required
          * anymore. Disable RX Start IRQs during the transmission. */
         _disable_sense(ctx);
+        cnt = 0;
     }
 
     if (signal == DOSE_SIGNAL_UART) {
@@ -181,9 +176,9 @@ static dose_signal_t state_transit_recv(dose_t *ctx, dose_signal_t signal)
         }
     }
 
-    if (rc == DOSE_SIGNAL_NONE) {
+    if (rc == DOSE_SIGNAL_NONE && (cnt++ % cnt_max == 0)) {
         /* No signal is returned. We stay in the RECV state. */
-        xtimer_set(&ctx->timeout, ctx->timeout_base);
+        xtimer_set(&ctx->timeout, ctx->timeout_base * cnt_max);
     }
 
     return rc;
@@ -202,7 +197,7 @@ static dose_signal_t state_transit_send(dose_t *ctx, dose_signal_t signal)
      * will bring us back to the BLOCKED state after _send has emitted
      * its last octet. */
 
-    xtimer_set(&ctx->timeout, ctx->timeout_base);
+    //xtimer_set(&ctx->timeout, ctx->timeout_base);
 
     return DOSE_SIGNAL_NONE;
 }
@@ -262,34 +257,16 @@ static void state(dose_t *ctx, dose_signal_t signal)
 static void _isr_uart(void *arg, uint8_t c)
 {
     dose_t *dev = arg;
-    dev->count_isr_uart++;
-    uint32_t time_isr_uart = SysTick->VAL;
+
     dev->uart_octet = c;
     state(dev, DOSE_SIGNAL_UART);
-    uint32_t dt = (time_isr_uart - SysTick->VAL) & 0x00FFFFFF;
-    switch (dev->state) {
-    case DOSE_STATE_SEND:
-    {
-        dev->time_isr_uart_send += dt;
-        dev->count_isr_uart_send++;
-    } break;
-    case DOSE_STATE_RECV:
-    {
-        dev->time_isr_uart_recv += dt;
-        dev->count_isr_uart_recv++;
-    } break;
-    default:
-        break;
-    }
 }
 
 static void _isr_gpio(void *arg)
 {
     dose_t *dev = arg;
-    uint32_t time_isr_gpio = SysTick->VAL;
+
     state(dev, DOSE_SIGNAL_GPIO);
-    dev->time_isr_gpio += (time_isr_gpio - SysTick->VAL) & 0x00FFFFFF;
-    dev->count_isr_gpio++;
 }
 
 static void _isr_xtimer(void *arg)
@@ -378,31 +355,26 @@ static int _recv(netdev_t *dev, void *buf, size_t len, void *info)
 
     (void)info;
 
-    uint32_t t0_recv = xtimer_now_usec();
     size_t pktlen = ctx->recv_buf_ptr - DOSE_FRAME_CRC_LEN;
     if (!buf && !len) {
         /* Return the amount of received bytes */
-        ctx->recv_time += xtimer_now_usec() - t0_recv;
         return pktlen;
     }
     else if (!buf && len) {
         /* The user drops the packet */
         clear_recv_buf(ctx);
-        ctx->recv_time += xtimer_now_usec() - t0_recv;
         return pktlen;
     }
     else if (len < pktlen) {
         /* The provided buffer is too small! */
         DEBUG("dose _recv(): receive buffer too small\n");
         clear_recv_buf(ctx);
-        ctx->recv_time += xtimer_now_usec() - t0_recv;
         return -1;
     }
     else {
         /* Copy the packet to the provided buffer. */
         memcpy(buf, ctx->recv_buf, pktlen);
         clear_recv_buf(ctx);
-        ctx->recv_time += xtimer_now_usec() - t0_recv;
         return pktlen;
     }
 }
@@ -419,9 +391,7 @@ static uint8_t wait_for_state(dose_t *ctx, uint8_t state)
 
 static int send_octet(dose_t *ctx, uint8_t c)
 {
-    uint32_t t0 = SysTick->VAL;
     uart_write(ctx->uart, (uint8_t *) &c, sizeof(c));
-    uint32_t t1 = SysTick->VAL;
 
 #ifdef MODULE_PERIPH_UART_COLLISION
     return uart_collision_detected(ctx->uart);
@@ -429,8 +399,6 @@ static int send_octet(dose_t *ctx, uint8_t c)
 
     /* Wait for a state transition */
     uint8_t state = wait_for_state(ctx, DOSE_STATE_ANY);
-    ctx->send_octet_wait_ticks += (t1 - SysTick->VAL) & 0x00FFFFFF;
-    ctx->send_octet_uart_ticks += (t0 - t1) & 0x00FFFFFF;
     if (state != DOSE_STATE_SEND) {
         /* Timeout */
         DEBUG("dose send_octet(): timeout\n");
@@ -487,18 +455,16 @@ static int _send(netdev_t *dev, const iolist_t *iolist)
     int8_t retries = 3;
     size_t pktlen;
     uint16_t crc;
-    uint32_t t0_send = xtimer_now_usec();
 
 send:
     crc = 0xffff;
     pktlen = 0;
     /* Switch to state SEND */
-    uint32_t tw0 = SysTick->VAL;
     do {
         wait_for_state(ctx, DOSE_STATE_IDLE);
         state(ctx, DOSE_SIGNAL_SEND);
     } while (wait_for_state(ctx, DOSE_STATE_ANY) != DOSE_STATE_SEND);
-    ctx->send_init_wait_ticks += (tw0 - SysTick->VAL) & 0x00FFFFFF;
+    xtimer_remove(&ctx->timeout);
 
     _send_start(ctx);
 
@@ -537,23 +503,18 @@ send:
     _send_done(ctx);
 
     /* We probably sent the whole packet?! */
-    uint32_t tc0 = SysTick->VAL;
     dev->event_callback(dev, NETDEV_EVENT_TX_COMPLETE);
-    ctx->send_event_callback_ticks += (tc0 - SysTick->VAL) & 0x00FFFFFF;
 
     /* Get out of the SEND state */
     state(ctx, DOSE_SIGNAL_END);
-    ctx->send_total_time += xtimer_now_usec() - t0_send;
     return pktlen;
 
 collision:
     _send_done(ctx);
+    state(ctx, DOSE_SIGNAL_XTIMER);
     DEBUG("dose _send(): collision!\n");
     if (--retries < 0) {
-        uint32_t tc0 = SysTick->VAL;
         dev->event_callback(dev, NETDEV_EVENT_TX_MEDIUM_BUSY);
-        ctx->send_event_callback_ticks += (tc0 - SysTick->VAL) & 0x00FFFFFF;
-        ctx->send_total_time += xtimer_now_usec() - t0_send;
         return -EBUSY;
     }
     goto send;
@@ -628,43 +589,8 @@ static int _init(netdev_t *dev)
     ctx->recv_buf_ptr = 0;
     ctx->flags = 0;
     ctx->state = DOSE_STATE_INIT;
-    ctx->send_total_time = 0;
-    ctx->send_init_wait_ticks = 0;
-    ctx->send_octet_uart_ticks = 0;
-    ctx->send_octet_wait_ticks = 0;
-    ctx->send_event_callback_ticks = 0;
-    ctx->recv_time = 0;
-    ctx->time_isr_uart_send = 0;
-    ctx->count_isr_uart_send = 0;
-    ctx->time_isr_uart_recv = 0;
-    ctx->count_isr_uart_recv = 0;
-    ctx->time_isr_gpio = 0;
-    ctx->count_isr_gpio = 0;
-    ctx->netif_thread_pid = thread_getpid();
-    if (logging_thread_pid == KERNEL_PID_UNDEF) {
-        /* initialize the SysTick timer */
-        SysTick->VAL  = 0;
-        SysTick->LOAD = SysTick_LOAD_RELOAD_Msk;
-        SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk
-                | SysTick_CTRL_ENABLE_Msk;
-    }
 
     irq_restore(irq_state);
-
-    if (logging_thread_pid == KERNEL_PID_UNDEF) {
-        /* create logging thread*/
-        logging_thread_pid = thread_create(logging_thread_stack, sizeof(logging_thread_stack), THREAD_PRIORITY_MAIN + 2,
-                THREAD_CREATE_STACKTEST, _logging_thread, NULL, "data logging");
-    }
-
-    dose_t **ctx_copy_p = logging_dose_ctxs;
-    while (ctx_copy_p < logging_dose_ctxs + ARRAY_SIZE(logging_dose_ctxs)) {
-        if (!(*ctx_copy_p)) {
-            *ctx_copy_p = ctx;
-            break;
-        }
-        ctx_copy_p++;
-    }
 
     state(ctx, DOSE_SIGNAL_INIT);
 
@@ -713,91 +639,4 @@ void dose_setup(dose_t *ctx, const dose_params_t *params, uint8_t index)
     printf("dose timeout set to %" PRIu32 " µs\n", ctx->timeout_base);
     ctx->timeout.callback = _isr_xtimer;
     ctx->timeout.arg = ctx;
-}
-
-static void *_logging_thread(void *arg)
-{
-    (void) arg;
-
-    while(1) {
-        xtimer_sleep(10);
-        uint64_t rt_sum = 0;
-        if (!IS_ACTIVE(MODULE_CORE_IDLE_THREAD)) {
-            rt_sum = sched_pidlist[KERNEL_PID_UNDEF].runtime_ticks;
-        }
-        for (kernel_pid_t i = KERNEL_PID_FIRST; i <= KERNEL_PID_LAST; i++) {
-            thread_t *p = thread_get(i);
-            if (p != NULL) {
-                rt_sum += sched_pidlist[i].runtime_ticks;
-            }
-        }
-        printf("DOSE LOG @ t = %"PRIu32"\n", xtimer_now_usec());
-        dose_t **ctx_copy_p = logging_dose_ctxs;
-        int i = 0;
-        while ((ctx_copy_p < logging_dose_ctxs + ARRAY_SIZE(logging_dose_ctxs)) && (*ctx_copy_p)) {
-            dose_t *ctx = *ctx_copy_p;
-            ctx_copy_p++;
-            i++;
-            uint32_t t_isr_uart_send = CORE_TICKS_TO_USEC(ctx->time_isr_uart_send);
-            uint32_t t_isr_uart_recv = CORE_TICKS_TO_USEC(ctx->time_isr_uart_recv);
-            uint32_t t_isr_gpio = CORE_TICKS_TO_USEC(ctx->time_isr_gpio);
-            uint32_t t_send_init_wait = CORE_TICKS_TO_USEC(ctx->send_init_wait_ticks);
-            uint32_t t_send_octet_uart = CORE_TICKS_TO_USEC(ctx->send_octet_uart_ticks);
-            uint32_t t_send_octet_wait = CORE_TICKS_TO_USEC(ctx->send_octet_wait_ticks);
-            uint32_t t_send_event_callback = CORE_TICKS_TO_USEC(ctx->send_event_callback_ticks);
-            printf("DOSE INTERFACE #%d:\ntime spent in send routine %"PRIu32
-                   " [init. wait = %"PRIu32
-                   ", send oct. uart = %"PRIu32
-                   ", send oct. wait = %"PRIu32
-                   ", evt. cb. = %"PRIu32
-                   "]\n", i, ctx->send_total_time,
-                   t_send_init_wait,
-                   t_send_octet_uart,
-                   t_send_octet_wait,
-                   t_send_event_callback);
-            printf("time spent in recv routine %"PRIu32"\n", ctx->recv_time);
-            printf("time spent in isr uart IRQ for SEND: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_send, ctx->count_isr_uart_send, ctx->count_isr_uart);
-            printf("time spent in isr uart IRQ for RECV: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_recv, ctx->count_isr_uart_recv, ctx->count_isr_uart);
-            printf("time spent in isr gpio IRQ: %"PRIu32" in %"PRIu32" executions\n", t_isr_gpio, ctx->count_isr_gpio);
-            printf("\tpid | "
-                    "%-21s| "
-                    "%-9sQ | pri "
-                    "| stack  ( used) ( free) | base addr  | current     "
-                    "| runtime  | switches  | runtime_usec | DT send + recv | DT ISR"
-                    "\n",
-                    "name",
-                    "state");
-            thread_t *p = thread_get(ctx->netif_thread_pid);
-            if (p != NULL) {
-                thread_status_t state = thread_get_status(p);                   /* copy state */
-                const char *sname = thread_state_to_string(state);              /* get state name */
-                const char *queued = thread_is_active(p) ? "Q" : "_";           /* get queued flag */
-                int stacksz = p->stack_size;                                    /* get stack size */
-                int stack_free = thread_measure_stack_free(p->stack_start);
-                stacksz -= stack_free;
-                /* multiply with 100 for percentage and to avoid floats/doubles */
-                uint64_t runtime_ticks = sched_pidlist[ctx->netif_thread_pid].runtime_ticks * 100;
-                xtimer_ticks32_t xtimer_ticks = {sched_pidlist[ctx->netif_thread_pid].runtime_ticks};
-                unsigned runtime_major = runtime_ticks / rt_sum;
-                unsigned runtime_minor = ((runtime_ticks % rt_sum) * 1000) / rt_sum;
-                unsigned switches = sched_pidlist[ctx->netif_thread_pid].schedules;
-                if(memcmp(p->name, "dose", sizeof("dose")) == 0) {
-                    printf("\t%3" PRIkernel_pid
-                            " | %-20s"
-                            " | %-8s %.1s | %3i"
-                            " | %6i (%5i) (%5i) | %10p | %10p "
-                            " | %2d.%03d%% |  %8u  | %10"PRIu32" | %"PRIu32" | %"PRIu32"\n",
-                            p->pid,
-                            p->name,
-                            sname, queued, p->priority
-                            , p->stack_size, stacksz, stack_free,
-                            (void *)p->stack_start, (void *)p->sp
-                            , runtime_major, runtime_minor, switches, xtimer_usec_from_ticks(xtimer_ticks)
-                            , ctx->send_total_time + ctx->recv_time, t_isr_uart_send + t_isr_uart_recv + t_isr_gpio);
-                }
-            }
-        }
-    }
-
-    return NULL;
 }
