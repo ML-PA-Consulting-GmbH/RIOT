@@ -35,6 +35,7 @@ USEMODULE += netstats_ipv6
 USEMODULE += dose
 USEMODULE += schedstatistics
 USEMODULE += xtimer
+USEMODULE += netstats_neighbor_count
 ifeq (1, $(GATEWAY))
       #USEMODULE += gnrc_dhcpv6_client_simple_pd
       USEMODULE += gnrc_ipv6_auto_subnets
@@ -58,7 +59,7 @@ CFLAGS += -DCONFIG_GCOAP_RESEND_BUFS_MAX=4
 CFLAGS += -DCONFIG_GNRC_NETIF_PKTQ_POOL_SIZE=32
 CFLAGS += -DXFER_BUFFER_SIZE=4096
 CFLAGS += -DDOSE_PARAM_BAUDRATE="MHZ(1)"
-CFLAGS += -DCONFIG_DOSE_TIMEOUT_USEC="(2000)"
+#CFLAGS += -DCONFIG_DOSE_TIMEOUT_USEC="(2000)"
 #FEATURES_PROVIDED += periph_usbdev
 # Optionally include DNS support. This includes resolution of names at an
 # upstream DNS server and the handling of RDNSS options in Router Advertisements
