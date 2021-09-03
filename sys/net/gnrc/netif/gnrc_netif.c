@@ -56,7 +56,8 @@ static void _update_l2addr_from_dev(gnrc_netif_t *netif);
 static void _check_netdev_capabilities(netdev_t *dev);
 static void *_gnrc_netif_thread(void *args);
 static void _event_cb(netdev_t *dev, netdev_event_t event);
-
+uint32_t count_pkt_recv_throwed = 0;
+uint32_t process_rcv_pkt_counter = 0;
 typedef struct {
     gnrc_netif_t *netif;
     mutex_t init_done;
@@ -1605,6 +1606,7 @@ static void _process_events_await_msg(gnrc_netif_t *netif, msg_t *msg)
 static void _send_queued_pkt(gnrc_netif_t *netif)
 {
     (void)netif;
+
 #if IS_USED(MODULE_GNRC_NETIF_PKTQ)
     gnrc_pktsnip_t *pkt;
 
@@ -1850,6 +1852,7 @@ static void _pass_on_packet(gnrc_pktsnip_t *pkt)
     if (!gnrc_netapi_dispatch_receive(pkt->type, GNRC_NETREG_DEMUX_CTX_ALL,
                                       pkt)) {
         DEBUG("gnrc_netif: unable to forward packet of type %i\n", pkt->type);
+        count_pkt_recv_throwed++;
         gnrc_pktbuf_release(pkt);
         return;
     }
@@ -1874,16 +1877,20 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
     }
     else {
         DEBUG("gnrc_netif: event triggered -> %i\n", event);
+
         gnrc_pktsnip_t *pkt = NULL;
         switch (event) {
             case NETDEV_EVENT_RX_COMPLETE:
                 pkt = netif->ops->recv(netif);
+
                 /* send packet previously queued within netif due to the lower
                  * layer being busy.
                  * Further packets will be sent on later TX_COMPLETE */
                 _send_queued_pkt(netif);
+
                 if (pkt) {
                     _process_receive_stats(netif, pkt);
+                    process_rcv_pkt_counter++;
                     _pass_on_packet(pkt);
                 }
                 break;
