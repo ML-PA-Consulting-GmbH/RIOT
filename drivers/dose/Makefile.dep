@@ -8,3 +8,4 @@ USEMODULE += iolist
 USEMODULE += netdev_eth
 USEMODULE += random
 USEMODULE += xtimer
+USEMODULE += netstats_neighbor_count

@@ -31,6 +31,10 @@
 
 #include "schedstatistics.h"
 
+#include "net/gnrc/netif.h"
+#include "net/netstats.h"
+#include "net/netstats/neighbor.h"
+
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
@@ -59,7 +63,8 @@ static int _send(netdev_t *dev, const iolist_t *iolist);
 static int _get(netdev_t *dev, netopt_t opt, void *value, size_t max_len);
 static int _set(netdev_t *dev, netopt_t opt, const void *value, size_t len);
 static int _init(netdev_t *dev);
-
+extern uint32_t count_pkt_recv_throwed;
+extern uint32_t process_rcv_pkt_counter;
 static uint16_t crc16_update(uint16_t crc, uint8_t octet)
 {
     crc = (uint8_t)(crc >> 8) | (crc << 8);
@@ -202,7 +207,7 @@ static dose_signal_t state_transit_send(dose_t *ctx, dose_signal_t signal)
      * will bring us back to the BLOCKED state after _send has emitted
      * its last octet. */
 
-    xtimer_set(&ctx->timeout, ctx->timeout_base);
+//    xtimer_set(&ctx->timeout, ctx->timeout_base);
 
     return DOSE_SIGNAL_NONE;
 }
@@ -223,7 +228,7 @@ static void state(dose_t *ctx, dose_signal_t signal)
             case DOSE_STATE_RECV + DOSE_SIGNAL_END:
             case DOSE_STATE_RECV + DOSE_SIGNAL_XTIMER:
             case DOSE_STATE_SEND + DOSE_SIGNAL_END:
-            case DOSE_STATE_SEND + DOSE_SIGNAL_XTIMER:
+//            case DOSE_STATE_SEND + DOSE_SIGNAL_XTIMER:
                 signal = state_transit_blocked(ctx, signal);
                 ctx->state = DOSE_STATE_BLOCKED;
                 break;
@@ -295,8 +300,31 @@ static void _isr_gpio(void *arg)
 static void _isr_xtimer(void *arg)
 {
     dose_t *dev = arg;
-
+    dev->send_timeout_counter++;
+    uint32_t time_isr_xtimer = SysTick->VAL;
     state(dev, DOSE_SIGNAL_XTIMER);
+    dev->time_isr_xtimer += (time_isr_xtimer - SysTick->VAL) & 0x00FFFFFF;
+
+    switch(dev->state) {
+    case DOSE_STATE_SEND:
+    {
+    	dev->time_isr_xtimer_send += dev->time_isr_xtimer;
+    	dev->count_isr_xtimer_send++;
+    }	break;
+    case DOSE_STATE_RECV:
+    {
+    	dev->time_isr_xtimer_recv += dev->time_isr_xtimer;
+    	dev->count_isr_xtimer_recv++;
+    }	break;
+    case DOSE_STATE_BLOCKED:
+    {
+    	dev->time_isr_xtimer_blocked += dev->time_isr_xtimer;
+    	dev->count_isr_xtimer_blocked++;
+    }	break;
+    default:
+    	break;
+    }
+
 }
 
 static void clear_recv_buf(dose_t *ctx)
@@ -385,6 +413,7 @@ static int _recv(netdev_t *dev, void *buf, size_t len, void *info)
 
     uint32_t t0_recv = xtimer_now_usec();
     size_t pktlen = ctx->recv_buf_ptr - DOSE_FRAME_CRC_LEN;
+
     if (!buf && !len) {
         /* Return the amount of received bytes */
         ctx->recv_time += xtimer_now_usec() - t0_recv;
@@ -393,12 +422,14 @@ static int _recv(netdev_t *dev, void *buf, size_t len, void *info)
     else if (!buf && len) {
         /* The user drops the packet */
         clear_recv_buf(ctx);
+        ctx->dropped_by_user_recv_pkt_counter++;
         ctx->recv_time += xtimer_now_usec() - t0_recv;
         return pktlen;
     }
     else if (len < pktlen) {
         /* The provided buffer is too small! */
         DEBUG("dose _recv(): receive buffer too small\n");
+        ctx->buff_small_for_recv_pkt_counter++;
         clear_recv_buf(ctx);
         ctx->recv_time += xtimer_now_usec() - t0_recv;
         return -1;
@@ -406,6 +437,7 @@ static int _recv(netdev_t *dev, void *buf, size_t len, void *info)
     else {
         /* Copy the packet to the provided buffer. */
         memcpy(buf, ctx->recv_buf, pktlen);
+        ctx->recv_pkt_counter++;
         clear_recv_buf(ctx);
         ctx->recv_time += xtimer_now_usec() - t0_recv;
         return pktlen;
@@ -437,13 +469,16 @@ static int send_octet(dose_t *ctx, uint8_t c)
     uint8_t state = wait_for_state(ctx, DOSE_STATE_ANY);
     ctx->send_octet_wait_ticks += (t1 - SysTick->VAL) & 0x00FFFFFF;
     ctx->send_octet_uart_ticks += (t0 - t1) & 0x00FFFFFF;
+
     if (state != DOSE_STATE_SEND) {
         /* Timeout */
+    	ctx->count_isr_xtimer_send++;
         DEBUG("dose send_octet(): timeout\n");
         return -2;
     }
     else if (ctx->uart_octet != c) {
         /* Mismatch */
+    	ctx->send_mismatch_counter++;
         DEBUG("dose send_octet(): mismatch\n");
         return -1;
     }
@@ -558,7 +593,8 @@ send:
 
 collision:
     _send_done(ctx);
-    printf("dose _send(): collision!\n");
+    DEBUG("dose _send(): collision!\n");
+    state(ctx, DOSE_SIGNAL_END);
     if (--retries < 0) {
         uint32_t tc0 = SysTick->VAL;
         dev->event_callback(dev, NETDEV_EVENT_TX_MEDIUM_BUSY);
@@ -657,6 +693,14 @@ static int _init(netdev_t *dev)
     ctx->wrong_crc_counter = 0;
     ctx->wrong_dst_mac_counter = 0;
     ctx->send_done = 0;
+    ctx->send_mismatch_counter = 0;
+    ctx->count_isr_xtimer_send = 0;
+    ctx->count_isr_xtimer_recv = 0;
+    ctx->count_isr_xtimer_blocked = 0;
+    ctx->time_isr_xtimer = 0;
+    ctx->recv_pkt_counter = 0;
+    ctx->dropped_by_user_recv_pkt_counter = 0;
+    ctx->buff_small_for_recv_pkt_counter = 0;
     ctx->netif_thread_pid = thread_getpid();
     if (logging_thread_pid == KERNEL_PID_UNDEF) {
         /* initialize the SysTick timer */
@@ -748,6 +792,68 @@ static void *_logging_thread(void *arg)
                 rt_sum += sched_pidlist[i].runtime_ticks;
             }
         }
+        gnrc_netif_t *netif = NULL;
+        while ((netif = gnrc_netif_iter(netif))) {
+        	netstats_nb_t *stats = &netif->netif.neighbors.pstats[0];
+        	unsigned header_len = 0;
+        	char l2addr_str[3 * L2UTIL_ADDR_MAX_LEN];
+        	puts("Neighbor link layer stats:");
+        	header_len += printf("L2 address               fresh");
+        	if (IS_USED(MODULE_NETSTATS_NEIGHBOR_ETX)) {
+        		header_len += printf("  etx");
+        	}
+        	if (IS_USED(MODULE_NETSTATS_NEIGHBOR_COUNT)) {
+        		header_len += printf(" sent received");
+        	}
+        	if (IS_USED(MODULE_NETSTATS_NEIGHBOR_RSSI)) {
+        		header_len += printf("   rssi ");
+        	}
+        	if (IS_USED(MODULE_NETSTATS_NEIGHBOR_LQI)) {
+        		header_len += printf(" lqi");
+        	}
+        	if (IS_USED(MODULE_NETSTATS_NEIGHBOR_TX_TIME)) {
+        		header_len += printf(" avg tx time");
+        	}
+        	printf("\n");
+
+        	while (header_len--) {
+        		printf("-");
+        	}
+        	printf("\n");
+
+        	for (unsigned i = 0; i < NETSTATS_NB_SIZE; ++i) {
+        		netstats_nb_t *entry = &stats[i];
+
+        		if (entry->l2_addr_len == 0) {
+        			continue;
+        		}
+
+        		printf("%-24s ",
+        				gnrc_netif_addr_to_str(entry->l2_addr, entry->l2_addr_len, l2addr_str));
+        		if (netstats_nb_isfresh(&netif->netif, entry)) {
+        			printf("%5u", (unsigned)entry->freshness);
+        		} else {
+        			printf("STALE");
+        		}
+
+#if IS_USED(MODULE_NETSTATS_NEIGHBOR_ETX)
+        		printf(" %3u%%", (100 * entry->etx) / NETSTATS_NB_ETX_DIVISOR);
+#endif
+#if IS_USED(MODULE_NETSTATS_NEIGHBOR_COUNT)
+        		printf(" %4"PRIu16" %8"PRIu16, entry->tx_count, entry->rx_count);
+#endif
+#if IS_USED(MODULE_NETSTATS_NEIGHBOR_RSSI)
+        		printf(" %4i dBm", (int8_t) entry->rssi);
+#endif
+#if IS_USED(MODULE_NETSTATS_NEIGHBOR_LQI)
+        		printf(" %u", entry->lqi);
+#endif
+#if IS_USED(MODULE_NETSTATS_NEIGHBOR_TX_TIME)
+        		printf(" %7"PRIu32" µs", entry->time_tx_avg);
+#endif
+        		printf("\n");
+        	}
+        }
         printf("DOSE LOG @ t = %"PRIu32"\n", xtimer_now_usec());
         dose_t **ctx_copy_p = logging_dose_ctxs;
         int i = 0;
@@ -762,6 +868,9 @@ static void *_logging_thread(void *arg)
             uint32_t t_send_octet_uart = CORE_TICKS_TO_USEC(ctx->send_octet_uart_ticks);
             uint32_t t_send_octet_wait = CORE_TICKS_TO_USEC(ctx->send_octet_wait_ticks);
             uint32_t t_send_event_callback = CORE_TICKS_TO_USEC(ctx->send_event_callback_ticks);
+            uint32_t t_isr_xtimer_send = CORE_TICKS_TO_USEC(ctx->time_isr_xtimer_send);
+            uint32_t t_isr_xtimer_recv = CORE_TICKS_TO_USEC(ctx->time_isr_xtimer_recv);
+            uint32_t t_isr_xtimer_blocked = CORE_TICKS_TO_USEC(ctx->time_isr_xtimer_blocked);
             printf("DOSE INTERFACE #%d:\ntime spent in send routine %"PRIu32
                    " [init. wait = %"PRIu32
                    ", send oct. uart = %"PRIu32
@@ -776,13 +885,25 @@ static void *_logging_thread(void *arg)
             printf("time spent in isr uart IRQ for SEND: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_send, ctx->count_isr_uart_send, ctx->count_isr_uart);
             printf("time spent in isr uart IRQ for RECV: %"PRIu32" in %"PRIu32" of totally %"PRIu32" executions.\n", t_isr_uart_recv, ctx->count_isr_uart_recv, ctx->count_isr_uart);
             printf("time spent in isr gpio IRQ: %"PRIu32" in %"PRIu32" executions\n", t_isr_gpio, ctx->count_isr_gpio);
-            printf("number of totall send done %"PRIu32"\n", ctx->send_done);
+            printf("time spent in isr xtimer IRQ for SEND: %"PRIu32" in %"PRIu32" executions of totally %"PRIu32" executions.\n", t_isr_xtimer_send, ctx->count_isr_xtimer_send, ctx->send_timeout_counter);
+            printf("time spent in isr xtimer IRQ for RECV: %"PRIu32" in %"PRIu32" executions of totally %"PRIu32" executions.\n", t_isr_xtimer_recv, ctx->count_isr_xtimer_recv, ctx->send_timeout_counter);
+            printf("time spent in isr xtimer IRQ for BLOCKED: %"PRIu32" in %"PRIu32" executions of totally %"PRIu32" executions.\n", t_isr_xtimer_blocked, ctx->count_isr_xtimer_blocked, ctx->send_timeout_counter);
+            printf("number of total send done %"PRIu32"\n", ctx->send_done);
             printf("number of collisions: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->collision_counter, (ctx->collision_counter/ctx->send_done));
             printf("number of no data in the buffer: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->no_frame_counter, (ctx->no_frame_counter/ctx->send_done));
             printf("number of no valid end octet: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->no_valid_end_octet_counter, (ctx->no_valid_end_octet_counter/ctx->send_done));
             printf("number of short frame dropped: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->short_frame_counter, (ctx->short_frame_counter/ctx->send_done));
             printf("number of wrong crc: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->wrong_crc_counter, (ctx->wrong_crc_counter/ctx->send_done));
             printf("number of wrong dst mac: %"PRIu32", nb per send done: %"PRIu32"\n", ctx->wrong_dst_mac_counter, (ctx->wrong_dst_mac_counter/ctx->send_done));
+            printf("number of send mismatch %"PRIu32"\n", ctx->send_mismatch_counter);
+            printf("number of send timeout %"PRIu32"\n", ctx->count_isr_xtimer_send);
+            printf("number of recv timeout %"PRIu32"\n", ctx->count_isr_xtimer_recv);
+            printf("number of blocked timeout %"PRIu32"\n", ctx->count_isr_xtimer_blocked);
+            printf("number of received packets in dose %"PRIu32"\n", ctx->recv_pkt_counter);
+            printf("number of throwed received packets in dose %"PRIu32"\n", ctx->dropped_by_user_recv_pkt_counter);
+            printf("number of dropped packets as the buff is small for the received pkt %"PRIu32"\n", ctx->buff_small_for_recv_pkt_counter);
+            printf("number of processed received packets in gnrc netif %"PRIu32"\n", process_rcv_pkt_counter);
+            printf("number of throwed received packets as no one is interested in %"PRIu32"\n", count_pkt_recv_throwed);
             printf("\tpid | "
                     "%-21s| "
                     "%-9sQ | pri "

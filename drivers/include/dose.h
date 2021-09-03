@@ -173,6 +173,9 @@ typedef struct {
     uint32_t count_isr_uart;
     uint64_t time_isr_gpio;
     uint32_t count_isr_gpio;
+    uint32_t count_isr_xtimer_send;
+    uint32_t count_isr_xtimer_recv;
+    uint32_t count_isr_xtimer_blocked;
     uint32_t collision_counter;
     uint32_t no_frame_counter;
     uint32_t no_valid_end_octet_counter;
@@ -180,6 +183,15 @@ typedef struct {
     uint32_t wrong_crc_counter;
     uint32_t wrong_dst_mac_counter;
     uint32_t send_done;
+    uint32_t send_timeout_counter;
+    uint32_t send_mismatch_counter;
+    uint64_t time_isr_xtimer;
+    uint64_t time_isr_xtimer_send;
+    uint64_t time_isr_xtimer_recv;
+    uint64_t time_isr_xtimer_blocked;
+    uint32_t recv_pkt_counter;
+    uint32_t dropped_by_user_recv_pkt_counter;
+    uint32_t buff_small_for_recv_pkt_counter;
     kernel_pid_t netif_thread_pid;
 } dose_t;
 
