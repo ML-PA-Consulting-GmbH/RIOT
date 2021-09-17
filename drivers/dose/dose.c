@@ -465,7 +465,6 @@ send:
         wait_for_state(ctx, DOSE_STATE_IDLE);
         state(ctx, DOSE_SIGNAL_SEND);
     } while (wait_for_state(ctx, DOSE_STATE_ANY) != DOSE_STATE_SEND);
-    xtimer_remove(&ctx->timeout);
 
     _send_start(ctx);
 
