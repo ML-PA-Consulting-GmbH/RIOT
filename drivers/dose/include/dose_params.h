@@ -38,6 +38,9 @@ extern "C" {
 #ifndef DOSE_PARAM_SENSE_PIN
 #define DOSE_PARAM_SENSE_PIN    (GPIO_UNDEF)
 #endif
+#ifndef DOSE_PARAM_XTIMER_CALL_DIV
+#define DOSE_PARAM_XTIMER_CALL_DIV  (1) /**< must be power of two and less than 256 */
+#endif
 
 #ifndef DOSE_PARAMS
 #ifdef MODULE_PERIPH_UART_RXSTART_IRQ

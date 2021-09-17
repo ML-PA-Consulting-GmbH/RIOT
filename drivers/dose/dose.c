@@ -29,7 +29,7 @@
 #include "net/eui_provider.h"
 #include "net/netdev/eth.h"
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 static uint16_t crc16_update(uint16_t crc, uint8_t octet);
@@ -140,7 +140,7 @@ static dose_signal_t state_transit_idle(dose_t *ctx, dose_signal_t signal)
 
 static dose_signal_t state_transit_recv(dose_t *ctx, dose_signal_t signal)
 {
-    const uint8_t cnt_max = 64;
+    const uint8_t cnt_max = DOSE_PARAM_XTIMER_CALL_DIV;
     static uint8_t cnt = 0;
 
     dose_signal_t rc = DOSE_SIGNAL_NONE;
@@ -178,7 +178,8 @@ static dose_signal_t state_transit_recv(dose_t *ctx, dose_signal_t signal)
 
     if (rc == DOSE_SIGNAL_NONE && (cnt++ % cnt_max == 0)) {
         /* No signal is returned. We stay in the RECV state. */
-        xtimer_set(&ctx->timeout, ctx->timeout_base * cnt_max);
+        /* TODO replace xtimer callback by cooperative approach on timestamps to reduce load from ISRs */
+        xtimer_set(&ctx->timeout, ctx->timeout_base * (cnt_max * 3 / (2 * CONFIG_DOSE_TIMEOUT_BYTES) + 1));
     }
 
     return rc;
