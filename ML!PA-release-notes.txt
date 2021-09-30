@@ -7,3 +7,4 @@ RIOT-2021.07-mlpa-5 - Merge Notes
  - merged benpicco/cpu/sam0_common/flashpage_irq_disable
  - merged benpicco/gnrc_ipv6_auto_subnets
  - merged benpicco/benchmark_udp
+ - cherry-pick 0c5f21026ad0467d5ccc3de42ed1b94917848430 (auto_init fix)
