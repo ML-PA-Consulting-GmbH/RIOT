@@ -7,3 +7,4 @@ RIOT-2022.01-mlpa-0 - Merge Notes
  - merged benpicco/cpu/sam0_common/flashpage_irq_disable
  - merged benpicco/drivers/dose-standby
  - merged benpicco/drivers/dose-timeout_bytes
+ - cherry-picked bed34daa61bfa6273f95e9e86cf90e448a8ed67e from benpicco/gnrc_netif-solicited_nodes
