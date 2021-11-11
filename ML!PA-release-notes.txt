@@ -8,3 +8,4 @@ RIOT-2022.01-mlpa-1 - Merge Notes
  - merged benpicco/cpu/sam0_common/flashpage_irq_disable
  - merged benpicco/drivers/dose-collision
  - merged benpicco/drivers/dose-watchdog
+ - merged benpicco/drivers/dose-standby_fix
