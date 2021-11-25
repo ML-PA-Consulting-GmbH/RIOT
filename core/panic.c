@@ -89,7 +89,7 @@ NORETURN void core_panic(core_panic_t crash_code, const char *message)
     /* disable watchdog and all possible sources of interrupts */
     irq_disable();
     panic_arch();
-#ifndef DEVELHELP
+#if !defined(DEVELHELP) || defined(DEVELHEL_NOOFF)
     /* DEVELHELP not set => reboot system */
     pm_reboot();
 #else
