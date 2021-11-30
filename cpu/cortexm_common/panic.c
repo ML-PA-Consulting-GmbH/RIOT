@@ -23,7 +23,7 @@
 #include "cpu.h"
 #include "log.h"
 
-#ifdef DEVELHELP
+#if defined(DEVELHELP) && !defined(DEVELHELP_NOOFF)
 static void print_ipsr(void)
 {
     uint32_t ipsr = __get_IPSR() & IPSR_ISR_Msk;
@@ -37,7 +37,7 @@ static void print_ipsr(void)
 
 void panic_arch(void)
 {
-#ifdef DEVELHELP
+#if defined(DEVELHELP) && !defined(DEVELHELP_NOOFF)
     print_ipsr();
     /* The bkpt instruction will signal to the debugger to break here. */
     __asm__("bkpt #0");
