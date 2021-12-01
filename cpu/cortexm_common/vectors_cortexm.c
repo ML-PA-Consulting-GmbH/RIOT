@@ -436,7 +436,9 @@ __attribute__((used)) void hard_fault_handler(uint32_t* sp, uint32_t corrupted, 
             : "r0","r1","r2","r3","r12"
             );
     }
+#ifndef DEVELHELP_NOOFF
     __BKPT(1);
+#endif
 
     core_panic(PANIC_HARD_FAULT, "HARD FAULT HANDLER");
 }
