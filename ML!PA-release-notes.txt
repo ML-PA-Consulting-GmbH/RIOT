@@ -1,0 +1,8 @@
+RIOT-2022.01-mlpa-2 - Merge Notes
+=================================
+
+- based on 2022.01-devel-1419-g7eef2bbd50
+  - cherry-pick 5440f4106b3c3dba291d49029be6bd08211f19d7 (sam0 ADC hack)
+  - cherry-pick bed34daa61bfa6273f95e9e86cf90e448a8ed67e from benpicco/gnrc_netif-solicited_nodes
+  - merged benpicco/cpu/sam0_common/flashpage_irq_disable
+  - merged benpicco/drivers/dose-collision+watchdog+ringbuffer 
