@@ -231,7 +231,7 @@ void rtt_rtc_settimeofday(uint32_t s, uint32_t us)
     _update_alarm(0);
 
 #ifdef MODULE_PERIPH_RTC_SETTER_CALLBACK
-    rtc_setter_callback(tm_before, us_before, tm_after, us);
+    rtc_setter_callback(&tm_before, us_before, &tm_after, us);
 #endif /* MODULE_PERIPH_RTC_SETTER_CALLBACK */
 }
 
