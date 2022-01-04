@@ -8,3 +8,4 @@ RIOT-2022.01-mlpa-2 - Merge Notes
   - merged benpicco/drivers/dose-collision+watchdog+ringbuffer 
   - cherry-pick aeac1cbc8e161ef60f16a3769d732e7d49268fb3 3ce2632b292a057329e0c8e53c7372d0088c2b6d 468e938b3bfe79d955b9224c2b4c6a7dfb98d4f5 ed3202d6df1dbfd9d97b7aff0a57d5c645c71911 aa21b05b3f4a9c95262b80a023fdf82ff9da4f49
     from feat/20211108__sys-bus__add_rtc_bus (2022-01-04)
+  - cherry-pick b64abfb96771eda491b43c68b7b5e1d05a8f5ca9 from feat/20211108__sys-bus__add_rtc_bus (2022-01-05)
