@@ -28,6 +28,10 @@
 #include "net/eui_provider.h"
 #include "net/netdev/eth.h"
 
+#ifdef MODULE_DOSE_WATCHDOG
+#include "periph/timer.h"
+#endif
+
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
