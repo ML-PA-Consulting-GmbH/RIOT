@@ -16,3 +16,4 @@ RIOT-2022.04-mlpa-1 - Merge Notes
   - merge benpicco/drivers/ethos-standalone
   - merge benpicco/pkg/fatfs-non_tiny
   - merge benpicco/pkg/fatfs-statvfs
+  - cherry-pick bfadcf108864393441757195ca412697a108e8d2 (SUIT debug output)
