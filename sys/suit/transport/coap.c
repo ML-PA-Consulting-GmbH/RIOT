@@ -52,6 +52,11 @@
 #endif
 
 #define ENABLE_DEBUG 0
+#ifdef MODULE_DOSE
+#undef ENABLE_DEBUG
+/* workaround for update reliability when using dose */
+#define ENABLE_DEBUG 1
+#endif
 #include "debug.h"
 
 #ifndef SUIT_COAP_STACKSIZE
