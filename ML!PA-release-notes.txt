@@ -11,3 +11,6 @@ RIOT-2022.01-mlpa-2 - Merge Notes
   - cherry-pick b64abfb96771eda491b43c68b7b5e1d05a8f5ca9 from feat/20211108__sys-bus__add_rtc_bus (2022-01-05)
   - add EXTRAVERSION=2
   - merge benpicco/gnrc/ipv6_auto_subnets-static
+  - add cfc77765540b70b5ae2d98390ff784ce400cf70b (missing include in drivers/dose)
+  - add bfadcf108864393441757195ca412697a108e8d2 (hack for updates via DOSE on SAML21 devices)
+  - cherry-pick e0f28f81d0ee2f360b070a38ee3b0c8f2ddf7f26 (upstream/master, sam0 mux definitions)
