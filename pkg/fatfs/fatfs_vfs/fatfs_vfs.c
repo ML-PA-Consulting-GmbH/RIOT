@@ -68,11 +68,13 @@ static int _format(vfs_mount_t *mountp)
         .fmt = CONFIG_FATFS_FORMAT_TYPE,
     };
 
-    snprintf(volume_str, sizeof(volume_str), "%d:/", fs_desc->vol_idx);
+    snprintf(volume_str, sizeof(volume_str), "%u:/", fs_desc->vol_idx);
 
     FRESULT res = f_mkfs(volume_str, &param, work, FF_MAX_SS);
 
-    free(work);
+    if (!CONFIG_FATFS_FORMAT_ALLOC_STATIC) {
+        free(work);
+    }
 
     return fatfs_err_to_errno(res);
 }

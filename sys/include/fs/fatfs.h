@@ -46,7 +46,7 @@ extern "C" {
 #if FF_FS_EXFAT
 #define CONFIG_FATFS_FORMAT_TYPE    FM_EXFAT
 #else
-#define CONFIG_FATFS_FORMAT_TYPE    FM_FAT32
+#define CONFIG_FATFS_FORMAT_TYPE    FM_ANY
 #endif
 #endif
 
