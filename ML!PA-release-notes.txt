@@ -15,3 +15,4 @@ RIOT-2022.04-mlpa-1 - Merge Notes
   - merge feat/20211108__sys-bus__add_rtc_bus
   - merge benpicco/drivers/ethos-standalone
   - merge benpicco/pkg/fatfs-non_tiny
+  - merge benpicco/pkg/fatfs-statvfs
