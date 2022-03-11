@@ -164,7 +164,7 @@ static int _2buf(void *arg, size_t offset, uint8_t *buf, size_t len, int more)
     }
 }
 
-static ssize_t suit_coap_get_blockwise_url_buf(const char *url,
+ssize_t suit_coap_get_blockwise_url_buf(const char *url,
                                                coap_blksize_t blksize, void *work_buf,
                                                uint8_t *buf, size_t len)
 {
