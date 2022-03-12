@@ -210,7 +210,8 @@ static gnrc_pktsnip_t *_build_ext_opts(gnrc_netif_t *netif,
 #else   /* CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C */
     (void)abr;
     while ((pfx = _nib_offl_iter(pfx))) {
-        if ((pfx->mode & _PL) && (_nib_onl_get_if(pfx->next_hop) == id)) {
+        if ((pfx->mode & _PL) && (_nib_onl_get_if(pfx->next_hop) == id) &&
+            (pfx->pfx_len < 128)) {
             if ((ext_opts = _offl_to_pio(pfx, ext_opts)) == NULL) {
                 return NULL;
             }
