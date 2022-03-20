@@ -66,4 +66,22 @@ mtd_dev_t *mtd1 = (mtd_dev_t *)&at24mac_dev;
 #include "vfs_default.h"
 VFS_AUTO_MOUNT(littlefs2, VFS_MTD(same54_nor_dev), VFS_DEFAULT_NVM(0), 0);
 #endif
+
+#include "mtd_sam0_sdhc.h"
+static mtd_sam0_sdhc_t sdhc_dev = {
+        .base = {
+            .driver = &mtd_sam0_sdhc_driver,
+        },
+        .state = {
+            .dev = SDHC1,
+            .cd  = GPIO_PIN(PD, 20),
+            .wp  = GPIO_PIN(PD, 21),
+        },
+    };
+mtd_dev_t *mtd2 = (mtd_dev_t *)&sdhc_dev;
+
+#ifdef MODULE_VFS_DEFAULT
+#include "fs/fatfs.h"
+VFS_AUTO_MOUNT(fatfs, VFS_MTD(sdhc_dev), "/sd", 1);
+#endif
 #endif /* MODULE_MTD */
