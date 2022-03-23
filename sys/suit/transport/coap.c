@@ -133,10 +133,10 @@ static inline uint32_t deadline_left(uint32_t deadline)
     return left;
 }
 
-static void _suit_handle_url(const char *url, coap_blksize_t blksize, void *work_buf)
+static void _suit_handle_url(const char *url, coap_blksize_t blksize)
 {
     LOG_INFO("suit_coap: downloading \"%s\"\n", url);
-    ssize_t size = nanocoap_get_blockwise_url_to_buf(url, blksize, work_buf,
+    ssize_t size = nanocoap_get_blockwise_url_to_buf(url, blksize,
                                                      _manifest_buf,
                                                      SUIT_MANIFEST_BUFSIZE);
     if (size >= 0) {
@@ -225,8 +225,6 @@ static void *_suit_coap_thread(void *arg)
 {
     (void)arg;
 
-    uint8_t buffer[NANOCOAP_BLOCKWISE_BUF(CONFIG_SUIT_COAP_BLOCKSIZE)];
-
     LOG_INFO("suit_coap: started.\n");
     msg_t msg_queue[4];
     msg_init_queue(msg_queue, 4);
@@ -240,7 +238,7 @@ static void *_suit_coap_thread(void *arg)
         switch (m.content.value) {
             case SUIT_MSG_TRIGGER:
                 LOG_INFO("suit_coap: trigger received\n");
-                _suit_handle_url(_url, CONFIG_SUIT_COAP_BLOCKSIZE, buffer);
+                _suit_handle_url(_url, CONFIG_SUIT_COAP_BLOCKSIZE);
                 break;
             default:
                 LOG_WARNING("suit_coap: warning: unhandled msg\n");
