@@ -65,6 +65,17 @@ static bool _expect_response(const coap_pkt_t *pkt)
     return true;
 }
 
+static int _send_ack(nanocoap_sock_t *sock, coap_pkt_t *pkt)
+{
+    coap_hdr_t ack;
+    unsigned tkl = coap_get_token_len(pkt);
+
+    coap_build_hdr(&ack, COAP_TYPE_ACK, pkt->token, tkl,
+                   COAP_CODE_VALID, ntohs(pkt->hdr->id));
+
+    return sock_udp_send(sock, &ack, sizeof(ack), NULL);
+}
+
 ssize_t nanocoap_sock_request_cb(nanocoap_sock_t *sock, coap_pkt_t *pkt,
                                  coap_request_cb_t cb, void *arg)
 {
@@ -141,19 +152,10 @@ ssize_t nanocoap_sock_request_cb(nanocoap_sock_t *sock, coap_pkt_t *pkt,
                 /* TODO: handle different? */
                 return -EBADMSG;
             case COAP_TYPE_CON:
-                /* TODO: send ACK response */
+                _send_ack(sock, pkt);
                 /* fall-through */
             case COAP_TYPE_NON:
-                if (pkt->payload_len == 0) {
-                    return 0;
-                }
-                /* fall-through */
             case COAP_TYPE_ACK:
-                if (pkt->payload_len == 0 && response) {
-                    state = STATE_AWAIT_RESPONSE;
-                    /* TODO: adjust timeout */
-                    break;
-                }
                 /* call user callback */
                 res = cb(arg, pkt);
                 break;
