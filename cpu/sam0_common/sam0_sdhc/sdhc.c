@@ -657,17 +657,6 @@ static bool _init_transfe(sdhc_state_t *state, uint32_t cmd, uint32_t arg, uint1
     return true;
 }
 
-
-/**
- *  @brief Start a read block transfer on the line
- *
- *  dst must be on 4 byte boundary
- */
-int sdhc_read_block(sdhc_state_t *state, uint32_t address, void *dst)
-{
-    return sdhc_read_blocks(state, address, dst, 1);
-}
-
 /**
  *  @brief Start a read blocks transfer on the line
  *
@@ -722,16 +711,6 @@ int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t 
     }
 
     return SDHC_OK;
-}
-
-/**
- *  @brief Start a write blocks transfer on the line
- *  Note: The driver will use the DMA available to speed up the transfer. (there is no evidence of that)
- *  src must be on 4 byte boundary
- */
-int sdhc_write_block(sdhc_state_t *state, uint32_t address, const void *src)
-{
-    return sdhc_write_blocks(state, address, src, 1);
 }
 
 /**

@@ -93,85 +93,74 @@ typedef struct {
 
 /** @name Error Codes */
 /** @{ */
-#define SDHC_OK                     0
-#define SDHC_ERR_CARD_NOT_PRESENT   1
-#define SDHC_ERR_BAD_CARD           2
-#define SDHC_ERR_SDIO_NOT_SUPPORTED 3
-#define SDHC_ERR_BUSY               4
+#define SDHC_OK                     0       /**< Success */
+#define SDHC_ERR_CARD_NOT_PRESENT   1       /**< No card inserted */
+#define SDHC_ERR_BAD_CARD           2       /**< I/O error */
+#define SDHC_ERR_SDIO_NOT_SUPPORTED 3       /**< SDIO mode is not supported */
+#define SDHC_ERR_BUSY               4       /**< Card is busy */
 /** @} */
 
 /**
- * @brief
+ * @brief Initilize the SD host controller
  *
- * @param[in] state - sdhc_state_t *
- * @return return error code
+ * @param[in] state     driver context
+ *
+ * @return int          0 on success, error otherwise
  */
 int sdhc_init(sdhc_state_t *state);
 
 /**
- * @brief
+ * @brief Send a command to the SD card
  *
- * @param[in] cmd - uint32_t
- * @param[in] arg - uint32_t
- * @return true if success, false if failed
+ * @param[in] state     driver context
+ * @param[in] cmd       the command code
+ * @param[in] arg       command argument
+ *
+ * @return true         command was successful
+ * @return false        command returned error
  */
 bool sdhc_send_cmd(sdhc_state_t *state, uint32_t cmd, uint32_t arg);
 
 /**
- * @brief sdhc_read_blocks
- * read 512 byte blocks for block_count blocks from SD/MMC card with address
- * to filebuffer pointed to by dst
- * @param[in] state - sdhc_state_t *
- * @param[in] address - uint32_t
- * @param[in] dst - uint8_t *
+ * @brief Read blocks from the SD card into memory
+ *
+ * Reads n 512 byte blocks from the SD card
+ *
+ * @param[in] state     driver context
+ * @param[in] block     block number to read from
+ * @param[out] dst      destination address
+ * @param[in]  num      number of blocks to read
+ *
  * @return true if success, false if failed
  */
-int sdhc_read_block(sdhc_state_t *state, uint32_t address, void *dst);
+int sdhc_read_blocks(sdhc_state_t *state, uint32_t block, void *dst, uint16_t num);
 
 /**
- * @brief sdhc_read_blocks
- * read n 512 byte blocks for block_count blocks from SD/MMC card with address
- * to filebuffer pointed to by dst
- * @param[in] state - sdhc_state_t *
- * @param[in] address - uint32_t
- * @param[in] dst - uint8_t *
- * @param[in] num_blocks - uint16_t number of blocks to read
+ * @brief Write memory to SD card blocks
+ *
+ * Writes n 512 byte blocks on the SD card
+ *
+ * @param[in] state     driver context
+ * @param[in] block     block number to write to
+ * @param[in] src       pointer to memory to write
+ * @param[in] num       number of blocks to write
+ *
  * @return true if success, false if failed
  */
-int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t num_blocks);
+int sdhc_write_blocks(sdhc_state_t *state, uint32_t block, const void *src,
+                      uint16_t num);
 
 /**
- * @brief sdhc_write_block
- * writes a 512 byte block file buffer pointed to by src to SD/MMC card with address
- * for block_count blocks
- * @param[in] state - sdhc_state_t *
- * @param[in] address - uint32_t  disc byte (or sector) address
- * @param[in] src - uint8_t * pointer to memory to write
+ * @brief Write memory to SD card blocks
+ *
+ * Writes n 512 byte blocks on the SD card
+ *
+ * @param[in] state     driver context
+ * @param[in] block     first block number to erase
+ * @param[in] num       number of blocks to erase
+ *
  * @return true if success, false if failed
  */
-int sdhc_write_block(sdhc_state_t *state, uint32_t address, const void *src);
-
-/**
- * @brief sdhc_write_blocks
- * writes n 512 byte blocks file buffer pointed to by src to SD/MMC card with address
- * for block_count blocks
- * @param[in] state - sdhc_state_t *
- * @param[in] address - uint32_t  disc byte (or sector) address
- * @param[in] src - uint8_t * pointer to memory to write
- * @param[in] num_blocks - uint16_t number of blocks to write
- * @return true if success, false if failed
- */
-int sdhc_write_blocks(sdhc_state_t *state, uint32_t address, const void *src,
-                      uint16_t num_blocks);
-
-/**
- * @brief sdhc_erase_blocks
- * erases n 512 byte blocks
- * @param[in] state - sdhc_state_t *
- * @param[in] start - uint32_t  disc byte (or sector) address
- * @param[in] num_blocks - uint16_t number of blocks to write
- * @return true if success, false if failed
- */
-int sdhc_erase_blocks(sdhc_state_t *state, uint32_t start, uint16_t num_blocks);
+int sdhc_erase_blocks(sdhc_state_t *state, uint32_t block, uint16_t num);
 
 #endif /* SDHC_H */
