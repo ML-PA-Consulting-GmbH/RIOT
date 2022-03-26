@@ -442,7 +442,7 @@ static bool _test_voltage(sdhc_state_t *state, bool f8)
         /* (ACMD41) Sends host OCR register */
         arg = OCR_VDD_27_28 | OCR_VDD_28_29 | OCR_VDD_29_30 | OCR_VDD_30_31 |
               OCR_VDD_31_32 | OCR_VDD_32_33;
-        if (f8) { // if not legacy card
+        if (f8) { /* if not legacy card */
             arg |= SD_ACMD41_HCS;
         }
 
