@@ -55,20 +55,28 @@
 #include "debug.h"
 
 #ifndef SDHC_CLOCK
-#define SDHC_CLOCK SAM0_GCLK_MAIN
-#endif
-#ifndef SDHC_CLOCK_SLOW
-#define SDHC_CLOCK_SLOW SAM0_GCLK_TIMER
+#define SDHC_CLOCK          SAM0_GCLK_MAIN
 #endif
 
+#ifndef SDHC_CLOCK_SLOW
+#define SDHC_CLOCK_SLOW     SAM0_GCLK_TIMER
+#endif
+
+/**
+ * @brief   The board can overwrite this if only a single SDHC instance is used
+ *          to save 80 Bytes of ROM.
+ */
+#ifndef SDHC_DEV
 #define SDHC_DEV            state->dev
+#endif
 
 /**
  * @brief   Monitor card insertion and removal
  */
 #define NISTR_CARD_DETECT   (SDHC_NISTR_CREM | SDHC_NISTR_CINS)
 
-static sdhc_state_t *isr_ctx[2];
+static sdhc_state_t *isr_ctx_0;
+static sdhc_state_t *isr_ctx_1;
 
 static void sdhc_set_speed(sdhc_state_t *state, uint32_t fsdhc);
 static void sdhc_set_hc(sdhc_state_t *state);
@@ -128,7 +136,7 @@ static void _init_clocks(sdhc_state_t *state)
         GCLK->PCHCTRL[SDHC0_GCLK_ID_SLOW].reg = GCLK_PCHCTRL_CHEN
                                               | GCLK_PCHCTRL_GEN(SDHC_CLOCK_SLOW);
         MCLK->AHBMASK.bit.SDHC0_ = 1;
-        isr_ctx[0] = state;
+        isr_ctx_0 = state;
         NVIC_EnableIRQ(SDHC0_IRQn);
     }
 
@@ -146,7 +154,7 @@ static void _init_clocks(sdhc_state_t *state)
         GCLK->PCHCTRL[SDHC1_GCLK_ID_SLOW].reg = GCLK_PCHCTRL_CHEN
                                               | GCLK_PCHCTRL_GEN(SDHC_CLOCK_SLOW);
         MCLK->AHBMASK.bit.SDHC1_ = 1;
-        isr_ctx[1] = state;
+        isr_ctx_1 = state;
         NVIC_EnableIRQ(SDHC1_IRQn);
     }
 }
@@ -324,6 +332,8 @@ bool sdhc_send_cmd(sdhc_state_t *state, uint32_t cmd, uint32_t arg)
 
 static void sdhc_set_speed(sdhc_state_t *state, uint32_t fsdhc)
 {
+    (void)state;
+
     uint32_t div;
 
     if (SDHC_DEV->CCR.bit.SDCLKEN) {
@@ -981,12 +991,24 @@ static void _isr(sdhc_state_t *state)
     cortexm_isr_end();
 }
 
+#ifdef SDHC_DEV_ISR
+void SDHC_DEV_ISR(void)
+{
+    if (SDHC_DEV == SDHC0) {
+        _isr(isr_ctx_0);
+    }
+    if (SDHC_DEV == SDHC1) {
+        _isr(isr_ctx_1);
+    }
+}
+#else
 void isr_sdhc0(void)
 {
-    _isr(isr_ctx[0]);
+    _isr(isr_ctx_0);
 }
 
 void isr_sdhc1(void)
 {
-    _isr(isr_ctx[1]);
+    _isr(isr_ctx_1);
 }
+#endif
