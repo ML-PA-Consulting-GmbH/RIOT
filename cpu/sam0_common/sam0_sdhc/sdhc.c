@@ -186,9 +186,9 @@ int sdhc_init(sdhc_state_t *state)
     /* 74 startup clocks (190us) */
     ztimer_sleep(ZTIMER_USEC, 190);
 
-    // reset the SD card to idle state CMD0
+    /* reset the SD card to idle state CMD0 */
     f8 = false;
-    for (int i = 0; i < 2; i++) { // we do this step twice before failing
+    for (int i = 0; i < 2; i++) { /* we do this step twice before failing */
         if (!sdhc_send_cmd(state, SDMMC_MCI_CMD0_GO_IDLE_STATE, 0)) {
             if (i == 1) {
                 return SDHC_ERR_BAD_CARD;
@@ -203,7 +203,8 @@ int sdhc_init(sdhc_state_t *state)
         }
         else {
             response = SDHC_DEV->RR[0].reg;
-            if (response == 0xFFFFFFFF) { // good response but no compliance R7 Value, legacy card
+            /* good response but no compliance R7 Value, legacy card */
+            if (response == 0xFFFFFFFF) {
                 f8 = false;
                 break;
             }
@@ -249,18 +250,24 @@ int sdhc_init(sdhc_state_t *state)
     if (!_test_bus_width(state)) {
         return SDHC_ERR_BAD_CARD;
     }
+
     /* update the host controller to the detected changes in bus_width and clock */
     _set_hc(state);
+
     /* if it is high speed capable, (well it is) */
     if (SDHC_DEV->CA0R.bit.HSSUP) {
         if (!_test_high_speed(state)) {
             return SDHC_ERR_BAD_CARD;
         }
     }
-    _set_hc(state); // update host controller
+
+    /* update host controller */
+    _set_hc(state);
+
     if (!sdhc_send_cmd(state, SDMMC_CMD16_SET_BLOCKLEN, SD_MMC_BLOCK_SIZE)) {
         return SDHC_ERR_BAD_CARD;
     }
+
     state->need_init = false;
     return SDHC_OK;
 }
