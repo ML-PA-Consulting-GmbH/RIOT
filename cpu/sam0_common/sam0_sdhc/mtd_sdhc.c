@@ -76,7 +76,7 @@ static int _read_page(mtd_dev_t *dev, void *buff, uint32_t page,
 
         size = min(SD_MMC_BLOCK_SIZE - offset, size);
 
-        if (sdhc_read_block(&ctx->state, page, dev->work_area)) {
+        if (sdhc_read_blocks(&ctx->state, page, dev->work_area, 1)) {
             return -EIO;
         }
 
@@ -112,7 +112,7 @@ static int _write_page(mtd_dev_t *dev, const void *buff, uint32_t page,
 
         size = min(SD_MMC_BLOCK_SIZE - offset, size);
 
-        if (sdhc_read_block(&ctx->state, page, dev->work_area)) {
+        if (sdhc_read_blocks(&ctx->state, page, dev->work_area, 1)) {
             return -EIO;
         }
 
