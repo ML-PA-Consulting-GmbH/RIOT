@@ -78,16 +78,16 @@
 static sdhc_state_t *isr_ctx_0;
 static sdhc_state_t *isr_ctx_1;
 
-static void sdhc_set_speed(sdhc_state_t *state, uint32_t fsdhc);
-static void sdhc_set_hc(sdhc_state_t *state);
-static bool sdhc_test_voltage(sdhc_state_t *state, bool f8);
-static bool sdhc_test_capacity(sdhc_state_t *state);
-static bool sdhc_test_version(sdhc_state_t *state);
-static bool sdhc_wait_not_busy(sdhc_state_t *state);
-static bool sdhc_test_bus_width(sdhc_state_t *state);
-static bool sdhc_test_high_speed(sdhc_state_t *state);
-static bool sdhc_init_transfer(sdhc_state_t *state, uint32_t cmd, uint32_t arg, uint16_t block_size,
-                               uint16_t num_blocks);
+static void _set_speed(sdhc_state_t *state, uint32_t fsdhc);
+static void _set_hc(sdhc_state_t *state);
+static bool _test_voltage(sdhc_state_t *state, bool f8);
+static bool _test_capacity(sdhc_state_t *state);
+static bool _test_version(sdhc_state_t *state);
+static bool _wait_not_busy(sdhc_state_t *state);
+static bool _test_bus_width(sdhc_state_t *state);
+static bool _test_high_speed(sdhc_state_t *state);
+static bool _init_transfe(sdhc_state_t *state, uint32_t cmd, uint32_t arg, uint16_t block_size,
+                          uint16_t num_blocks);
 static bool sdio_test_type(sdhc_state_t *state);
 
 /** SD/MMC transfer rate unit codes (10K) list */
@@ -182,7 +182,7 @@ int sdhc_init(sdhc_state_t *state)
     SDHC_DEV->NISTER.reg = SDHC_NISTER_MASK;    /* clear all normal interrupt bits */
     SDHC_DEV->EISTER.reg = SDHC_EISTER_MASK;    /* clear all error interrupt bits  */
 
-    sdhc_set_hc(state);
+    _set_hc(state);
     /* 74 startup clocks (190us) */
     ztimer_sleep(ZTIMER_USEC, 190);
 
@@ -220,7 +220,7 @@ int sdhc_init(sdhc_state_t *state)
         return SDHC_ERR_SDIO_NOT_SUPPORTED;
     }
     /* Try to get the SD card's operating condition */
-    if (!sdhc_test_voltage(state, f8)) {
+    if (!_test_voltage(state, f8)) {
         state->type = CARD_TYPE_UNKNOWN;
         return SDHC_ERR_BAD_CARD;
     }
@@ -235,7 +235,7 @@ int sdhc_init(sdhc_state_t *state)
     }
     state->rca = (uint16_t)(SDHC_DEV->RR[0].reg >> 16);
     /* SD MEMORY, Get the Card-Specific Data */
-    if (!sdhc_test_capacity(state)) {
+    if (!_test_capacity(state)) {
         return SDHC_ERR_BAD_CARD;
     }
     /* Put it into Transfer Mode */
@@ -243,21 +243,21 @@ int sdhc_init(sdhc_state_t *state)
         return SDHC_ERR_BAD_CARD;
     }
     /* SD MEMORY, Read the SCR to get card version */
-    if (!sdhc_test_version(state)) {
+    if (!_test_version(state)) {
         return SDHC_ERR_BAD_CARD;
     }
-    if (!sdhc_test_bus_width(state)) {
+    if (!_test_bus_width(state)) {
         return SDHC_ERR_BAD_CARD;
     }
     /* update the host controller to the detected changes in bus_width and clock */
-    sdhc_set_hc(state);
+    _set_hc(state);
     /* if it is high speed capable, (well it is) */
     if (SDHC_DEV->CA0R.bit.HSSUP) {
-        if (!sdhc_test_high_speed(state)) {
+        if (!_test_high_speed(state)) {
             return SDHC_ERR_BAD_CARD;
         }
     }
-    sdhc_set_hc(state); // update host controller
+    _set_hc(state); // update host controller
     if (!sdhc_send_cmd(state, SDMMC_CMD16_SET_BLOCKLEN, SD_MMC_BLOCK_SIZE)) {
         return SDHC_ERR_BAD_CARD;
     }
@@ -330,7 +330,7 @@ bool sdhc_send_cmd(sdhc_state_t *state, uint32_t cmd, uint32_t arg)
     return true;
 }
 
-static void sdhc_set_speed(sdhc_state_t *state, uint32_t fsdhc)
+static void _set_speed(sdhc_state_t *state, uint32_t fsdhc)
 {
     (void)state;
 
@@ -363,12 +363,12 @@ static void sdhc_set_speed(sdhc_state_t *state, uint32_t fsdhc)
 }
 
 /**
- * sdhc_set_hc selects either one or four bit mode, low/high speed and clock
+ * _set_hc selects either one or four bit mode, low/high speed and clock
  *
  * bitwidth is SDHC_HC1R_DW_1BIT_Val or SDHC_HC1R_DW_4BIT_Val
  * speed is SDHC_HC1R_HSEN_NORMAL_Val or SDHC_HC1R_HSEN_HIGH_Val
  */
-static void sdhc_set_hc(sdhc_state_t *state)
+static void _set_hc(sdhc_state_t *state)
 {
     if (state->high_speed) {
         SDHC_DEV->HC1R.reg |= SDHC_HC1R_HSEN;
@@ -377,7 +377,7 @@ static void sdhc_set_hc(sdhc_state_t *state)
         SDHC_DEV->HC1R.reg &= ~SDHC_HC1R_HSEN;
     }
     if (!SDHC_DEV->HC2R.bit.PVALEN) {       /* PVALEN is probably always low */
-        sdhc_set_speed(state, state->clock);
+        _set_speed(state, state->clock);
     }
     if (state->bus_width == 4) {
         /* set four bit mode */
@@ -398,7 +398,7 @@ static void sdhc_set_hc(sdhc_state_t *state)
  *
  * @return true if success, otherwise false
  */
-static bool sdhc_test_voltage(sdhc_state_t *state, bool f8)
+static bool _test_voltage(sdhc_state_t *state, bool f8)
 {
     uint32_t arg;
     uint32_t retry = 2100;
@@ -449,7 +449,7 @@ static bool sdhc_test_voltage(sdhc_state_t *state, bool f8)
  *
  * \return true if success, otherwise false
  */
-static bool sdhc_test_capacity(sdhc_state_t *state)
+static bool _test_capacity(sdhc_state_t *state)
 {
 
     uint32_t transfer_speed;
@@ -504,7 +504,7 @@ static bool sdhc_test_capacity(sdhc_state_t *state)
  *
  * @return true if success, otherwise false
  */
-static bool sdhc_test_version(sdhc_state_t *state)
+static bool _test_version(sdhc_state_t *state)
 {
     uint8_t scr[SD_SCR_REG_BSIZE];
     uint32_t *p = (void *)scr;
@@ -515,7 +515,7 @@ static bool sdhc_test_version(sdhc_state_t *state)
         return false;
     }
 
-    if (!sdhc_init_transfer(state, SD_ACMD51_SEND_SCR, 0, SD_SCR_REG_BSIZE, 1)) {
+    if (!_init_transfe(state, SD_ACMD51_SEND_SCR, 0, SD_SCR_REG_BSIZE, 1)) {
         return false;
     }
 
@@ -550,7 +550,7 @@ static bool sdhc_test_version(sdhc_state_t *state)
     return true;
 }
 
-static bool sdhc_init_transfer(sdhc_state_t *state, uint32_t cmd, uint32_t arg, uint16_t block_size,
+static bool _init_transfe(sdhc_state_t *state, uint32_t cmd, uint32_t arg, uint16_t block_size,
                                uint16_t num_blocks)
 {
     uint32_t tmr;
@@ -673,7 +673,7 @@ int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t 
             return stat;
         }
     }
-    if (!sdhc_wait_not_busy(state)) {
+    if (!_wait_not_busy(state)) {
         return SDHC_ERR_BUSY;
     }
     if (state->type & CARD_TYPE_HC) {
@@ -687,7 +687,7 @@ int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t 
         ? SDMMC_CMD17_READ_SINGLE_BLOCK
         : SDMMC_CMD18_READ_MULTIPLE_BLOCK;
 
-    if (!sdhc_init_transfer(state, cmd, arg, SD_MMC_BLOCK_SIZE, num_blocks)) {
+    if (!_init_transfe(state, cmd, arg, SD_MMC_BLOCK_SIZE, num_blocks)) {
         return SDHC_ERR_BAD_CARD;
     }
 
@@ -736,7 +736,7 @@ int sdhc_write_blocks(sdhc_state_t *state, uint32_t address, const void *src,
             return stat;
         }
     }
-    if (!sdhc_wait_not_busy(state)) {
+    if (!_wait_not_busy(state)) {
         return SDHC_ERR_BUSY;
     }
     /*
@@ -752,7 +752,7 @@ int sdhc_write_blocks(sdhc_state_t *state, uint32_t address, const void *src,
 
     cmd = (1 == num_blocks) ? SDMMC_CMD24_WRITE_BLOCK : SDMMC_CMD25_WRITE_MULTIPLE_BLOCK;
 
-    if (!sdhc_init_transfer(state, cmd, arg, SD_MMC_BLOCK_SIZE, num_blocks)) {
+    if (!_init_transfe(state, cmd, arg, SD_MMC_BLOCK_SIZE, num_blocks)) {
         return SDHC_ERR_BAD_CARD;
     }
 
@@ -784,7 +784,7 @@ int sdhc_erase_blocks(sdhc_state_t *state, uint32_t start, uint16_t num_blocks)
             return stat;
         }
     }
-    if (!sdhc_wait_not_busy(state)) {
+    if (!_wait_not_busy(state)) {
         return SDHC_ERR_BUSY;
     }
     /*
@@ -811,7 +811,7 @@ int sdhc_erase_blocks(sdhc_state_t *state, uint32_t start, uint16_t num_blocks)
  *
  * @return true if success, otherwise false
  */
-static bool sdhc_wait_not_busy(sdhc_state_t *state)
+static bool _wait_not_busy(sdhc_state_t *state)
 {
     uint32_t timeout;
 
@@ -892,14 +892,14 @@ static bool sdio_test_type(sdhc_state_t *state)
 }
 
 
-static bool sdhc_test_high_speed(sdhc_state_t *state)
+static bool _test_high_speed(sdhc_state_t *state)
 {
     uint8_t switch_status[SD_SW_STATUS_BSIZE] = { 0 };
     uint32_t *p = (void *)switch_status;
 
     if ((state->type & CARD_TYPE_SD) && (state->version > CARD_VER_SD_1_0)) {
 
-        if (!sdhc_init_transfer(state, SD_CMD6_SWITCH_FUNC,
+        if (!_init_transfe(state, SD_CMD6_SWITCH_FUNC,
                                 SD_CMD6_MODE_SWITCH         |
                                 SD_CMD6_GRP6_NO_INFLUENCE   |
                                 SD_CMD6_GRP5_NO_INFLUENCE   |
@@ -938,7 +938,7 @@ static bool sdhc_test_high_speed(sdhc_state_t *state)
     return true;
 }
 
-static bool sdhc_test_bus_width(sdhc_state_t *state)
+static bool _test_bus_width(sdhc_state_t *state)
 {
     /**
      * A SD memory card always supports bus 4bit
