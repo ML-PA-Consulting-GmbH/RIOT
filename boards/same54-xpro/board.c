@@ -20,10 +20,13 @@
 
 #include "board.h"
 #include "periph/gpio.h"
-#include "mtd_spi_nor.h"
 #include "timex.h"
+#ifdef MODULE_VFS_DEFAULT
+#include "vfs_default.h"
+#endif
 
-#ifdef MODULE_MTD
+#ifdef MODULE_MTD_SPI_NOR
+#include "mtd_spi_nor.h"
 /* N25Q256A or SST26VF064B */
 static const mtd_spi_nor_params_t _same54_nor_params = {
     .opcode = &mtd_spi_nor_opcode_default,
@@ -50,6 +53,12 @@ static mtd_spi_nor_t same54_nor_dev = {
 };
 mtd_dev_t *mtd0 = (mtd_dev_t *)&same54_nor_dev;
 
+#ifdef MODULE_VFS_DEFAULT
+VFS_AUTO_MOUNT(littlefs2, VFS_MTD(same54_nor_dev), VFS_DEFAULT_NVM(0), 0);
+#endif
+#endif /* MODULE_MTD_SPI_NOR */
+
+#ifdef MODULE_MTD_AT24CXXX
 #include "mtd_at24cxxx.h"
 #include "at24cxxx_params.h"
 static at24cxxx_t at24cxxx_dev;
@@ -61,12 +70,9 @@ static mtd_at24cxxx_t at24mac_dev = {
     .params = at24cxxx_params,
 };
 mtd_dev_t *mtd1 = (mtd_dev_t *)&at24mac_dev;
+#endif /* MODULE_MTD_AT24CXXX */
 
-#ifdef MODULE_VFS_DEFAULT
-#include "vfs_default.h"
-VFS_AUTO_MOUNT(littlefs2, VFS_MTD(same54_nor_dev), VFS_DEFAULT_NVM(0), 0);
-#endif
-
+#ifdef MODULE_SAM0_SDHC
 #include "mtd_sam0_sdhc.h"
 static mtd_sam0_sdhc_t sdhc_dev = {
         .base = {
@@ -81,7 +87,6 @@ static mtd_sam0_sdhc_t sdhc_dev = {
 mtd_dev_t *mtd2 = (mtd_dev_t *)&sdhc_dev;
 
 #ifdef MODULE_VFS_DEFAULT
-#include "fs/fatfs.h"
-VFS_AUTO_MOUNT(fatfs, VFS_MTD(sdhc_dev), "/sd", 1);
+VFS_AUTO_MOUNT(fatfs, VFS_MTD(sdhc_dev), VFS_DEFAULT_SD(0), 1);
 #endif
-#endif /* MODULE_MTD */
+#endif /* MODULE_SAM0_SDHC */
