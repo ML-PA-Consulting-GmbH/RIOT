@@ -49,6 +49,7 @@
 #include "periph_cpu.h"
 #include "vendor/sd_mmc_protocol.h"
 #include "sdhc.h"
+#include "time_units.h"
 #include "ztimer.h"
 
 #define ENABLE_DEBUG 0
@@ -104,6 +105,18 @@ static bool _card_detect(sdhc_state_t *state)
 static bool _check_mask(uint32_t val, uint32_t mask)
 {
     return (val & mask) == mask;
+}
+
+static void _delay(unsigned us)
+{
+    if (IS_USED(MODULE_ZTIMER_USEC)) {
+        ztimer_sleep(ZTIMER_USEC, us);
+    } else if (IS_USED(MODULE_ZTIMER_MSEC)) {
+        ztimer_sleep(ZTIMER_MSEC, 1);
+    } else {
+        volatile unsigned count = (us * CLOCK_CORECLOCK) / US_PER_SEC;
+        while (--count) {}
+    }
 }
 
 static void _reset_all(sdhc_state_t *state)
@@ -184,7 +197,7 @@ int sdhc_init(sdhc_state_t *state)
 
     _set_hc(state);
     /* 74 startup clocks (190us) */
-    ztimer_sleep(ZTIMER_USEC, 190);
+    _delay(190);
 
     /* reset the SD card to idle state CMD0 */
     f8 = false;
@@ -938,7 +951,7 @@ static bool _test_high_speed(sdhc_state_t *state)
 
         /* CMD6 function switching period is within 8 clocks
          * after the end bit of status data.*/
-        ztimer_sleep(ZTIMER_USEC, 100);
+        _delay(100);
     }
     state->high_speed = true;
     state->clock *= 2; /* turbo clock */
