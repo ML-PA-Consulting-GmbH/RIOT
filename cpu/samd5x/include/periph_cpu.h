@@ -193,7 +193,6 @@ struct sam0_aux_cfg_mapping {
 #define SAM0_SDHC1_PIN_SDCK     GPIO_PIN(PA, 21)    /**< Clock          */
 /** @} */
 
-
 #ifdef __cplusplus
 }
 #endif

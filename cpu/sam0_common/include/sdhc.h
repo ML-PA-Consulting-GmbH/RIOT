@@ -23,6 +23,10 @@
 #ifndef SDHC_H
 #define SDHC_H
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stdint.h>
 #include <stdbool.h>
 #include "periph/gpio.h"
@@ -80,16 +84,16 @@ typedef struct {
 #define MCI_RESP_BUSY       (1ul << 13)     /**< Card may send busy */
 #define MCI_CMD_OPENDRAIN   (1ul << 14)     /**< Open drain for a braodcast command */
 #define MCI_CMD_WRITE       (1ul << 15)     /**< To signal a data write operation */
-#define MCI_CMD_SDIO_BYTE   (1ul << 16)     /**< To signal a SDIO tranfer in multi byte mode */
-#define MCI_CMD_SDIO_BLOCK  (1ul << 17)     /**< To signal a SDIO tranfer in block mode */
+#define MCI_CMD_SDIO_BYTE   (1ul << 16)     /**< To signal a SDIO transfer in multi byte mode */
+#define MCI_CMD_SDIO_BLOCK  (1ul << 17)     /**< To signal a SDIO transfer in block mode */
 #define MCI_CMD_STREAM      (1ul << 18)     /**< To signal a data transfer in stream mode */
 #define MCI_CMD_SINGLE_BLOCK (1ul << 19)    /**< To signal a data transfer in single block mode */
 #define MCI_CMD_MULTI_BLOCK (1ul << 20)     /**< To signal a data transfer in multi block mode */
 /** @} */
 
 /** This SD stack uses the maximum block size authorized (512 bytes) */
-#define SD_MMC_BLOCK_SIZE   512
-#define SDHC_SLOW_CLOCK_HZ  400000
+#define SD_MMC_BLOCK_SIZE   512             /**< SD card block size */
+#define SDHC_SLOW_CLOCK_HZ  400000          /**< Clock frequency on init */
 
 /** @name Error Codes */
 /** @{ */
@@ -101,7 +105,7 @@ typedef struct {
 /** @} */
 
 /**
- * @brief Initilize the SD host controller
+ * @brief Initialize the SD host controller
  *
  * @param[in] state     driver context
  *
@@ -162,5 +166,9 @@ int sdhc_write_blocks(sdhc_state_t *state, uint32_t block, const void *src,
  * @return true if success, false if failed
  */
 int sdhc_erase_blocks(sdhc_state_t *state, uint32_t block, uint16_t num);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif /* SDHC_H */

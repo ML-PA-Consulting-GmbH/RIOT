@@ -890,7 +890,6 @@ static bool sdio_test_type(sdhc_state_t *state)
     return true;
 }
 
-
 static bool _test_high_speed(sdhc_state_t *state)
 {
     uint8_t switch_status[SD_SW_STATUS_BSIZE] = { 0 };
