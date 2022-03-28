@@ -18,3 +18,4 @@ RIOT-2022.04-mlpa-3 - Merge Notes
   - merge benpicco/drivers/slipdev-standby
   - merge benpicco/pkg/fatfs-threadsafe
   - merge benpicco/sam0_sdhc
+  - merge benpicco/dhcpv6-tweaks
