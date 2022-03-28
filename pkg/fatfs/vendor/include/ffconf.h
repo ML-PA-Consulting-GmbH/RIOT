@@ -1,3 +1,5 @@
+#include "mutex.h"
+
 /*---------------------------------------------------------------------------/
 /  FatFs - Configuration file
 /---------------------------------------------------------------------------*/
@@ -382,13 +384,13 @@
 #else
 #define FF_FS_REENTRANT FATFS_FFCONF_OPT_FS_REENTRANT
 #endif
-#ifndef FATFS_FFCONF_OPT_FS_TIMEOUT
+#ifndef FATFS_FFCONF_OPT_FS_TIMEOUT_MS
 #define FF_FS_TIMEOUT 1000
 #else
-#define FF_FS_TIMEOUT FATFS_FFCONF_OPT_FS_TIMEOUT
+#define FF_FS_TIMEOUT FATFS_FFCONF_OPT_FS_TIMEOUT_MS
 #endif
 #ifndef FATFS_FFCONF_OPT_SYNC_t
-#define FF_SYNC_t	 HANDLE
+#define FF_SYNC_t	 mutex_t *
 #else
 #define FF_SYNC_t	 FATFS_FFCONF_OPT_SYNC_t
 #endif/* The option FF_FS_REENTRANT switches the re-entrancy (thread safe) of the FatFs
