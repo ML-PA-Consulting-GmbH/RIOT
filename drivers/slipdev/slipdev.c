@@ -307,6 +307,8 @@ static int _set_state(slipdev_t *dev, netopt_state_t state)
 
 static int _set(netdev_t *netdev, netopt_t opt, const void *value, size_t max_len)
 {
+    (void)max_len;
+
     slipdev_t *dev = (slipdev_t *)netdev;
     switch (opt) {
     case NETOPT_STATE:
