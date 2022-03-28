@@ -184,6 +184,7 @@ int sdhc_init(sdhc_state_t *state)
     state->bus_width = 1;
     state->high_speed = false;
     state->clock = SDHC_SLOW_CLOCK_HZ;
+    mutex_init(&state->lock);
     mutex_init(&state->sync);
     mutex_lock(&state->sync);
 
@@ -667,7 +668,7 @@ int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t 
     uint32_t cmd;
     uint32_t arg;
     uint32_t *p = dst;
-    int stat;
+    int res = SDHC_OK;
 
     /* card detect should be done differently
      * card detect with interrupt and if removed and reinstalled
@@ -676,15 +677,16 @@ int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t 
     if (!_card_detect(state)) {
         return SDHC_ERR_CARD_NOT_PRESENT;
     }
+
+    mutex_lock(&state->lock);
+
     if (state->need_init) {
-        stat = sdhc_init(state);
-        if (stat != SDHC_OK) {
-            return stat;
+        res = sdhc_init(state);
+        if (res != SDHC_OK) {
+            goto out;
         }
     }
-    if (!_wait_not_busy(state)) {
-        return SDHC_ERR_BUSY;
-    }
+
     if (state->type & CARD_TYPE_HC) {
         arg = address;
     }
@@ -696,12 +698,19 @@ int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t 
         ? SDMMC_CMD17_READ_SINGLE_BLOCK
         : SDMMC_CMD18_READ_MULTIPLE_BLOCK;
 
+    if (!_wait_not_busy(state)) {
+        res = SDHC_ERR_BUSY;
+        goto out;
+    }
+
     if (!_init_transfe(state, cmd, arg, SD_MMC_BLOCK_SIZE, num_blocks)) {
-        return SDHC_ERR_BAD_CARD;
+        res = SDHC_ERR_BAD_CARD;
+        goto out;
     }
 
     if (SDHC_DEV->RR[0].reg & CARD_STATUS_ERR_RD_WR) {
-        return SDHC_ERR_BAD_CARD;
+        res = SDHC_ERR_BAD_CARD;
+        goto out;
     }
 
     int num_words = (num_blocks * SD_MMC_BLOCK_SIZE) / 4;
@@ -710,7 +719,9 @@ int sdhc_read_blocks(sdhc_state_t *state, uint32_t address, void *dst, uint16_t 
         *p++ = SDHC_DEV->BDPR.reg;
     }
 
-    return SDHC_OK;
+out:
+    mutex_unlock(&state->lock);
+    return res;
 }
 
 /**
@@ -724,20 +735,21 @@ int sdhc_write_blocks(sdhc_state_t *state, uint32_t address, const void *src,
     uint32_t cmd;
     uint32_t arg;
     const uint32_t *p = src;
-    int stat;
+    int res = SDHC_OK;
 
     if (!_card_detect(state)) {
         return SDHC_ERR_CARD_NOT_PRESENT;
     }
+
+    mutex_lock(&state->lock);
+
     if (state->need_init) {
-        stat = sdhc_init(state);
-        if (stat != SDHC_OK) {
-            return stat;
+        res = sdhc_init(state);
+        if (res != SDHC_OK) {
+            goto out;
         }
     }
-    if (!_wait_not_busy(state)) {
-        return SDHC_ERR_BUSY;
-    }
+
     /*
      * SDSC Card (CCS=0) uses byte unit address,
      * SDHC and SDXC Cards (CCS=1) use block unit address (512 Bytes unit).
@@ -751,12 +763,19 @@ int sdhc_write_blocks(sdhc_state_t *state, uint32_t address, const void *src,
 
     cmd = (1 == num_blocks) ? SDMMC_CMD24_WRITE_BLOCK : SDMMC_CMD25_WRITE_MULTIPLE_BLOCK;
 
+    if (!_wait_not_busy(state)) {
+        res = SDHC_ERR_BUSY;
+        goto out;
+    }
+
     if (!_init_transfe(state, cmd, arg, SD_MMC_BLOCK_SIZE, num_blocks)) {
-        return SDHC_ERR_BAD_CARD;
+        res = SDHC_ERR_BAD_CARD;
+        goto out;
     }
 
     if (SDHC_DEV->RR[0].reg & CARD_STATUS_ERR_RD_WR) {
-        return SDHC_ERR_BAD_CARD;
+        res = SDHC_ERR_BAD_CARD;
+        goto out;
     }
 
     /* Write data */
@@ -766,26 +785,29 @@ int sdhc_write_blocks(sdhc_state_t *state, uint32_t address, const void *src,
         SDHC_DEV->BDPR.reg = *p++;
     }
 
-    return SDHC_OK;
+out:
+    mutex_unlock(&state->lock);
+    return res;
 }
 
 int sdhc_erase_blocks(sdhc_state_t *state, uint32_t start, uint16_t num_blocks)
 {
     uint32_t end = start + num_blocks - 1;
-    int stat;
+    int res = SDHC_OK;
 
     if (!_card_detect(state)) {
         return SDHC_ERR_CARD_NOT_PRESENT;
     }
+
+    mutex_lock(&state->lock);
+
     if (state->need_init) {
-        stat = sdhc_init(state);
-        if (stat != SDHC_OK) {
-            return stat;
+        res = sdhc_init(state);
+        if (res != SDHC_OK) {
+            goto out;;
         }
     }
-    if (!_wait_not_busy(state)) {
-        return SDHC_ERR_BUSY;
-    }
+
     /*
      * SDSC Card (CCS=0) uses byte unit address,
      * SDHC and SDXC Cards (CCS=1) use block unit address (512 Bytes unit).
@@ -795,13 +817,20 @@ int sdhc_erase_blocks(sdhc_state_t *state, uint32_t start, uint16_t num_blocks)
         end   *= SD_MMC_BLOCK_SIZE;
     }
 
+    if (!_wait_not_busy(state)) {
+        res = SDHC_ERR_BUSY;
+        goto out;
+    }
+
     sdhc_send_cmd(state, SD_CMD32_ERASE_WR_BLK_START, start);
     sdhc_send_cmd(state, SD_CMD33_ERASE_WR_BLK_END, end);
     if (!sdhc_send_cmd(state, SDMMC_CMD38_ERASE, 0)) {
-        return SDHC_ERR_BAD_CARD;
+        res = SDHC_ERR_BAD_CARD;
     }
 
-    return SDHC_OK;
+out:
+    mutex_unlock(&state->lock);
+    return res;
 }
 
 /**
