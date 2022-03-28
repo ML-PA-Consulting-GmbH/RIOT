@@ -3,6 +3,7 @@
 /* (C)ChaN, 2018                                                          */
 /*------------------------------------------------------------------------*/
 
+#include <stdlib.h>
 #include "fatfs/source/ff.h"
 #include "ffconf.h"
 #include "time_units.h"

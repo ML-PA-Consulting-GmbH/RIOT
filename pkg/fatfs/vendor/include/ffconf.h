@@ -137,7 +137,7 @@
 
 
 #ifndef FATFS_FFCONF_OPT_USE_LFN
-#define FF_USE_LFN	 FF_FS_EXFAT
+#define FF_USE_LFN	 (FF_FS_EXFAT ? (FF_FS_REENTRANT ? 3 : 1) : 0)
 #else
 #define FF_USE_LFN	 FATFS_FFCONF_OPT_USE_LFN
 #endif
