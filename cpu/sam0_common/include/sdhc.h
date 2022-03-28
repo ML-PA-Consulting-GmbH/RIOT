@@ -38,6 +38,7 @@ typedef struct {
     Sdhc *dev;              /**< SDHC instance              */
     gpio_t cd;              /**< Card detect pin            */
     gpio_t wp;              /**< Write Protect pin          */
+    mutex_t lock;           /**< Ensure thread-safe access  */
     mutex_t sync;           /**< ISR mutex                  */
     uint32_t sectors;       /**< Capacity in bytes          */
     uint32_t clock;         /**< Accepted Cloc Rate in Hz   */
