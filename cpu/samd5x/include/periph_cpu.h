@@ -53,7 +53,11 @@ extern "C" {
  * @name    Power mode configuration
  * @{
  */
-#define PM_NUM_MODES        (3)
+#define PM_NUM_MODES       4            /**< Backup, Hibernate, Standby, Idle */
+
+#ifndef PM_BLOCKER_INITIAL
+#define PM_BLOCKER_INITIAL 0x00010101   /**< Block all modes but Idle */
+#endif
 /** @} */
 
 /**
@@ -170,6 +174,27 @@ struct sam0_aux_cfg_mapping {
 #define SAM0_QSPI_PIN_DATA_2    GPIO_PIN(PA, 10)    /**< D2 / WP      */
 #define SAM0_QSPI_PIN_DATA_3    GPIO_PIN(PA, 11)    /**< D3 / HOLD    */
 #define SAM0_QSPI_MUX           GPIO_MUX_H          /**< QSPI mux     */
+/** @} */
+
+/**
+ * @name SDHC pins are fixed
+ * @{
+ */
+#define SAM0_SDHC_MUX           GPIO_MUX_I          /**< SDHC function  */
+
+#define SAM0_SDHC0_PIN_SDCMD    GPIO_PIN(PA,  8)    /**< Command        */
+#define SAM0_SDHC0_PIN_SDDAT0   GPIO_PIN(PA,  9)    /**< DATA0          */
+#define SAM0_SDHC0_PIN_SDDAT1   GPIO_PIN(PA, 10)    /**< DATA1          */
+#define SAM0_SDHC0_PIN_SDDAT2   GPIO_PIN(PA, 11)    /**< DATA2          */
+#define SAM0_SDHC0_PIN_SDDAT3   GPIO_PIN(PB, 10)    /**< DATA3          */
+#define SAM0_SDHC0_PIN_SDCK     GPIO_PIN(PB, 11)    /**< Clock          */
+
+#define SAM0_SDHC1_PIN_SDCMD    GPIO_PIN(PA, 20)    /**< Command        */
+#define SAM0_SDHC1_PIN_SDDAT0   GPIO_PIN(PB, 18)    /**< DATA0          */
+#define SAM0_SDHC1_PIN_SDDAT1   GPIO_PIN(PB, 19)    /**< DATA1          */
+#define SAM0_SDHC1_PIN_SDDAT2   GPIO_PIN(PB, 20)    /**< DATA2          */
+#define SAM0_SDHC1_PIN_SDDAT3   GPIO_PIN(PB, 21)    /**< DATA3          */
+#define SAM0_SDHC1_PIN_SDCK     GPIO_PIN(PA, 21)    /**< Clock          */
 /** @} */
 
 #ifdef __cplusplus
