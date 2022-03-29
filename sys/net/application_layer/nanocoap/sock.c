@@ -157,7 +157,11 @@ ssize_t nanocoap_sock_request_cb(nanocoap_sock_t *sock, coap_pkt_t *pkt,
             case COAP_TYPE_NON:
             case COAP_TYPE_ACK:
                 /* call user callback */
-                res = cb(arg, pkt);
+                if (cb) {
+                    res = cb(arg, pkt);
+                } else {
+                    res = 0;
+                }
                 break;
             }
         }
