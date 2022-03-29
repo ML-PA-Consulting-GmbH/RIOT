@@ -47,6 +47,7 @@
 #include <string.h>
 #include <stdio.h>
 #include "periph_cpu.h"
+#include "periph/pm.h"
 #include "vendor/sd_mmc_protocol.h"
 #include "sdhc.h"
 #include "time_units.h"
@@ -125,6 +126,20 @@ static void _reset_all(sdhc_state_t *state)
     while (SDHC_DEV->SRR.bit.SWRSTALL) {}
     state->need_init = true;
     state->error = 0;
+}
+
+static uint32_t _wait_for_event(sdhc_state_t *state)
+{
+    uint32_t res;;
+
+    /* SDHC runs off CPU clock - block IDLE the clock does not stop */
+    pm_block(3);
+    mutex_lock(&state->sync);
+    pm_unblock(3);
+
+    res = state->error;
+    state->error = 0;
+    return res;
 }
 
 static void _init_clocks(sdhc_state_t *state)
@@ -330,9 +345,7 @@ bool sdhc_send_cmd(sdhc_state_t *state, uint32_t cmd, uint32_t arg)
     SDHC_DEV->ARG1R.reg = arg;    /* setup the argument register */
     SDHC_DEV->CR.reg = command;   /* send command */
 
-    mutex_lock(&state->sync);
-    if (state->error) {
-        state->error = 0;
+    if (_wait_for_event(state)) {
         SDHC_DEV->SRR.reg = SDHC_SRR_SWRSTCMD;  /* reset command */
         while (SDHC_DEV->SRR.bit.SWRSTCMD) {}
         return false;
@@ -648,8 +661,7 @@ static bool _init_transfe(sdhc_state_t *state, uint32_t cmd, uint32_t arg, uint1
     SDHC_DEV->ARG1R.reg = arg;        /* setup the argument register */
     SDHC_DEV->CR.reg = command;       /* send command */
 
-    mutex_lock(&state->sync);
-    if (state->error) {
+    if (_wait_for_event(state)) {
         DEBUG("sdhc error: %x, reset all\n", state->error);
         _reset_all(state);
         return false;
