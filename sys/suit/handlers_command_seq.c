@@ -49,8 +49,8 @@ static int _get_component_size(suit_manifest_t *manifest,
 {
     nanocbor_value_t param_size;
     if ((suit_param_ref_to_cbor(manifest, &comp->param_size, &param_size) == 0)
-            || (nanocbor_get_uint32(&param_size, img_size) < 0)) { return
-        SUIT_ERR_INVALID_MANIFEST;
+            || (nanocbor_get_uint32(&param_size, img_size) < 0)) {
+        return SUIT_ERR_INVALID_MANIFEST;
     }
     return SUIT_OK;
 }
