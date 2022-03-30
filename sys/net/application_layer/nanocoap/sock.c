@@ -21,6 +21,7 @@
  * @}
  */
 
+#define __LINUX_ERRNO_EXTENSIONS__
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -52,6 +53,18 @@ int nanocoap_sock_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local, sock_udp_
     }
 
     return sock_udp_create(sock, local, remote, 0);
+}
+
+static int _get_error(const coap_pkt_t *pkt)
+{
+    switch (coap_get_code_class(pkt)) {
+    case COAP_CLASS_CLIENT_FAILURE:
+        return -ENXIO;
+    case COAP_CLASS_SERVER_FAILURE:
+        return -EREMOTE;
+    default:
+        return 0;
+    }
 }
 
 static bool _expect_response(const coap_pkt_t *pkt)
@@ -175,6 +188,11 @@ static int _request_cb(void *arg, coap_pkt_t *pkt)
     struct iovec *buf = arg;
     size_t pkt_len = coap_get_total_len(pkt);
 
+    int res = _get_error(pkt);
+    if (res) {
+        return res;
+    }
+
     if (pkt_len > buf->iov_len) {
         return -ENOBUFS;
     }
@@ -200,6 +218,11 @@ ssize_t nanocoap_sock_request(sock_udp_t *sock, coap_pkt_t *pkt, size_t len)
 static int _get_cb(void *arg, coap_pkt_t *pkt)
 {
     struct iovec *buf = arg;
+
+    int res = _get_error(pkt);
+    if (res) {
+        return res;
+    }
 
     if (pkt->payload_len > buf->iov_len) {
         return -ENOBUFS;
@@ -275,6 +298,11 @@ ssize_t nanocoap_get(sock_udp_ep_t *remote, const char *path, void *buf, size_t 
 static int _block_cb(void *arg, coap_pkt_t *pkt)
 {
     _block_ctx_t *ctx = arg;
+
+    int res = _get_error(pkt);
+    if (res) {
+        return res;
+    }
 
     coap_block1_t block2;
     coap_get_block2(pkt, &block2);
