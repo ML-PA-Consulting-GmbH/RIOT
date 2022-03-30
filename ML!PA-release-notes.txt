@@ -20,3 +20,4 @@ RIOT-2022.04-mlpa-4 - Merge Notes
   - merge benpicco/sam0_sdhc (experimental)
   - merge benpicco/drivers/atwinc15x0-mcast
   - merge benpicco/nanocoap-rework (experimental)
+  - merge benpicco/drivers/atwinc15x0-register
