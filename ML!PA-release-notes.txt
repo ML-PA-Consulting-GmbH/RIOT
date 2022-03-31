@@ -22,3 +22,4 @@ RIOT-2022.04-mlpa-4 - Merge Notes
   - merge benpicco/nanocoap-rework (experimental)
   - merge benpicco/drivers/atwinc15x0-register
   - merge benpicco/drivers/atwinc15x0-fix_sleep
+  - merge benpicco/gnrc_ipv6_nib_iface_up
