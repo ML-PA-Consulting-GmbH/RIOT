@@ -132,8 +132,6 @@ void gnrc_ipv6_nib_iface_up(gnrc_netif_t *netif)
     gnrc_netif_acquire(netif);
 
     _init_iface_arsm(netif);
-    gnrc_netif_init_6ln(netif);
-
 #if IS_ACTIVE(CONFIG_GNRC_IPV6_NIB_6LN)
     netif->ipv6.rs_sent = 0;
 #endif  /* CONFIG_GNRC_IPV6_NIB_6LN */
@@ -161,7 +159,6 @@ void gnrc_ipv6_nib_iface_down(gnrc_netif_t *netif)
     gnrc_netif_acquire(netif);
 
     _deinit_iface_arsm(netif);
-
     if (!(gnrc_netif_is_rtr_adv(netif)) ||
         (gnrc_netif_is_6ln(netif) && !gnrc_netif_is_6lbr(netif))) {
         _evtimer_del(&netif->ipv6.search_rtr);
@@ -186,6 +183,7 @@ void gnrc_ipv6_nib_init_iface(gnrc_netif_t *netif)
     netif->ipv6.aac_mode |= GNRC_NETIF_AAC_AUTO;
 #endif  /* CONFIG_GNRC_IPV6_NIB_SLAAC || CONFIG_GNRC_IPV6_NIB_6LN */
     _init_iface_router(netif);
+    gnrc_netif_init_6ln(netif);
     if (gnrc_netif_ipv6_group_join_internal(netif,
                                             &ipv6_addr_all_nodes_link_local) < 0) {
         DEBUG("nib: Can't join link-local all-nodes on interface %u\n",
