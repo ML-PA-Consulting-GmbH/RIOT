@@ -36,6 +36,9 @@
 #if IS_USED(MODULE_GNRC_SIXLOWPAN_FRAG_SFR)
 #include "net/gnrc/sixlowpan/frag/sfr.h"
 #endif /* IS_USED(MODULE_GNRC_SIXLOWPAN_FRAG_SFR) */
+#if IS_USED(MODULE_GNRC_IPV6_NIB)
+#include "net/gnrc/ipv6/nib.h"
+#endif
 #include "net/netstats.h"
 #include "net/netstats/neighbor.h"
 #include "fmt.h"
@@ -1982,6 +1985,14 @@ static void _event_cb(netdev_t *dev, netdev_event_t event)
         DEBUG("gnrc_netif: event triggered -> %i\n", event);
         gnrc_pktsnip_t *pkt = NULL;
         switch (event) {
+#if IS_USED(MODULE_GNRC_IPV6_NIB)
+            case NETDEV_EVENT_LINK_UP:
+                gnrc_ipv6_nib_iface_up(netif);
+                break;
+            case NETDEV_EVENT_LINK_DOWN:
+                gnrc_ipv6_nib_iface_down(netif);
+                break;
+#endif
             case NETDEV_EVENT_RX_COMPLETE:
                 pkt = netif->ops->recv(netif);
                 /* send packet previously queued within netif due to the lower
