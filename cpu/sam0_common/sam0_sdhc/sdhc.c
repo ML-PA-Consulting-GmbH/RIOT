@@ -69,7 +69,11 @@
  *          to save 80 Bytes of ROM.
  */
 #ifndef SDHC_DEV
+#ifdef SDHC1
 #define SDHC_DEV            state->dev
+#else
+#define SDHC_DEV            SDHC0
+#endif
 #endif
 
 /**
@@ -147,8 +151,10 @@ static void _init_clocks(sdhc_state_t *state)
     sam0_gclk_enable(SDHC_CLOCK);
     sam0_gclk_enable(SDHC_CLOCK_SLOW);
 
-    gpio_init_mux(state->wp, SAM0_SDHC_MUX);
     gpio_init_mux(state->cd, SAM0_SDHC_MUX);
+    if (gpio_is_valid(state->wp)) {
+        gpio_init_mux(state->wp, SAM0_SDHC_MUX);
+    }
 
     if (SDHC_DEV == SDHC0) {
         /* data pins are fixed */
@@ -168,6 +174,7 @@ static void _init_clocks(sdhc_state_t *state)
         NVIC_EnableIRQ(SDHC0_IRQn);
     }
 
+#ifdef SDHC1
     if (SDHC_DEV == SDHC1) {
         /* data pins are fixed */
         gpio_init_mux(SAM0_SDHC1_PIN_SDDAT0, SAM0_SDHC_MUX);
@@ -185,6 +192,7 @@ static void _init_clocks(sdhc_state_t *state)
         isr_ctx_1 = state;
         NVIC_EnableIRQ(SDHC1_IRQn);
     }
+#endif
 }
 
 int sdhc_init(sdhc_state_t *state)
