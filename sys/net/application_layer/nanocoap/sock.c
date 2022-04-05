@@ -71,6 +71,7 @@ static bool _expect_response(const coap_pkt_t *pkt)
 {
     switch (pkt->hdr->code) {
     case COAP_METHOD_PUT:
+    case COAP_METHOD_POST: /* XXX */
     case COAP_METHOD_DELETE:
         return false;
     }
@@ -93,8 +94,8 @@ ssize_t nanocoap_sock_request_cb(nanocoap_sock_t *sock, coap_pkt_t *pkt,
                                  coap_request_cb_t cb, void *arg)
 {
     ssize_t tmp, res = 0;
-    size_t pdu_len = (pkt->payload - (uint8_t *)pkt->hdr) + pkt->payload_len;
     uint8_t *buf = (uint8_t*)pkt->hdr;
+    size_t pdu_len = pkt->payload - buf;
     uint32_t id = coap_get_id(pkt);
     void *payload, *ctx = NULL;
 
@@ -212,6 +213,10 @@ ssize_t nanocoap_sock_request(sock_udp_t *sock, coap_pkt_t *pkt, size_t len)
         .iov_base = pkt->hdr,
         .iov_len  = len,
     };
+
+    int diff = len - (pkt->payload - (uint8_t *)pkt->hdr);
+    pkt->payload += diff;
+
     return nanocoap_sock_request_cb(sock, pkt, _request_cb, &buf);
 }
 
