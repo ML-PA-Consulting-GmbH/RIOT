@@ -32,10 +32,10 @@ extern "C" {
  * @brief   Additional stack size required by the driver
  *
  * With increasing of GNRC_NETIF_MSG_QUEUE_SIZE the required stack size
- * increases as well. A queue size of 8 messages works with default stack size,
+ * increases as well. A queue size of 16 messages works with default stack size,
  * so we increase the stack by `sizeof(msg_t)` for each additional element
  */
-#define GNRC_NETIF_EXTRA_STACKSIZE      ((GNRC_NETIF_MSG_QUEUE_SIZE - 8) * sizeof(msg_t))
+#define GNRC_NETIF_EXTRA_STACKSIZE      ((GNRC_NETIF_MSG_QUEUE_SIZE - 16) * sizeof(msg_t))
 #endif
 
 /**
