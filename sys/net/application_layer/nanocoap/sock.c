@@ -323,13 +323,9 @@ static int _fetch_block(coap_pkt_t *pkt, sock_udp_t *sock,
         return res;
     }
 
-    res = coap_get_code(pkt);
-    DEBUG("code=%i\n", res);
-    if (res != 205) {
-        return -res;
-    }
+    DEBUG("code=%i\n", coap_get_code(pkt));
 
-    return 0;
+    return _get_error(pkt);
 }
 
 int nanocoap_sock_get_blockwise(nanocoap_sock_t *sock, const char *path,
