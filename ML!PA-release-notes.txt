@@ -1,0 +1,24 @@
+RIOT-2022.07-mlpa-1 - Merge Notes
+=================================
+
+- based on 2022.07-devel-41-g32ac29bd98
+
+  - cherry-pick b82e97164045708a471208f6c59f84cd28c2dcc6 (sam0 ADC hack)
+  - cherry-pick bed34daa61bfa6273f95e9e86cf90e448a8ed67e from benpicco/gnrc_netif-solicited_nodes
+  - cherry-pick bfadcf108864393441757195ca412697a108e8d2 (SUIT debug output)
+  - merge benpicco/cpu/sam0_common/flashpage_irq_disable
+  - merge benpicco/gnrc/ipv6_auto_subnets-static
+  - merge benpicco/gnrc_ipv6_auto_subnets-multi
+  - merge benpicco/gnrc/nib-ra_on_ra
+  - merge benpicco/gnrc_sixlowpan_ctx-optional
+  - merge feat/20211108__sys-bus__add_rtc_bus
+  - merge benpicco/hard_fault-BKPT
+  - merge benpicco/drivers/rtt_rtc-no-retain
+  - merge benpicco/drivers/dose-watchdog_workaround
+  - merge benpicco/drivers/slipdev-standby
+  - merge benpicco/pkg/fatfs-threadsafe
+  - merge benpicco/sam0_sdhc (experimental)
+  - merge benpicco/nanocoap-rework (experimental)
+  - merge benpicco/drivers/atwinc15x0-fix_sleep
+  - merge benpicco/gnrc_ipv6_nib_iface_up
+  - merge benpicco/sys/net/telnet-workaround
