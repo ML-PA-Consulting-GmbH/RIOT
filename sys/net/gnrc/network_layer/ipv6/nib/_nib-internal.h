@@ -859,6 +859,16 @@ static inline void _evtimer_add(void *ctx, int16_t type,
     evtimer_add_msg(&_nib_evtimer, event, target_pid);
 }
 
+/**
+ * @brief   Removes an event from the event timer
+ *
+ * @param[in] event Representation of the event.
+ */
+static inline void _evtimer_del(evtimer_msg_event_t *event)
+{
+    evtimer_del((evtimer_t *)(&_nib_evtimer), (evtimer_event_t *)event);
+}
+
 #ifdef __cplusplus
 }
 #endif
