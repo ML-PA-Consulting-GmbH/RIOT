@@ -559,6 +559,12 @@ ifneq (,$(filter vfs_default,$(USEMODULE)))
   DEFAULT_MODULE += vfs_auto_mount
 endif
 
+ifneq (,$(filter gcoap_fileserver,$(USEMODULE)))
+  USEMODULE += gcoap
+  USEMODULE += checksum
+  USEMODULE += vfs
+endif
+
 ifneq (,$(filter vfs,$(USEMODULE)))
   USEMODULE += posix_headers
   ifeq (native, $(BOARD))

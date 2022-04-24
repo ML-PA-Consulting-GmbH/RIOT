@@ -626,8 +626,16 @@ extern "C" {
 #define GCOAP_DTLS_EXTRA_STACKSIZE  (0)
 #endif
 
+#if IS_USED(MODULE_COAPFILESERVER)
+#include "vfs.h"
+#define GCOAP_VFS_EXTRA_STACKSIZE   (VFS_DIR_BUFFER_SIZE + VFS_FILE_BUFFER_SIZE)
+#else
+#define GCOAP_VFS_EXTRA_STACKSIZE   (0)
+#endif
+
 #define GCOAP_STACK_SIZE (THREAD_STACKSIZE_DEFAULT + DEBUG_EXTRA_STACKSIZE \
-                          + sizeof(coap_pkt_t) + GCOAP_DTLS_EXTRA_STACKSIZE)
+                          + sizeof(coap_pkt_t) + GCOAP_DTLS_EXTRA_STACKSIZE \
+                          + GCOAP_VFS_EXTRA_STACKSIZE)
 #endif
 /** @} */
 
