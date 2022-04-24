@@ -626,7 +626,10 @@ extern "C" {
 #define GCOAP_DTLS_EXTRA_STACKSIZE  (0)
 #endif
 
-#if IS_USED(MODULE_COAPFILESERVER)
+/**
+ * @brief Extra stack for VFS operations
+ */
+#if IS_USED(MODULE_GCOAP_FILESERVER)
 #include "vfs.h"
 #define GCOAP_VFS_EXTRA_STACKSIZE   (VFS_DIR_BUFFER_SIZE + VFS_FILE_BUFFER_SIZE)
 #else

@@ -40,7 +40,7 @@
  *   and the number of path components to strip from incoming requests:
  *
  *   ```
- *   static const struct coapfileserver_entry files_sd = {
+ *   static const gcoap_fileserver_entry_t files_sd = {
  *       .root = "/sd0",
  *       .resource = "/files/sd"
  *   };
@@ -84,7 +84,7 @@ extern "C" {
  * in a resource list.
  *
  */
-struct coapfileserver_entry {
+typedef struct {
     /**
      * @brief Path in the VFS that should be served.
      *
@@ -95,7 +95,7 @@ struct coapfileserver_entry {
      * @brief The associated CoAP resource path
      */
     const char *resource;
-};
+} gcoap_fileserver_entry_t;
 
 /**
  * @brief File server handler
