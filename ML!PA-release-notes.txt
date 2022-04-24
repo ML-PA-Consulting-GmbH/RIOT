@@ -23,3 +23,4 @@ RIOT-2022.07-mlpa-2 - Merge Notes
   - merge benpicco/GNRC_NETIF_STACKSIZE_DEFAULT
   - merge benpicco/coapfileserver
   - merge benpicco/nanocoap_vfs
+  - merge benpicco/nanocoap_rd
