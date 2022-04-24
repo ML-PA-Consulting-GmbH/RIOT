@@ -5,6 +5,7 @@ INCLUDES += -I$(RIOTPKG)/fatfs/vendor/include
 NATIVEINCLUDES += -I$(RIOTPKG)/fatfs/vendor/include
 
 DIRS += $(RIOTBASE)/pkg/fatfs/fatfs_diskio/mtd
+DIRS += $(RIOTBASE)/pkg/fatfs/fatfs_system
 
 ifneq (,$(filter fatfs_vfs,$(USEMODULE)))
   DIRS += $(RIOTBASE)/pkg/fatfs/fatfs_vfs
@@ -17,6 +18,12 @@ else
   CFLAGS += -DFATFS_FFCONF_OPT_FS_NORTC=1
 endif
 
+ifneq (,$(filter fatfs_threadsafe,$(USEMODULE)))
+  CFLAGS += -DFATFS_FFCONF_OPT_FS_REENTRANT=1
+endif
+
 ifeq ($(OS),Darwin)
   CFLAGS += -Wno-empty-body
 endif
+
+PSEUDOMODULES += fatfs_threadsafe
