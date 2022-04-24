@@ -25,7 +25,7 @@
 #define MAIN_QUEUE_SIZE (4)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
 
-static const struct coapfileserver_entry _vfs_entry = {
+static const gcoap_fileserver_entry_t _vfs_entry = {
     .root = VFS_DEFAULT_DATA,
     .resource = "/vfs",
 };
