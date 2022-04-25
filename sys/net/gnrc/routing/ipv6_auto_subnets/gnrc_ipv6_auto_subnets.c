@@ -112,6 +112,7 @@
  */
 #ifndef CONFIG_GNRC_IPV6_AUTO_SUBNETS_STATIC
 #define CONFIG_GNRC_IPV6_AUTO_SUBNETS_STATIC        (0)
+#endif
 
 /**
  * @brief How many bits of a new prefix have to match the old prefix
