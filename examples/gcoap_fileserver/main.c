@@ -32,7 +32,7 @@ static const gcoap_fileserver_entry_t _vfs_entry = {
 
 /* CoAP resources. Must be sorted by path (ASCII order). */
 static const coap_resource_t _resources[] = {
-    { "/vfs", COAP_GET | COAP_MATCH_SUBTREE, coapfileserver_handler, (void *)&_vfs_entry },
+    { "/vfs", COAP_GET | COAP_MATCH_SUBTREE, gcoap_fileserver_handler, (void *)&_vfs_entry },
 };
 
 static gcoap_listener_t _listener = {
