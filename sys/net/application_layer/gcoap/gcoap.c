@@ -295,6 +295,9 @@ static void _on_sock_udp_evt(sock_udp_t *sock, sock_async_flags_t type, void *ar
         void *buf_ctx = NULL;
         bool truncated = false;
         size_t cursor = 0;
+        sock_udp_aux_rx_t aux = {
+            .flags = SOCK_AUX_GET_LOCAL,
+        };
 
         /* The zero-copy _buf API is not used to its full potential here -- we
          * still copy out data in what is a manual version of sock_udp_recv,
@@ -307,7 +310,7 @@ static void _on_sock_udp_evt(sock_udp_t *sock, sock_async_flags_t type, void *ar
          * single slice (but that may be a realistic assumption).
          */
         while (true) {
-            ssize_t res = sock_udp_recv_buf(sock, &stackbuf, &buf_ctx, 0, &remote);
+            ssize_t res = sock_udp_recv_buf_aux(sock, &stackbuf, &buf_ctx, 0, &remote, &aux);
             if (res < 0) {
                 DEBUG("gcoap: udp recv failure: %d\n", (int)res);
                 return;
@@ -322,6 +325,8 @@ static void _on_sock_udp_evt(sock_udp_t *sock, sock_async_flags_t type, void *ar
             memcpy(&_listen_buf[cursor], stackbuf, res);
             cursor += res;
         }
+
+        sock->local.addr = aux.local.addr;
         gcoap_socket_t socket = { .type = GCOAP_SOCKET_TYPE_UDP, .socket.udp = sock };
         _process_coap_pdu(&socket, &remote, _listen_buf, cursor, truncated);
     }
