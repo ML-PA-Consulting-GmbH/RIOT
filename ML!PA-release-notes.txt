@@ -24,3 +24,4 @@ RIOT-2022.07-mlpa-2 - Merge Notes
   - merge benpicco/coapfileserver
   - merge benpicco/nanocoap_vfs
   - merge benpicco/nanocoap_rd
+  - merge benpicco/gcoap_add_fix
