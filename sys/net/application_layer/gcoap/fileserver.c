@@ -81,16 +81,6 @@ static unsigned _count_char(const char *s, char c)
     return count;
 }
 
-static size_t _copy_string(void *dst, const void *src, size_t len_max)
-{
-    size_t len = strlen(src);
-    if (len > len_max) {
-        return 0;
-    }
-    memcpy(dst, src, len);
-    return len;
-}
-
 /** Build an ETag based on the given file's VFS stat. If the stat fails,
  * returns the error and leaves etag in any state; otherwise there's an etag
  * in the stattag's field */
@@ -131,6 +121,24 @@ static size_t coapfileserver_errno_handler(coap_pkt_t *pdu, uint8_t *buf, size_t
     return gcoap_response(pdu, buf, len, code);
 }
 
+static void _calc_szx2(coap_pkt_t *pdu, uint8_t *buf, size_t len, struct requestdata *request)
+{
+    /* To best see how this works set CONFIG_GCAOP_PDU_BUF_SIZE to 532 or 533.
+     * If we did a sharper estimation (factoring in the block2 size option with
+     * the current blockum), we'd even pack 512 bytes into 530 until block
+     * numbers get large enough to eat another byte, which is when the block
+     * size would decrease in-flight. */
+    size_t remaining_length = len - (pdu->payload - buf);
+    remaining_length -= 5; /* maximum block2 option usable in nanocoap */
+    remaining_length -= 1; /* payload marker */
+    /* > 0: To not wrap around; if that still won't fit that's later caught in
+     * an assertion */
+    while ((coap_szx2size(request->szx2) > remaining_length) && (request->szx2 > 0)) {
+        request->szx2--;
+        request->blocknum2 <<= 1;
+    }
+}
+
 static ssize_t coapfileserver_file_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len,
                                            struct requestdata *request)
 {
@@ -153,21 +161,8 @@ static ssize_t coapfileserver_file_handler(coap_pkt_t *pdu, uint8_t *buf, size_t
 
     gcoap_resp_init(pdu, buf, len, COAP_CODE_CONTENT);
     coap_opt_add_opaque(pdu, COAP_OPT_ETAG, &etag, sizeof(etag));
-    /* To best see how this works set CONFIG_GCAOP_PDU_BUF_SIZE to 532 or 533.
-     * If we did a sharper estimation (factoring in the block2 size option with
-     * the current blockum), we'd even pack 512 bytes into 530 until block
-     * numbers get large enough to eat another byte, which is when the block
-     * size would decrease in-flight. */
-    size_t remaining_length = len - (pdu->payload - buf);
-    remaining_length -= 5; /* maximum block2 option usable in nanocoap */
-    remaining_length -= 1; /* payload marker */
-    /* > 0: To not wrap around; if that still won't fit that's later caught in
-     * an assertion */
-    while ((coap_szx2size(request->szx2) > remaining_length) && (request->szx2 > 0)) {
-        request->szx2--;
-        request->blocknum2 <<= 1;
-    }
     coap_block_slicer_t slicer;
+    _calc_szx2(pdu, buf, len, request);
     coap_block_slicer_init(&slicer, request->blocknum2, coap_szx2size(request->szx2));
     coap_opt_add_block2(pdu, &slicer, true);
     size_t resp_len = coap_opt_finish(pdu, COAP_OPT_FINISH_PAYLOAD);
@@ -217,13 +212,8 @@ static ssize_t coapfileserver_directory_handler(coap_pkt_t *pdu, uint8_t *buf, s
                                                 struct requestdata *request,
                                                 gcoap_fileserver_entry_t *resource)
 {
-    /**
-     * ToDo:
-     *
-     * * Blockwise
-     *
-     */
     vfs_DIR dir;
+    coap_block_slicer_t slicer;
 
     int err = vfs_opendir(&dir, request->namebuf);
     if (err != 0) {
@@ -231,56 +221,53 @@ static ssize_t coapfileserver_directory_handler(coap_pkt_t *pdu, uint8_t *buf, s
     }
     DEBUG("coapfileserver: Serving directory listing\n");
 
+    coap_block2_init(pdu, &slicer);
+
     gcoap_resp_init(pdu, buf, len, COAP_CODE_CONTENT);
     coap_opt_add_format(pdu, COAP_FORMAT_LINK);
-    size_t resp_len = coap_opt_finish(pdu, COAP_OPT_FINISH_PAYLOAD);
+    _calc_szx2(pdu, buf, len, request);
+    coap_block_slicer_init(&slicer, request->blocknum2, coap_szx2size(request->szx2));
+    coap_opt_add_block2(pdu, &slicer, true);
+    buf += coap_opt_finish(pdu, COAP_OPT_FINISH_PAYLOAD);
+
+    size_t root_len = resource->root ? strlen(resource->root) : 0;
+    const char *root_dir = &request->namebuf[root_len];
+    const char *resource_dir = resource->resource;
+    size_t root_dir_len = strlen(root_dir);
+    size_t resource_dir_len = strlen(resource_dir);
 
     vfs_dirent_t entry;
-    ssize_t payload_cursor = 0;
-    size_t root_len = resource->root ? strlen(resource->root) : 0;
     while (vfs_readdir(&dir, &entry) > 0) {
-        char *entry_name = entry.d_name;
+        const char *entry_name = entry.d_name;
         size_t entry_len = strlen(entry_name);
         if (entry_len <= 2 && memcmp(entry_name, "..", entry_len) == 0) {
             /* Up pointers don't work the same way in URI semantics */
             continue;
         }
         bool is_dir = entry_is_dir(request->namebuf, entry_name);
-        /* maybe ",", "<>", and the length */
-        ssize_t need_bytes = (payload_cursor == 0 ? 0 : 1) + 2 + entry_len + (is_dir ? 1 : 0);
-        if (payload_cursor + need_bytes > pdu->payload_len) {
-            /* Without blockwise, this is the best approximation we can do */
-            DEBUG("coapfileserver: Directory listing truncated\n");
-            break;
-        }
-        if (payload_cursor != 0) {
-            pdu->payload[payload_cursor++] = ',';
-        }
-        pdu->payload[payload_cursor++] = '<';
 
-        payload_cursor += _copy_string(&pdu->payload[payload_cursor], resource->resource,
-                                       pdu->payload_len - payload_cursor);
-        payload_cursor += _copy_string(&pdu->payload[payload_cursor], &request->namebuf[root_len],
-                                       pdu->payload_len - payload_cursor);
-        pdu->payload[payload_cursor++] = '/';
-        payload_cursor += _copy_string(&pdu->payload[payload_cursor], entry_name,
-                                       pdu->payload_len - payload_cursor);
+        if (slicer.cur) {
+            buf += coap_blockwise_put_char(&slicer, buf, ',');
+        }
+        buf += coap_blockwise_put_char(&slicer, buf, '<');
+
+        buf += coap_blockwise_put_bytes(&slicer, buf, resource_dir, resource_dir_len);
+        buf += coap_blockwise_put_bytes(&slicer, buf, root_dir, root_dir_len);
+        buf += coap_blockwise_put_char(&slicer, buf, '/');
+        buf += coap_blockwise_put_bytes(&slicer, buf, entry_name, entry_len);
         if (is_dir) {
-            pdu->payload[payload_cursor++] = '/';
+            buf += coap_blockwise_put_char(&slicer, buf, '/');
         }
-        pdu->payload[payload_cursor++] = '>';
+        buf += coap_blockwise_put_char(&slicer, buf, '>');
     }
+
     vfs_closedir(&dir);
+    coap_block2_finish(&slicer);
 
-    if (payload_cursor == 0) {
-        /* Rewind to clear payload marker */
-        payload_cursor -= 1;
-    }
-
-    return resp_len + payload_cursor;
+    return (uintptr_t)buf - (uintptr_t)pdu->hdr;
 }
 
-ssize_t coapfileserver_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len, void *ctx) {
+ssize_t gcoap_fileserver_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len, void *ctx) {
     gcoap_fileserver_entry_t *entry = ctx;
     struct requestdata request = {
         .etag_sent = false,

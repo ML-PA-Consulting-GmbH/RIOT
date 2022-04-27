@@ -46,13 +46,13 @@
  *   };
  *   ```
  *
- * * Enter a @ref coapfileserver_handler handler into your CoAP server's
+ * * Enter a @ref gcoap_fileserver_handler handler into your CoAP server's
  *   resource list like this:
  *
  *   ```
  *   static const coap_resource_t _resources[] = {
  *       ...
- *       { "/files/sd", COAP_GET | COAP_MATCH_SUBTREE, coapfileserver_handler, (void*)&files_sd },
+ *       { "/files/sd", COAP_GET | COAP_MATCH_SUBTREE, gcoap_fileserver_handler, (void*)&files_sd },
  *       ...
  *   }
  *   ```
@@ -80,7 +80,7 @@ extern "C" {
 /**
  * @brief File server starting point
  *
- * This struct needs to be present at the ctx of a coapfileserver_handler entry
+ * This struct needs to be present at the ctx of a gcoap_fileserver_handler entry
  * in a resource list.
  *
  */
@@ -111,7 +111,7 @@ typedef struct {
  * @return size of the response on success
  *         negative error
  */
-ssize_t coapfileserver_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len, void *ctx);
+ssize_t gcoap_fileserver_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len, void *ctx);
 
 #ifdef __cplusplus
 }
