@@ -1396,7 +1396,7 @@ bool gnrc_netif_ipv6_wait_for_global_address(gnrc_netif_t *netif,
         }
     }
 
-    return has_global;
+    return _has_global_addr(netif);
 }
 #endif  /* IS_USED(MODULE_GNRC_NETIF_BUS) */
 #endif  /* IS_USED(MODULE_GNRC_NETIF_IPV6) */
