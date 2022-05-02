@@ -39,6 +39,9 @@
 #include "suit/transport/coap.h"
 #include "net/nanocoap_sock.h"
 #endif
+#ifdef MODULE_SUIT_TRANSPORT_VFS
+#include "suit/transport/vfs.h"
+#endif
 #include "suit/transport/mock.h"
 
 #if defined(MODULE_PROGRESS_BAR)
@@ -416,6 +419,8 @@ static int _dtv_fetch(suit_manifest_t *manifest, int key,
         LOG_DEBUG("URL parsing failed\n)");
         return err;
     }
+
+    assert(manifest->urlbuf && url_len < manifest->urlbuf_len);
     memcpy(manifest->urlbuf, url, url_len);
     manifest->urlbuf[url_len] = '\0';
 
@@ -440,6 +445,11 @@ static int _dtv_fetch(suit_manifest_t *manifest, int key,
 #ifdef MODULE_SUIT_TRANSPORT_MOCK
     else if (strncmp(manifest->urlbuf, "test://", 7) == 0) {
         res = suit_transport_mock_fetch(manifest);
+    }
+#endif
+#ifdef MODULE_SUIT_TRANSPORT_VFS
+    else if (strncmp(manifest->urlbuf, "file://", 7) == 0) {
+        res = suit_transport_vfs_fetch(manifest, _storage_helper, manifest);
     }
 #endif
     else {
