@@ -41,9 +41,13 @@ static int _dirlist_cb(void *arg, size_t offset, uint8_t *buf, size_t len, int m
     for (char *c = (char *)buf; c < end; ++c) {
         if (ctx->cur) {
             if (*c == '>' || ctx->cur == ctx->end) {
+                int res;
                 *ctx->cur = 0;
-                ctx->cb(ctx->buf, ctx->ctx);
+                res = ctx->cb(ctx->buf, ctx->ctx);
                 ctx->cur = NULL;
+                if (res < 0) {
+                    return res;
+                }
             } else {
                 *ctx->cur++ = *c;
             }
