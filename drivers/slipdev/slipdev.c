@@ -62,11 +62,21 @@ static void _slip_rx_cb(void *arg, uint8_t byte)
             return;
         }
     }
-    dev->state = SLIPDEV_STATE_NET;
-    tsrb_add_one(&dev->inbuf, byte);
+    if (dev->state == SLIPDEV_STATE_NONE) {
+        if (!crb_start_chunk(&dev->rb)) {
+            return;
+        }
+        dev->state = SLIPDEV_STATE_NET;
+    }
+    if (!crb_add_byte(&dev->rb, byte) && byte != SLIPDEV_END) {
+        crb_end_chunk(&dev->rb, false);
+        dev->state = SLIPDEV_STATE_NONE;
+        return;
+    }
 check_end:
     if (byte == SLIPDEV_END) {
         if (dev->state == SLIPDEV_STATE_NET) {
+            crb_end_chunk(&dev->rb, true);
             netdev_trigger_event_isr(&dev->netdev);
         }
         dev->state = SLIPDEV_STATE_NONE;
@@ -80,7 +90,7 @@ static int _init(netdev_t *netdev)
     DEBUG("slipdev: initializing device %p on UART %i with baudrate %" PRIu32 "\n",
           (void *)dev, dev->config.uart, dev->config.baudrate);
     /* initialize buffers */
-    tsrb_init(&dev->inbuf, dev->rxmem, sizeof(dev->rxmem));
+    crb_init(&dev->rb, dev->rxmem, sizeof(dev->rxmem));
     if (uart_init(dev->config.uart, dev->config.baudrate, _slip_rx_cb,
                   dev) != UART_OK) {
         LOG_ERROR("slipdev: error initializing UART %i with baudrate %" PRIu32 "\n",
@@ -162,6 +172,20 @@ static int _send(netdev_t *netdev, const iolist_t *iolist)
     return bytes;
 }
 
+typedef struct {
+    uint8_t *dst;
+    bool escaped;
+} _unstuff_ctx_t;
+
+static void _process_chunk(void *arg, uint8_t *bytes, size_t len)
+{
+    _unstuff_ctx_t *ctx = arg;
+
+    for (uint8_t *end = bytes + len; bytes != end; ++bytes) {
+        ctx->dst += slipdev_unstuff_readbyte(ctx->dst, *bytes, &ctx->escaped);
+    }
+}
+
 static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
 {
     slipdev_t *dev = (slipdev_t *)netdev;
@@ -171,52 +195,36 @@ static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
     if (buf == NULL) {
         if (len > 0) {
             /* remove data */
-            for (; len > 0; len--) {
-                int byte = tsrb_get_one(&dev->inbuf);
-                if ((byte == (int)SLIPDEV_END) || (byte < 0)) {
-                    /* end early if end of packet or ringbuffer is reached;
-                     * len might be larger than the actual packet */
-                    break;
-                }
-            }
+            crb_consume_chunk(&dev->rb, NULL, len);
         } else {
             /* the user was warned not to use a buffer size > `INT_MAX` ;-) */
-            res = (int)tsrb_avail(&dev->inbuf);
+            crb_get_chunk_size(&dev->rb, (size_t*)&res);
         }
     }
     else {
-        int byte;
-        bool escaped = false;
-        uint8_t *ptr = buf;
+        _unstuff_ctx_t ctx = {
+            .dst = buf,
+        };
 
-        do {
-            int tmp;
-
-            if ((byte = tsrb_get_one(&dev->inbuf)) < 0) {
-                /* something went wrong, return error */
-                return -EIO;
-            }
-            tmp = slipdev_unstuff_readbyte(ptr, byte, &escaped);
-            ptr += tmp;
-            res += tmp;
-            if ((unsigned)res > len) {
-                while (byte != SLIPDEV_END) {
-                    /* clear out unreceived packet */
-                    byte = tsrb_get_one(&dev->inbuf);
-                }
-                return -ENOBUFS;
-            }
-        } while (byte != SLIPDEV_END);
+        /* copy data while escaping it */
+        crb_chunk_foreach(&dev->rb, _process_chunk, &ctx);
+        crb_consume_chunk(&dev->rb, NULL, len);
+        res = (uintptr_t)ctx.dst - (uintptr_t)buf;
     }
     return res;
 }
 
 static void _isr(netdev_t *netdev)
 {
+    slipdev_t *dev = (slipdev_t *)netdev;
+
     DEBUG("slipdev: handling ISR event\n");
     if (netdev->event_callback != NULL) {
-        DEBUG("slipdev: event handler set, issuing RX_COMPLETE event\n");
-        netdev->event_callback(netdev, NETDEV_EVENT_RX_COMPLETE);
+        size_t len;
+        while (crb_get_chunk_size(&dev->rb, &len)) {
+            DEBUG("slipdev: event handler set, issuing RX_COMPLETE event\n");
+            netdev->event_callback(netdev, NETDEV_EVENT_RX_COMPLETE);
+        }
     }
 }
 
