@@ -26,7 +26,7 @@
 #include "cib.h"
 #include "net/netdev.h"
 #include "periph/uart.h"
-#include "tsrb.h"
+#include "chunked_ringbuffer.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -99,7 +99,12 @@ typedef struct {
 typedef struct {
     netdev_t netdev;                        /**< parent class */
     slipdev_params_t config;                /**< configuration parameters */
-    tsrb_t inbuf;                           /**< RX buffer */
+    chunk_ringbuf_t rb;                     /**< Ringbuffer to store received frames.       */
+                                            /* Written to from interrupts (with irq_disable */
+                                            /* to prevent any simultaneous writes),         */
+                                            /* consumed exclusively in the network stack's  */
+                                            /* loop at _isr.                                */
+
     uint8_t rxmem[CONFIG_SLIPDEV_BUFSIZE];  /**< memory used by RX buffer */
     /**
      * @brief   Device state
