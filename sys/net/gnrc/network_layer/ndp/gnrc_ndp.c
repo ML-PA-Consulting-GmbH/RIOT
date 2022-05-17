@@ -25,6 +25,7 @@
 #include "net/gnrc/sixlowpan/nd.h"
 #endif
 #include "net/ndp.h"
+#include "rtt64.h"
 
 #include "net/gnrc/ndp.h"
 
@@ -524,6 +525,14 @@ void gnrc_ndp_rtr_adv_send(gnrc_netif_t *netif, const ipv6_addr_t *src,
     do {    /* XXX: hidden goto */
         if (netif->flags & GNRC_NETIF_FLAGS_IPV6_ADV_MTU) {
             if ((hdr = gnrc_ndp_opt_mtu_build(netif->ipv6.mtu, pkt)) == NULL) {
+                DEBUG("ndp rtr: no space left in packet buffer\n");
+                break;
+            }
+            pkt = hdr;
+        }
+        if (IS_USED(MODULE_GNRC_IPV6_NIB_TIMESTAMP) && IS_USED(MODULE_RTT64)) {
+            uint64_t now = rtt64_get_counter();
+            if ((hdr = gnrc_ndp_opt_timestamp_build(now, pkt)) == NULL) {
                 DEBUG("ndp rtr: no space left in packet buffer\n");
                 break;
             }
