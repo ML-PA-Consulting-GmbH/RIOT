@@ -39,7 +39,7 @@
 
 #define _RTT(n)         ((n) & RTT_MAX_VALUE)
 
-#define RTT_SECOND_MAX  (RTT_MAX_VALUE/RTT_FREQUENCY)
+#define RTT_SECOND_MAX  (RTT_MAX_VALUE/RTT_FREQUENCY) // TODO is this correct or rather one off?
 
 #define TICKS(x)        (    (x) * RTT_SECOND)
 #define SECONDS(x)      (_RTT(x) / RTT_SECOND)
@@ -62,9 +62,9 @@ static void *alarm_cb_arg;                  /**< RTC alarm callback argument */
 static void _rtt_alarm(void *arg);
 
 /* convert RTT counter into RTC timestamp */
-static inline uint32_t _rtc_now(uint32_t now)
+static inline uint32_t _rtc_now(uint32_t *now)
 {
-    return rtc_now + SECONDS(now - last_alarm);
+    return rtc_now + SECONDS(*now -= last_alarm); // There is no roll-over compensation here!!
 }
 
 static inline void _set_alarm(uint32_t now, uint32_t next_alarm)
@@ -106,7 +106,9 @@ static void _rtt_alarm(void *arg)
     (void) arg;
 
     uint32_t now = rtt_get_counter();
-    rtc_now = _rtc_now(now);
+    rtc_now = _rtc_now(&now);
+
+    rtt_set_counter(now);
 
     _update_alarm(now);
 }
@@ -118,7 +120,7 @@ void rtc_init(void)
         last_alarm = rtt_get_counter();
     }
 
-    _set_alarm(last_alarm, TICKS(RTT_SECOND_MAX));
+    _set_alarm(last_alarm, TICKS(RTT_SECOND_MAX)); // could now be an alarm?
 }
 
 int rtc_set_time(struct tm *time)
@@ -143,7 +145,7 @@ int rtc_get_time_ms(struct tm *time, uint16_t *ms)
     unsigned state = irq_disable();
 
     now  = rtt_get_counter();
-    tmp  = _rtc_now(now);
+    tmp  = _rtc_now(&now);
 
     *ms = (SUBSECONDS(now - last_alarm) * MS_PER_SEC)
         / RTT_SECOND;
@@ -160,7 +162,7 @@ int rtc_get_time(struct tm *time)
     unsigned state = irq_disable();
 
     now  = rtt_get_counter();
-    tmp  = _rtc_now(now);
+    tmp  = _rtc_now(&now);
 
     irq_restore(state);
     rtc_localtime(tmp, time);
@@ -187,7 +189,7 @@ int rtc_set_alarm(struct tm *time, rtc_alarm_cb_t cb, void *arg)
     alarm_cb     = cb;
 
     /* RTT interrupt is disabled here */
-    rtc_now      = _rtc_now(now);
+    rtc_now      = _rtc_now(&now);
     _update_alarm(now);
 
     return 0;
@@ -225,7 +227,7 @@ void rtt_rtc_gettimeofday(uint32_t *s, uint32_t *us)
     unsigned state = irq_disable();
 
     now  = rtt_get_counter();
-    *s   = _rtc_now(now);
+    *s   = _rtc_now(&now);
     *us  = ((uint64_t)SUBSECONDS(now - last_alarm) * US_PER_SEC)
          / RTT_SECOND;
 
