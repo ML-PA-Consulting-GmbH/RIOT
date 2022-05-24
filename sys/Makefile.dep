@@ -324,6 +324,7 @@ ifneq (,$(filter shell_commands,$(USEMODULE)))
   endif
 
   ifneq (,$(filter nanocoap_vfs,$(USEMODULE)))
+    USEMODULE += nanocoap_link_format
     USEMODULE += vfs_util
   endif
 
