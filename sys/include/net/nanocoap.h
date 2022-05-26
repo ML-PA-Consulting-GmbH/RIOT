@@ -1817,6 +1817,7 @@ ssize_t coap_build_hdr(coap_hdr_t *hdr, unsigned type, uint8_t *token,
  * @param[in]   payload_len length of payload
  *
  * @returns     size of reply packet on success
+ * @returns     0 if no response should be sent due to a No-Response option in the request
  * @returns     <0 on error
  * @returns     -ENOSPC if @p rbuf too small
  */
