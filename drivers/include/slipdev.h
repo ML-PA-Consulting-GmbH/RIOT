@@ -69,6 +69,10 @@ enum {
      */
     SLIPDEV_STATE_NET,
     /**
+     * @brief   Device writes handles data as network device, next byte is escaped
+     */
+    SLIPDEV_STATE_NET_ESC,
+    /**
      * @brief   Device writes received data to stdin
      */
     SLIPDEV_STATE_STDIN,

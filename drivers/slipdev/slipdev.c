@@ -50,36 +50,68 @@ static void _slip_rx_cb(void *arg, uint8_t byte)
 {
     slipdev_t *dev = arg;
 
-    if (IS_USED(MODULE_SLIPDEV_STDIO)) {
-        if (dev->state == SLIPDEV_STATE_STDIN) {
-            isrpipe_write_one(&slipdev_stdio_isrpipe, byte);
-            goto check_end;
+    switch (dev->state) {
+#if IS_USED(MODULE_SLIPDEV_STDIO)
+    case SLIPDEV_STATE_STDIN:
+        isrpipe_write_one(&slipdev_stdio_isrpipe, byte);
+        if (byte == SLIPDEV_END) {
+            dev->state = SLIPDEV_STATE_NONE;
         }
-        else if ((byte == SLIPDEV_STDIO_START) &&
-            (dev->config.uart == STDIO_UART_DEV) &&
-            (dev->state == SLIPDEV_STATE_NONE)) {
+        return;
+#endif
+    case SLIPDEV_STATE_NONE:
+        /* is diagnostic frame? */
+        if (IS_USED(MODULE_SLIPDEV_STDIO) &&
+            (byte == SLIPDEV_STDIO_START) &&
+            (dev->config.uart == STDIO_UART_DEV)) {
             dev->state = SLIPDEV_STATE_STDIN;
             return;
         }
-    }
-    if (dev->state == SLIPDEV_STATE_NONE) {
+
+        /* ignore empty frame */
+        if (byte == SLIPDEV_END) {
+            return;
+        }
+
+        /* try to create new frame */
         if (!crb_start_chunk(&dev->rb)) {
             return;
         }
         dev->state = SLIPDEV_STATE_NET;
+        /* fall-through */
+    case SLIPDEV_STATE_NET:
+        switch (byte) {
+        case SLIPDEV_ESC:
+            dev->state = SLIPDEV_STATE_NET_ESC;
+            return;
+        case SLIPDEV_END:
+            crb_end_chunk(&dev->rb, true);
+            netdev_trigger_event_isr(&dev->netdev);
+            dev->state = SLIPDEV_STATE_NONE;
+            return;
+        }
+        break;
+    /* escaped byte received */
+    case SLIPDEV_STATE_NET_ESC:
+        switch (byte) {
+        case SLIPDEV_END_ESC:
+            byte = SLIPDEV_END;
+            break;
+        case SLIPDEV_ESC_ESC:
+            byte = SLIPDEV_ESC;
+            break;
+        }
+        dev->state = SLIPDEV_STATE_NET;
+        break;
     }
-    if (!crb_add_byte(&dev->rb, byte) && byte != SLIPDEV_END) {
+
+    assert(dev->state == SLIPDEV_STATE_NET);
+
+    /* discard frame if byte can't be added */
+    if (!crb_add_byte(&dev->rb, byte)) {
         crb_end_chunk(&dev->rb, false);
         dev->state = SLIPDEV_STATE_NONE;
         return;
-    }
-check_end:
-    if (byte == SLIPDEV_END) {
-        if (dev->state == SLIPDEV_STATE_NET) {
-            crb_end_chunk(&dev->rb, true);
-            netdev_trigger_event_isr(&dev->netdev);
-        }
-        dev->state = SLIPDEV_STATE_NONE;
     }
 }
 
@@ -120,41 +152,6 @@ void slipdev_write_bytes(uart_t uart, const uint8_t *data, size_t len)
     }
 }
 
-static unsigned _copy_byte(uint8_t *buf, uint8_t byte, bool *escaped)
-{
-    *buf = byte;
-    *escaped = false;
-    return 1U;
-}
-
-unsigned slipdev_unstuff_readbyte(uint8_t *buf, uint8_t byte, bool *escaped)
-{
-    unsigned res = 0U;
-
-    switch (byte) {
-        case SLIPDEV_ESC:
-            *escaped = true;
-            /* Intentionally falls through */
-        case SLIPDEV_END:
-            break;
-        case SLIPDEV_END_ESC:
-            if (*escaped) {
-                return _copy_byte(buf, SLIPDEV_END, escaped);
-            }
-            /* Intentionally falls through */
-            /* to default when !(*escaped) */
-        case SLIPDEV_ESC_ESC:
-            if (*escaped) {
-                return _copy_byte(buf, SLIPDEV_ESC, escaped);
-            }
-            /* Intentionally falls through */
-            /* to default when !(*escaped) */
-        default:
-            return _copy_byte(buf, byte, escaped);
-    }
-    return res;
-}
-
 static int _send(netdev_t *netdev, const iolist_t *iolist)
 {
     slipdev_t *dev = (slipdev_t *)netdev;
@@ -170,20 +167,6 @@ static int _send(netdev_t *netdev, const iolist_t *iolist)
     slipdev_write_byte(dev->config.uart, SLIPDEV_END);
     slipdev_unlock();
     return bytes;
-}
-
-typedef struct {
-    uint8_t *dst;
-    bool escaped;
-} _unstuff_ctx_t;
-
-static void _process_chunk(void *arg, uint8_t *bytes, size_t len)
-{
-    _unstuff_ctx_t *ctx = arg;
-
-    for (uint8_t *end = bytes + len; bytes != end; ++bytes) {
-        ctx->dst += slipdev_unstuff_readbyte(ctx->dst, *bytes, &ctx->escaped);
-    }
 }
 
 static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
@@ -202,14 +185,8 @@ static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
         }
     }
     else {
-        _unstuff_ctx_t ctx = {
-            .dst = buf,
-        };
-
-        /* copy data while escaping it */
-        crb_chunk_foreach(&dev->rb, _process_chunk, &ctx);
-        crb_consume_chunk(&dev->rb, NULL, len);
-        res = (uintptr_t)ctx.dst - (uintptr_t)buf;
+        crb_consume_chunk(&dev->rb, buf, len);
+        res = len;
     }
     return res;
 }
