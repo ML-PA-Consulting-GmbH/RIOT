@@ -644,15 +644,29 @@ void rtt_clear_overflow_cb(void)
 
 uint32_t rtt_get_counter(void)
 {
-    _wait_syncbusy();
-    _read_req();
-    return RTC->MODE0.COUNT.reg;
+    uint32_t prev, now = 0;
+    do {
+        prev = now;
+        _wait_syncbusy();
+        _read_req();
+        now = RTC->MODE0.COUNT.reg;
+    }
+    while ((IS_ACTIVE(CPU_SAML21A) || IS_ACTIVE(CPU_SAML21B))
+            && (prev != now));
+    return now;
 }
 
 void rtt_set_counter(uint32_t count)
 {
-    RTC->MODE0.COUNT.reg = count;
-    _wait_syncbusy();
+    uint32_t val;
+    do {
+        RTC->MODE0.COUNT.reg = count;
+        _wait_syncbusy();
+        _read_req();
+        val = RTC->MODE0.COUNT.reg;
+    }
+    while ((IS_ACTIVE(CPU_SAML21A) || IS_ACTIVE(CPU_SAML21B))
+            && (val != count));
 }
 
 uint32_t rtt_get_alarm(void)
