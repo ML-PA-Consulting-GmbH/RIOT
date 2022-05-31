@@ -26,6 +26,7 @@
 #include "vfs_default.h"
 #include "net/nanocoap_vfs.h"
 #include "net/nanocoap_sock.h"
+#include "net/nanocoap_rd.h"
 
 struct dir_list_ctx {
     char *buf;
@@ -37,6 +38,14 @@ static bool _is_dir(const char *url)
 {
     int len = strlen(url);
     return url[len - 1] == '/';
+}
+
+static int _resource_cb(char *path, void *ctx)
+{
+    (void)ctx;
+
+    puts(path);
+    return 0;
 }
 
 static int _print_cb(void *arg, size_t offset, uint8_t *buf, size_t len, int more)
@@ -52,41 +61,6 @@ static int _print_cb(void *arg, size_t offset, uint8_t *buf, size_t len, int mor
     return 0;
 }
 
-static int _print_dir_cb(void *arg, size_t offset, uint8_t *buf, size_t len, int more)
-{
-    (void)offset;
-    (void)more;
-
-    struct dir_list_ctx *ctx = arg;
-
-    char *end = (char *)buf + len;
-    for (char *c = (char *)buf; c < end; ++c) {
-        if (ctx->cur) {
-            if (*c == '>' || ctx->cur == ctx->end) {
-                *ctx->cur = 0;
-                puts(ctx->buf);
-                ctx->cur = NULL;
-            } else {
-                *ctx->cur++ = *c;
-            }
-        } else if (*c == '<') {
-            ctx->cur = ctx->buf;
-        }
-    }
-
-    return 0;
-}
-
-static int _print_dir(const char *url, char *buf, size_t len)
-{
-    struct dir_list_ctx ctx = {
-        .buf = buf,
-        .end = buf + len,
-    };
-    return nanocoap_get_blockwise_url(url, CONFIG_NANOCOAP_BLOCKSIZE_DEFAULT,
-                                      _print_dir_cb, &ctx);
-}
-
 int _nanocoap_get_handler(int argc, char **argv)
 {
     int res;
@@ -100,7 +74,7 @@ int _nanocoap_get_handler(int argc, char **argv)
     }
 
     if (_is_dir(url) && argc < 3) {
-        res = _print_dir(url, buffer, sizeof(buffer));
+        res = nanocoap_rd_get_url(url, _resource_cb, NULL);
         if (res) {
             printf("Request failed: %s\n", strerror(-res));
         }
