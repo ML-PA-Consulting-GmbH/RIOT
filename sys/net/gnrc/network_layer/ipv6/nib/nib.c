@@ -37,6 +37,10 @@
 #include "net/dhcpv6/client.h"
 #endif
 
+#if IS_USED(MODULE_RTT64)
+#include "rtt64.h"
+#endif
+
 #include "_nib-internal.h"
 #include "_nib-arsm.h"
 #include "_nib-router.h"
@@ -504,6 +508,8 @@ static uint32_t _handle_pio(gnrc_netif_t *netif, const icmpv6_hdr_t *icmpv6,
 #endif  /* CONFIG_GNRC_IPV6_NIB_MULTIHOP_P6C */
 static uint32_t _handle_rio(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
                             const ndp_opt_ri_t *pio);
+
+static void _handle_timestamp(const ndp_opt_timestamp_t *tsmp);
 /** @} */
 
 /* Iterator for NDP options in a packet */
@@ -780,6 +786,9 @@ static void _handle_rtr_adv(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
             case NDP_OPT_MTU:
                 _handle_mtuo(netif, (const icmpv6_hdr_t *)rtr_adv,
                              (ndp_opt_mtu_t *)opt);
+                break;
+            case NDP_OPT_TIMESTAMP:
+                _handle_timestamp((ndp_opt_timestamp_t *)opt);
                 break;
             case NDP_OPT_RI:
                 _handle_rio(netif, ipv6, (ndp_opt_ri_t *)opt);
@@ -1697,5 +1706,41 @@ static uint32_t _handle_rio(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
     }
 
     return route_ltime;
+}
+
+static void _handle_timestamp(const ndp_opt_timestamp_t *tsmp)
+{
+    if (!IS_USED(MODULE_GNRC_IPV6_NIB_TIMESTAMP)) {
+        return;
+    }
+
+    uint64_t now = byteorder_ntohll(tsmp->timestamp);
+    DEBUG("nib: received Timestamp option:\n");
+    DEBUG("     - Seconds: %u\n", (unsigned)(now >> 16));
+    DEBUG("     - Milliseconds: %u\n", (unsigned)(1000 * (now & 0xFFFF)) >> 16);
+#if IS_USED(MODULE_RTT64)
+    static uint16_t diff;
+    uint64_t local = rtt64_get_counter();
+    now += diff;
+
+    rtt64_set_counter(now);
+
+    DEBUG("     - remote: %u ticks\n", (unsigned)now);
+    DEBUG("     - local: %u ticks\n", (unsigned)local);
+    DEBUG("     - diff: %u ticks\n", diff);
+
+    /* try to account for transmission time */
+    /* only do diff accounting if diff is less than 1s */
+    if ((now < local) && (local - now < 0xFFFF)) {
+        /* now is already now + diff */
+        diff = (local - now) / 2;
+        DEBUG("     - new diff: %u ticks\n", diff);
+    } else if ((now > local) && (now - local < 0xFFFF)) {
+        diff -= _min(diff, now - local);
+        DEBUG("     - new diff: %u ticks (%u ticks too fast)\n", diff, (unsigned)(now - local));
+    } else {
+        diff = 0;
+    }
+#endif
 }
 /** @} */
