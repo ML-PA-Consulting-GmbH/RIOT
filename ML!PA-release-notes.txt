@@ -21,3 +21,4 @@ RIOT-2022.07-mlpa-3 - Merge Notes
  - merge benpicco/ndp_opt_timestamp_t
  - merge benpicco/drivers/dose-rxbuf
  - merge benpicco/cpu/sam0_common/adc-diffmode
+ - merge benpicco/cpu/sam0_common-rtc_sync
