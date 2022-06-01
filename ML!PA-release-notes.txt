@@ -22,3 +22,4 @@ RIOT-2022.07-mlpa-3 - Merge Notes
  - merge benpicco/drivers/dose-rxbuf
  - merge benpicco/cpu/sam0_common/adc-diffmode
  - merge benpicco/cpu/sam0_common-rtc_sync
+ - merge benpicco/suit/transport-vfs
