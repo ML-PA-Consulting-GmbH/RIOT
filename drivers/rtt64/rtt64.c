@@ -127,12 +127,19 @@ void rtt64_set_counter(uint64_t now)
 
 uint64_t rtt64_get_counter(void)
 {
-    unsigned state = irq_disable();
+    uint64_t now;
+    uint32_t overflows_prev;
 
-    uint64_t now = (uint64_t)overflows << RTT_SHIFT;
-    now |= (uint64_t)rtt_get_counter() << (16 - RTT_SUBSEC_BITS);
+    do {
+        unsigned state = irq_disable();
+        overflows_prev = overflows;
 
-    irq_restore(state);
+        now = (uint64_t)overflows << RTT_SHIFT;
+        now |= (uint64_t)rtt_get_counter() << (16 - RTT_SUBSEC_BITS);
+
+        irq_restore(state);
+    } while (overflows != overflows_prev);
+
     return now;
 }
 
