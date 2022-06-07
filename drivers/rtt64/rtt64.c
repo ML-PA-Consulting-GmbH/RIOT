@@ -59,9 +59,9 @@
 #define RTT_SUBSEC_BITS 13
 #elif RTT_FREQUENCY == 16384
 #define RTT_SUBSEC_BITS 14
-#elif RTT_FREQUENCY == 16384
-#define RTT_SUBSEC_BITS 15
 #elif RTT_FREQUENCY == 32768
+#define RTT_SUBSEC_BITS 15
+#elif RTT_FREQUENCY == 65536
 #define RTT_SUBSEC_BITS 16
 #else
 #error Invalid RTT frequency (must be power of 2)
@@ -106,7 +106,7 @@ static uint64_t _time_to_counter(uint64_t secs, uint32_t us)
 
 static void _counter_to_time(uint64_t now, uint64_t *secs, uint32_t *us)
 {
-    *secs = now >> RTT_SUBSEC_BITS;
+    *secs = now >> 16;
     *us = ((uint64_t)US_PER_SEC * (now & 0xFFFF)) >> 16;
 }
 
