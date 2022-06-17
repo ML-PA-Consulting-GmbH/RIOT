@@ -128,6 +128,18 @@
 #define CONFIG_GNRC_IPV6_AUTO_SUBNETS_NUMOF         (1)
 #endif
 
+/**
+ * @brief Enable this if you have a static network that might experience
+ *        high packet loss under certain conditions.
+ *        If enabled, this option causes the module to always assume the highest
+ *        number of subnets it has ever seen.
+ *        This prevents different/conflicting subnets from being configured if
+ *        multiple sync packets got lost.
+ */
+#ifndef CONFIG_GNRC_IPV6_AUTO_SUBNETS_STATIC
+#define CONFIG_GNRC_IPV6_AUTO_SUBNETS_STATIC        (0)
+#endif
+
 #define SERVER_THREAD_STACKSIZE                     (THREAD_STACKSIZE_DEFAULT)
 #define SERVER_MSG_QUEUE_SIZE                       (CONFIG_GNRC_IPV6_AUTO_SUBNETS_PEERS_MAX)
 #define SERVER_MSG_TYPE_TIMEOUT                     (0x8fae)
@@ -594,6 +606,10 @@ static void *_eventloop(void *arg)
     uint8_t idx_start = 0;
     uint8_t subnets = local_subnets;
     uint8_t tx_period = CONFIG_GNRC_IPV6_AUTO_SUBNETS_TX_PER_PERIOD;
+#if CONFIG_GNRC_IPV6_AUTO_SUBNETS_STATIC
+    uint8_t _idx_old = 0;
+    uint8_t _subnets_old = 0;
+#endif
 
     DEBUG("auto_subnets: %u local subnets\n", subnets);
 
@@ -620,6 +636,18 @@ static void *_eventloop(void *arg)
                 /* send subnet announcement */
                 _send_announce(local_subnets, &timeout_timer, &timeout_msg);
             } else {
+#if CONFIG_GNRC_IPV6_AUTO_SUBNETS_STATIC
+                /* If we got less subnets than before, use the old value */
+                if (subnets < _subnets_old) {
+                    subnets = _subnets_old;
+                    idx_start = _idx_old;
+                }
+                /* Store subnet high water mark for later use */
+                else {
+                    _subnets_old = subnets;
+                    _idx_old = idx_start;
+                }
+#endif
                 /* config round done, configure subnets */
                 _process_pio_cache(subnets, idx_start, _upstream);
 
