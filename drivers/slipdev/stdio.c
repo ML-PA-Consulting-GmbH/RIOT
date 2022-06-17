@@ -42,6 +42,41 @@ void stdio_init(void)
               (uart_rx_cb_t)_isrpipe_write, &slipdev_stdio_isrpipe);
 }
 
+static unsigned _copy_byte(uint8_t *buf, uint8_t byte, bool *escaped)
+{
+    *buf = byte;
+    *escaped = false;
+    return 1U;
+}
+
+static unsigned slipdev_unstuff_readbyte(uint8_t *buf, uint8_t byte, bool *escaped)
+{
+    unsigned res = 0U;
+
+    switch (byte) {
+        case SLIPDEV_ESC:
+            *escaped = true;
+            /* Intentionally falls through */
+        case SLIPDEV_END:
+            break;
+        case SLIPDEV_END_ESC:
+            if (*escaped) {
+                return _copy_byte(buf, SLIPDEV_END, escaped);
+            }
+            /* Intentionally falls through */
+            /* to default when !(*escaped) */
+        case SLIPDEV_ESC_ESC:
+            if (*escaped) {
+                return _copy_byte(buf, SLIPDEV_ESC, escaped);
+            }
+            /* Intentionally falls through */
+            /* to default when !(*escaped) */
+        default:
+            return _copy_byte(buf, byte, escaped);
+    }
+    return res;
+}
+
 ssize_t stdio_read(void *buffer, size_t len)
 {
     uint8_t *ptr = buffer;
