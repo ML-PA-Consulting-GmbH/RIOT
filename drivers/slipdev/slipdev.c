@@ -188,6 +188,13 @@ static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
         crb_consume_chunk(&dev->rb, buf, len);
         res = len;
     }
+
+    size_t dummy;
+    if (crb_get_chunk_size(&dev->rb, &dummy)) {
+        DEBUG("SLIP: %u byte pkt in rx queue\n", (unsigned)dummy);
+        netdev_trigger_event_isr(&dev->netdev);
+    }
+
     return res;
 }
 
