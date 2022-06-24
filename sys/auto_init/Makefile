@@ -30,6 +30,10 @@ ifneq (,$(filter auto_init_screen,$(USEMODULE)))
   DIRS += screen
 endif
 
+ifneq (,$(filter auto_init_wdt_thread,$(USEMODULE)))
+  DIRS += wdt
+endif
+
 INCLUDES += -I$(RIOTBASE)/sys/auto_init/include
 
 include $(RIOTBASE)/Makefile.base

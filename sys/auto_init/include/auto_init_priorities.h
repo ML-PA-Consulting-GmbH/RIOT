@@ -41,6 +41,12 @@ extern "C" {
  */
 #define AUTO_INIT_PRIO_MOD_XTIMER                       1030
 #endif
+#ifndef AUTO_INIT_PRIO_WDT_THREAD
+/**
+ * @brief   WDT priority
+ */
+#define AUTO_INIT_PRIO_WDT_THREAD                       1035
+#endif
 #ifndef AUTO_INIT_PRIO_MOD_RANDOM
 /**
  * @brief   RNG priority
