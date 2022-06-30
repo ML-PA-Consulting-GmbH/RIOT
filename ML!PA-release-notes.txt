@@ -22,3 +22,6 @@ RIOT-2022.07-mlpa-4 - Merge Notes
  - merge benpicco/dist/tools/dose-initial  
  - merge benpicco/slip_dose_rxqueue
  - merge benpicco/cpu/sam0_common-spi_clk
+ - merge firas-hamdi/mcp2515-enable-filtering
+ - merge firas-hamdi/mcp2515_fix/rst_pin_valid
+ - cherry-pick bc0d3f9de33a8969e6eb40a434558036eba15ac7 a5b333d5addfb1655f60742332ba0c9edbf47751 from firas-hamdi/feat/apply_filters_to_target_mailbox
