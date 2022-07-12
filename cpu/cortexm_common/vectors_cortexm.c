@@ -45,6 +45,10 @@
 #define SRAM_BASE 0
 #endif
 
+#ifndef CPU_BACKUP_RAM_NOT_RETAINED
+#define CPU_BACKUP_RAM_NOT_RETAINED 0
+#endif
+
 /**
  * @brief   Memory markers, defined in the linker script
  * @{
@@ -68,23 +72,6 @@ extern uint32_t _sbackup_data[];
 extern uint32_t _ebackup_data[];
 extern uint32_t _sbackup_bss[];
 extern uint32_t _ebackup_bss[];
-
-BACKUP_RAM
-static char _backup_canary[4];
-
-static bool backup_ram_valid(void)
-{
-    const char riot[] = "RIOT";
-    bool valid = true;
-
-    for (unsigned i = 0; i < sizeof(_backup_canary); ++i) {
-        valid &= riot[i] == _backup_canary[i];
-        _backup_canary[i] = riot[i];
-    }
-
-    return valid;
-}
-
 #endif /* CPU_HAS_BACKUP_RAM */
 /** @} */
 
@@ -153,7 +140,8 @@ void reset_handler_default(void)
 #if BACKUP_RAM_HAS_INIT
     backup_ram_init();
 #endif
-    if (!backup_ram_valid()) {
+    if (!cpu_woke_from_backup() ||
+        CPU_BACKUP_RAM_NOT_RETAINED) {
 
         /* load low-power data section. */
         for (dst = _sbackup_data, src = _sbackup_data_load;
