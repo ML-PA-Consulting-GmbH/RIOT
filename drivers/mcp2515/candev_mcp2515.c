@@ -262,9 +262,11 @@ static void _isr(candev_t *candev)
             _irq_error(dev);
         }
         if (flag & INT_RX0) {
+            mcp2515_clear_irq(dev, flag & ~(INT_RX0));
             _irq_rx(dev, 0);
         }
         if (flag & INT_RX1) {
+            mcp2515_clear_irq(dev, flag & ~(INT_RX1));
             _irq_rx(dev, 1);
         }
         if (flag & INT_TX0) {
