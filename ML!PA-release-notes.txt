@@ -27,3 +27,4 @@ RIOT-2022.07-mlpa-4 - Merge Notes
  - cherry-pick bc0d3f9de33a8969e6eb40a434558036eba15ac7 a5b333d5addfb1655f60742332ba0c9edbf47751 from firas-hamdi/feat/apply_filters_to_target_mailbox
  - add 16a5f52ec46747c9855b75c1dcf759d10b6efccb 6ee4c6061a9f079aad3d325e0eba4211a046f103 5f38db4968f143cf483953409cd251a58ef9c872 to make mcp2515 can device working
  - cherry-pick 363cf8c54662dd32b7e11207e5992724402bbaa7 from fix/20220719__suit__makefile_target_dependencies to fix `make clean all`
+ - cherry-pick 5e69d22840e80c3f08c72c8f6520997ff607c422 c97d6e7f26d8ea551662edab164f9434b46012af from jan-mo/RIOT
