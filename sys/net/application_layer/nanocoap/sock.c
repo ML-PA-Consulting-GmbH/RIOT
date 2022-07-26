@@ -26,9 +26,11 @@
 #include <stdio.h>
 
 #include "atomic_utils.h"
+#include "net/credman.h"
 #include "net/nanocoap_sock.h"
 #include "net/sock/util.h"
 #include "net/sock/udp.h"
+#include "net/iana/portrange.h"
 #include "random.h"
 #include "sys/uio.h"
 #include "timex.h"
@@ -56,6 +58,74 @@ static uint16_t _get_id(void)
     return atomic_fetch_add_u16(&id, 1);
 }
 
+#if IS_USED(MODULE_NANOCOAP_DTLS)
+int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, const sock_udp_ep_t *local,
+                               const sock_udp_ep_t *remote, credman_tag_t tag)
+{
+    int res;
+    uint32_t timeout_ms = CONFIG_NANOCOAP_SOCK_DTLS_TIMEOUT_MS;
+    uint8_t retries = CONFIG_NANOCOAP_SOCK_DTLS_RETRIES;
+
+    /* connect UDP socket */
+    res = nanocoap_sock_connect(sock, local, remote);
+    if (res < 0) {
+        return res;
+    }
+
+    /* create DTLS socket on to of UDP socket */
+    res = sock_dtls_create(&sock->dtls, &sock->udp, tag,
+                           SOCK_DTLS_1_2, SOCK_DTLS_CLIENT);
+    if (res < 0) {
+        DEBUG("Unable to create DTLS sock: %s\n", strerror(-res));
+        nanocoap_sock_close(sock);
+        return res;
+    }
+    sock->type = COAP_SOCKET_TYPE_DTLS;
+
+    while (retries--) {
+        uint32_t deadline = ztimer_now(ZTIMER_MSEC) + timeout_ms;
+        uint8_t buf[128];
+
+        /* create DTLS session */
+        res = sock_dtls_session_init(&sock->dtls, remote, &sock->dtls_session);
+        if (res >= 0) {
+            /* handle handshake */
+            res = sock_dtls_recv(&sock->dtls, &sock->dtls_session, buf,
+                                 sizeof(buf), timeout_ms * US_PER_MS);
+            if (res == -SOCK_DTLS_HANDSHAKE) {
+                DEBUG("DTLS handshake successful\n");
+                return 0;
+            }
+            DEBUG("Unable to establish DTLS handshake: %s\n", strerror(-res));
+
+        } else {
+            DEBUG("Unable to initialize DTLS session: %s\n", strerror(-res));
+        }
+
+        sock_dtls_session_destroy(&sock->dtls, &sock->dtls_session);
+
+        if (ztimer_now(ZTIMER_MSEC) < deadline) {
+            ztimer_sleep(ZTIMER_MSEC, deadline - ztimer_now(ZTIMER_MSEC));
+        }
+        /* see https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.4.1 */
+        timeout_ms *= 2U;
+    }
+
+    nanocoap_sock_close(sock);
+    return res;
+}
+#else
+int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, const sock_udp_ep_t *local,
+                               const sock_udp_ep_t *remote, credman_tag_t tag)
+{
+    (void)sock;
+    (void)local;
+    (void)remote;
+    (void)tag;
+    return -ENOTSUP;
+}
+#endif
+
 static int _get_error(const coap_pkt_t *pkt)
 {
     switch (coap_get_code_class(pkt)) {
@@ -68,15 +138,61 @@ static int _get_error(const coap_pkt_t *pkt)
     }
 }
 
+static inline nanocoap_socket_type_t _get_type(nanocoap_sock_t *sock)
+{
+#if IS_USED(MODULE_NANOCOAP_DTLS)
+    return sock->type;
+#else
+    (void)sock;
+    return COAP_SOCKET_TYPE_UDP;
+#endif
+}
+
+static int _sock_sendv(nanocoap_sock_t *sock, const iolist_t *snips)
+{
+    switch (_get_type(sock)) {
+    case COAP_SOCKET_TYPE_UDP:
+        return sock_udp_sendv(&sock->udp, snips, NULL);
+#if IS_USED(MODULE_NANOCOAP_DTLS)
+    case COAP_SOCKET_TYPE_DTLS:
+        return sock_dtls_sendv(&sock->dtls, &sock->dtls_session, snips,
+                               CONFIG_NANOCOAP_SOCK_DTLS_TIMEOUT_MS);
+#endif
+    default:
+        assert(0);
+        return -EINVAL;
+    }
+}
+
+static int _sock_recv_buf(nanocoap_sock_t *sock, void **data, void **ctx, uint32_t timeout)
+{
+    switch (_get_type(sock)) {
+    case COAP_SOCKET_TYPE_UDP:
+        return sock_udp_recv_buf(&sock->udp, data, ctx, timeout, NULL);
+#if IS_USED(MODULE_NANOCOAP_DTLS)
+    case COAP_SOCKET_TYPE_DTLS:
+        return sock_dtls_recv_buf(&sock->dtls, &sock->dtls_session, data, ctx, timeout);
+#endif
+    default:
+        assert(0);
+        return -EINVAL;
+   }
+}
+
 static int _send_ack(nanocoap_sock_t *sock, coap_pkt_t *pkt)
 {
     coap_hdr_t ack;
     unsigned tkl = coap_get_token_len(pkt);
 
+    const iolist_t snip = {
+        .iol_base = &ack,
+        .iol_len  = sizeof(ack),
+    };
+
     coap_build_hdr(&ack, COAP_TYPE_ACK, coap_get_token(pkt), tkl,
                    COAP_CODE_VALID, ntohs(pkt->hdr->id));
 
-    return sock_udp_send(&sock->udp, &ack, sizeof(ack), NULL);
+    return _sock_sendv(sock, &snip);
 }
 
 static bool _id_or_token_missmatch(const coap_pkt_t *pkt, unsigned id,
@@ -148,7 +264,7 @@ ssize_t nanocoap_sock_request_cb(nanocoap_sock_t *sock, coap_pkt_t *pkt,
                 return -ETIMEDOUT;
             }
 
-            res = sock_udp_sendv(&sock->udp, &head, NULL);
+            res = _sock_sendv(sock, &head);
             if (res <= 0) {
                 DEBUG("nanocoap: error sending coap request, %d\n", (int)res);
                 return res;
@@ -169,7 +285,7 @@ ssize_t nanocoap_sock_request_cb(nanocoap_sock_t *sock, coap_pkt_t *pkt,
                       _deadline_left_us(deadline));
             }
             const void *old_ctx = ctx;
-            tmp = sock_udp_recv_buf(&sock->udp, &payload, &ctx, _deadline_left_us(deadline), NULL);
+            tmp = _sock_recv_buf(sock, &payload, &ctx, _deadline_left_us(deadline));
             /* sock_udp_recv_buf() is supposed to return multiple packet fragments
              * when called multiple times with the same context.
              * In practise, this is not implemented and it will always return a pointer
@@ -545,7 +661,14 @@ int nanocoap_sock_url_connect(const char *url, nanocoap_sock_t *sock)
     char hostport[CONFIG_SOCK_HOSTPORT_MAXLEN];
     sock_udp_ep_t remote;
 
-    if (strncmp(url, "coap://", 7)) {
+    bool is_coaps = false;
+
+    if (IS_USED(MODULE_NANOCOAP_DTLS) && !strncmp(url, "coaps://", 8)) {
+        DEBUG("nanocoap: CoAPS URL detected\n");
+        is_coaps = true;
+    }
+
+    if (!is_coaps && strncmp(url, "coap://", 7)) {
         DEBUG("nanocoap: URL doesn't start with \"coap://\"\n");
         return -EINVAL;
     }
@@ -561,10 +684,31 @@ int nanocoap_sock_url_connect(const char *url, nanocoap_sock_t *sock)
     }
 
     if (!remote.port) {
-        remote.port = COAP_PORT;
+        remote.port = is_coaps ? COAPS_PORT : COAP_PORT;
     }
 
-    return nanocoap_sock_connect(sock, NULL, &remote);
+    if (is_coaps) {
+
+        /* tinydtls wants the interface to match */
+        if (!remote.netif &&
+            ipv6_addr_is_link_local((ipv6_addr_t *)remote.addr.ipv6)) {
+            netif_t *iface = netif_iter(NULL);
+            if (iface == NULL) {
+                return -ENODEV;
+            }
+            remote.netif = netif_get_id(iface);
+        }
+
+        sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
+
+        /* choose random ephemeral port, since DTLS requires a local port */
+        local.port = IANA_DYNAMIC_PORTRANGE_MIN +
+            (random_uint32() % (IANA_SYSTEM_PORTRANGE_MAX - IANA_DYNAMIC_PORTRANGE_MIN));
+
+        return nanocoap_sock_dtls_connect(sock, &local, &remote, CONFIG_NANOCOAP_SOCK_DTLS_TAG);
+    } else {
+        return nanocoap_sock_connect(sock, NULL, &remote);
+    }
 }
 
 int nanocoap_get_blockwise_url(const char *url,
