@@ -35,6 +35,16 @@
 #define COAPFILESERVER_PATH_MAX (64)
 
 /**
+ * @brief   fileserver event callback, only used with `gcoap_fileserver_callback`
+ */
+static gcoap_fileserver_event_handler_t _event_cb;
+
+/**
+ * @brief   fileserver event callback context, only used with `gcoap_fileserver_callback`
+ */
+static void *_event_ctx;
+
+/**
  * @brief   Structure holding information about present options in a request
  */
 struct requestoptions {
@@ -146,6 +156,30 @@ static void _calc_szx2(coap_pkt_t *pdu, size_t reserve, coap_block1_t *block2)
     }
 }
 
+static inline void _event_get_file_start(struct requestdata *request)
+{
+    gcoap_fileserver_event_ctx_t ctx = {
+        .file = request->namebuf,
+        .user_ctx = _event_ctx,
+    };
+
+    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
+         _event_cb(GCOAP_FILESERVER_GET_START, &ctx);
+    }
+}
+
+static inline void _event_get_file_done(struct requestdata *request)
+{
+    gcoap_fileserver_event_ctx_t ctx = {
+        .file = request->namebuf,
+        .user_ctx = _event_ctx,
+    };
+
+    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
+        _event_cb(GCOAP_FILESERVER_GET_END, &ctx);
+    }
+}
+
 static ssize_t _get_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
                          struct requestdata *request)
 {
@@ -193,6 +227,10 @@ static ssize_t _get_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
         goto late_err;
     }
 
+    if (block2.blknum == 0) {
+        _event_get_file_start(request);
+    }
+
     /* That'd only happen if the buffer is too small for even a 16-byte block,
      * or if the above calculations were wrong.
      *
@@ -218,6 +256,10 @@ static ssize_t _get_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
         read -= 1;
     }
 
+    if (!more) {
+        _event_get_file_done(request);
+    }
+
     return resp_len + read;
 
 late_err:
@@ -227,6 +269,30 @@ late_err:
 }
 
 #if IS_USED(MODULE_GCOAP_FILESERVER_PUT)
+static inline void _event_put_file_start(struct requestdata *request)
+{
+    gcoap_fileserver_event_ctx_t ctx = {
+        .file = request->namebuf,
+        .user_ctx = _event_ctx,
+    };
+
+    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
+         _event_cb(GCOAP_FILESERVER_PUT_START, &ctx);
+    }
+}
+
+static inline void _event_put_file_done(struct requestdata *request)
+{
+    gcoap_fileserver_event_ctx_t ctx = {
+        .file = request->namebuf,
+        .user_ctx = _event_ctx,
+    };
+
+    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
+        _event_cb(GCOAP_FILESERVER_PUT_END, &ctx);
+    }
+}
+
 static ssize_t _put_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
                          struct requestdata *request)
 {
@@ -257,6 +323,8 @@ static ssize_t _put_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
             ret = COAP_CODE_PRECONDITION_FAILED;
             goto unlink_on_error;
         }
+
+        _event_put_file_start(request);
     }
     if (request->options.exists.if_match) {
         stat_etag(&stat, &etag); /* Etag before write */
@@ -310,6 +378,9 @@ static ssize_t _put_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
                 goto unlink_on_error;
             }
         }
+
+        _event_put_file_done(request);
+
         stat_etag(&stat, &etag); /* Etag after write */
         gcoap_resp_init(pdu, buf, len, create ? COAP_CODE_CREATED : COAP_CODE_CHANGED);
         coap_opt_add_opaque(pdu, COAP_OPT_ETAG, &etag, sizeof(etag));
@@ -332,6 +403,18 @@ unlink_on_error:
 #endif
 
 #if IS_USED(MODULE_GCOAP_FILESERVER_DELETE)
+static inline void _event_delete_file(struct requestdata *request)
+{
+    gcoap_fileserver_event_ctx_t ctx = {
+        .file = request->namebuf,
+        .user_ctx = _event_ctx,
+    };
+
+    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
+        _event_cb(GCOAP_FILESERVER_DELETE, &ctx);
+    }
+}
+
 static ssize_t _delete_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
                             struct requestdata *request)
 {
@@ -347,6 +430,9 @@ static ssize_t _delete_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
             return gcoap_fileserver_error_handler(pdu, buf, len, COAP_CODE_PRECONDITION_FAILED);
         }
     }
+
+    _event_delete_file(request);
+
     if ((ret = vfs_unlink(request->namebuf)) < 0) {
         return gcoap_fileserver_error_handler(pdu, buf, len, ret);
     }
@@ -643,5 +729,13 @@ ssize_t gcoap_fileserver_handler(coap_pkt_t *pdu, uint8_t *buf, size_t len,
 error:
     return gcoap_response(pdu, buf, len, errorcode);
 }
+
+#ifdef MODULE_GCOAP_FILESERVER_CALLBACK
+void gcoap_fileserver_set_event_cb(gcoap_fileserver_event_handler_t cb, void *ctx)
+{
+    _event_cb = cb;
+    _event_ctx = ctx;
+}
+#endif
 
 /** @} */
