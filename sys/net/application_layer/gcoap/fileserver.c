@@ -45,6 +45,11 @@ static gcoap_fileserver_event_handler_t _event_cb;
 static void *_event_ctx;
 
 /**
+ * @brief   fileserver event mutex, protects event cb and event ctx from concurrent access
+ */
+static mutex_t _event_mtx;
+
+/**
  * @brief   Structure holding information about present options in a request
  */
 struct requestoptions {
@@ -156,27 +161,23 @@ static void _calc_szx2(coap_pkt_t *pdu, size_t reserve, coap_block1_t *block2)
     }
 }
 
-static inline void _event_get_file_start(struct requestdata *request)
+static inline void _event_file(gcoap_fileserver_event_t event, struct requestdata *request)
 {
-    gcoap_fileserver_event_ctx_t ctx = {
-        .file = request->namebuf,
-        .user_ctx = _event_ctx,
-    };
-
-    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
-         _event_cb(GCOAP_FILESERVER_GET_START, &ctx);
+    if (!IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
+        return;
     }
-}
 
-static inline void _event_get_file_done(struct requestdata *request)
-{
+    mutex_lock(&_event_mtx);
     gcoap_fileserver_event_ctx_t ctx = {
         .file = request->namebuf,
         .user_ctx = _event_ctx,
     };
 
-    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
-        _event_cb(GCOAP_FILESERVER_GET_END, &ctx);
+    gcoap_fileserver_event_handler_t cb = _event_cb;
+    mutex_unlock(&_event_mtx);
+
+    if (cb) {
+        cb(event, &ctx);
     }
 }
 
@@ -228,7 +229,7 @@ static ssize_t _get_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
     }
 
     if (block2.blknum == 0) {
-        _event_get_file_start(request);
+        _event_file(GCOAP_FILESERVER_GET_START, request);
     }
 
     /* That'd only happen if the buffer is too small for even a 16-byte block,
@@ -257,7 +258,7 @@ static ssize_t _get_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
     }
 
     if (!more) {
-        _event_get_file_done(request);
+        _event_file(GCOAP_FILESERVER_GET_END, request);
     }
 
     return resp_len + read;
@@ -269,30 +270,6 @@ late_err:
 }
 
 #if IS_USED(MODULE_GCOAP_FILESERVER_PUT)
-static inline void _event_put_file_start(struct requestdata *request)
-{
-    gcoap_fileserver_event_ctx_t ctx = {
-        .file = request->namebuf,
-        .user_ctx = _event_ctx,
-    };
-
-    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
-         _event_cb(GCOAP_FILESERVER_PUT_START, &ctx);
-    }
-}
-
-static inline void _event_put_file_done(struct requestdata *request)
-{
-    gcoap_fileserver_event_ctx_t ctx = {
-        .file = request->namebuf,
-        .user_ctx = _event_ctx,
-    };
-
-    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
-        _event_cb(GCOAP_FILESERVER_PUT_END, &ctx);
-    }
-}
-
 static ssize_t _put_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
                          struct requestdata *request)
 {
@@ -324,7 +301,7 @@ static ssize_t _put_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
             goto unlink_on_error;
         }
 
-        _event_put_file_start(request);
+        _event_file(GCOAP_FILESERVER_PUT_START, request);
     }
     if (request->options.exists.if_match) {
         stat_etag(&stat, &etag); /* Etag before write */
@@ -379,7 +356,7 @@ static ssize_t _put_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
             }
         }
 
-        _event_put_file_done(request);
+        _event_file(GCOAP_FILESERVER_PUT_END, request);
 
         stat_etag(&stat, &etag); /* Etag after write */
         gcoap_resp_init(pdu, buf, len, create ? COAP_CODE_CREATED : COAP_CODE_CHANGED);
@@ -403,18 +380,6 @@ unlink_on_error:
 #endif
 
 #if IS_USED(MODULE_GCOAP_FILESERVER_DELETE)
-static inline void _event_delete_file(struct requestdata *request)
-{
-    gcoap_fileserver_event_ctx_t ctx = {
-        .file = request->namebuf,
-        .user_ctx = _event_ctx,
-    };
-
-    if (_event_cb && IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
-        _event_cb(GCOAP_FILESERVER_DELETE, &ctx);
-    }
-}
-
 static ssize_t _delete_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
                             struct requestdata *request)
 {
@@ -431,7 +396,7 @@ static ssize_t _delete_file(coap_pkt_t *pdu, uint8_t *buf, size_t len,
         }
     }
 
-    _event_delete_file(request);
+    _event_file(GCOAP_FILESERVER_DELETE, request);
 
     if ((ret = vfs_unlink(request->namebuf)) < 0) {
         return gcoap_fileserver_error_handler(pdu, buf, len, ret);
@@ -733,8 +698,12 @@ error:
 #ifdef MODULE_GCOAP_FILESERVER_CALLBACK
 void gcoap_fileserver_set_event_cb(gcoap_fileserver_event_handler_t cb, void *ctx)
 {
+    mutex_lock(&_event_mtx);
+
     _event_cb = cb;
     _event_ctx = ctx;
+
+    mutex_unlock(&_event_mtx);
 }
 #endif
 
