@@ -11,14 +11,14 @@
  * @{
  *
  * @file
- * @brief       Nanocoap Resource Director helpers
+ * @brief       NanoCoAP Link Format parser
  *
  * @author      Benjamin Valentin <benjamin.valentin@ml-pa.com>
  *
  * @}
  */
 
-#include "net/nanocoap_rd.h"
+#include "net/nanocoap/link_format.h"
 #include "net/nanocoap_sock.h"
 #include "net/sock/util.h"
 
@@ -26,7 +26,7 @@ struct dir_list_ctx {
     char *buf;
     char *cur;
     char *end;
-    coap_rd_handler_t cb;
+    coap_link_format_handler_t cb;
     void *ctx;
 };
 
@@ -59,8 +59,8 @@ static int _dirlist_cb(void *arg, size_t offset, uint8_t *buf, size_t len, int m
     return 0;
 }
 
-int nanocoap_rd_get(nanocoap_sock_t *sock, const char *path,
-                    coap_rd_handler_t cb, void *arg)
+int nanocoap_link_format_get(nanocoap_sock_t *sock, const char *path,
+                    coap_link_format_handler_t cb, void *arg)
 {
     char buffer[CONFIG_NANOCOAP_QS_MAX];
     struct dir_list_ctx ctx = {
@@ -73,7 +73,7 @@ int nanocoap_rd_get(nanocoap_sock_t *sock, const char *path,
                                        _dirlist_cb, &ctx);
 }
 
-int nanocoap_rd_get_url(const char *url, coap_rd_handler_t cb, void *arg)
+int nanocoap_link_format_get_url(const char *url, coap_link_format_handler_t cb, void *arg)
 {
     nanocoap_sock_t sock;
     int res = nanocoap_sock_url_connect(url, &sock);
@@ -81,7 +81,7 @@ int nanocoap_rd_get_url(const char *url, coap_rd_handler_t cb, void *arg)
         return res;
     }
 
-    res = nanocoap_rd_get(&sock, sock_urlpath(url), cb, arg);
+    res = nanocoap_link_format_get(&sock, sock_urlpath(url), cb, arg);
     nanocoap_sock_close(&sock);
 
     return res;

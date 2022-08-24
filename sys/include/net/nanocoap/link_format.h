@@ -8,17 +8,18 @@
 
 /**
  * @ingroup     net_nanosock
- * @brief       NanoCoAP Resource Directory helper functions
+ * @brief       NanoCoAP Link Format helper functions
  *
  * @{
  *
  * @file
- * @brief       NanoCoAP Resource Directory helper functions
+ * @brief       NanoCoAP Link Format ([RFC 6690](https://www.rfc-editor.org/rfc/rfc6690.html))
+ *              helper functions
  *
  * @author      Benjamin Valentin <benjamin.valentin@ml-pa.com>
  */
-#ifndef NET_NANOCOAP_RD_H
-#define NET_NANOCOAP_RD_H
+#ifndef NET_NANOCOAP_LINK_FORMAT_H
+#define NET_NANOCOAP_LINK_FORMAT_H
 
 #include "net/nanocoap_sock.h"
 
@@ -35,7 +36,7 @@ extern "C" {
  * @returns     0 on success
  * @returns     <0 on error
  */
-typedef int (*coap_rd_handler_t)(char *path, void *ctx);
+typedef int (*coap_link_format_handler_t)(char *path, void *ctx);
 
 /**
  * @brief   Downloads the resource behind @p path via blockwise GET
@@ -48,8 +49,8 @@ typedef int (*coap_rd_handler_t)(char *path, void *ctx);
  * @returns     0 on success
  * @returns     <0 on error
  */
-int nanocoap_rd_get(nanocoap_sock_t *sock, const char *path,
-                    coap_rd_handler_t cb, void *arg);
+int nanocoap_link_format_get(nanocoap_sock_t *sock, const char *path,
+                             coap_link_format_handler_t cb, void *arg);
 
 /**
  * @brief   Downloads the resource behind @p url via blockwise GET
@@ -61,10 +62,11 @@ int nanocoap_rd_get(nanocoap_sock_t *sock, const char *path,
  * @returns     0 on success
  * @returns     <0 on error
  */
-int nanocoap_rd_get_url(const char *url, coap_rd_handler_t cb, void *arg);
+int nanocoap_link_format_get_url(const char *url,
+                                 coap_link_format_handler_t cb, void *arg);
 
 #ifdef __cplusplus
 }
 #endif
-#endif /* NET_NANOCOAP_RD_H */
+#endif /* NET_NANOCOAP_LINK_FORMAT_H */
 /** @} */
