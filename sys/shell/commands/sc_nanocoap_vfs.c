@@ -23,7 +23,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "net/nanocoap_rd.h"
+#include "net/nanocoap/link_format.h"
 #include "net/nanocoap_sock.h"
 #include "net/nanocoap_vfs.h"
 
@@ -76,7 +76,7 @@ static int _nanocoap_get_handler(int argc, char **argv)
     }
 
     if (_is_dir(url) && argc < 3) {
-        res = nanocoap_rd_get_url(url, _resource_cb, NULL);
+        res = nanocoap_link_format_get_url(url, _resource_cb, NULL);
         if (res) {
             printf("Request failed: %s\n", strerror(-res));
         }
