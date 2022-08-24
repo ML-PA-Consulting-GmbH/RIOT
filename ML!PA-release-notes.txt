@@ -1,4 +1,4 @@
-RIOT-2022.10-mlpa-1 - Merge Notes
++RIOT-2022.10-mlpa-1 - Merge Notes
 =================================
 
 - based on 2022.10-devel-129-g8ad68dbb21
@@ -24,3 +24,4 @@ RIOT-2022.10-mlpa-1 - Merge Notes
  - merge firas-hamdi/fix/extended_CAN_filters_not_applied
  - merge benpicco/event_counted_t
  - merge benpicco/slipdev-chunked_rb
+ - merge benpicco/drivers/atwinc15x0-hang
