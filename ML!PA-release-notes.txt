@@ -1,0 +1,22 @@
+RIOT-2022.10-mlpa-3 - Merge Notes
+=================================
+
+- based on 2022.10-devel-622-gb5bf5da38d
+
+ - cherry-pick b82e97164045708a471208f6c59f84cd28c2dcc6 (sam0 ADC hack)
+ - cherry-pick bed34daa61bfa6273f95e9e86cf90e448a8ed67e from benpicco/gnrc_netif-solicited_nodes
+ - cherry-pick 1cb9a3babd762f412df9cd788390c75c026d13e9 (CONFIG_AUTO_RESTART for DEVELHELP)
+ - cherry-pick 7646899f72d805f031eda605d2200c43bac0a160 (gcoap_fileserver: bump stack size)
+ - merge benpicco/cpu/sam0_common/flashpage_irq_disable
+ - merge benpicco/gnrc_sixlowpan_ctx-optional
+ - merge feat/20211108__sys-bus__add_rtc_bus
+ - merge benpicco/drivers/rtt_rtc-no-retain
+ - merge benpicco/pkg/fatfs-threadsafe
+ - merge benpicco/gnrc_ipv6_nib_iface_up
+ - merge benpicco/GNRC_NETIF_STACKSIZE_DEFAULT
+ - merge benpicco/nanocoap_rd
+ - merge benpicco/cpu/sam0_common/adc-diffmode
+ - merge firas-hamdi/fix/extended_CAN_filters_not_applied
+ - merge benpicco/slipdev-chunked_rb
+ - merge benpicco/gcoap_fileserver-callback
+ - merge benpicco/suit/multi-key
