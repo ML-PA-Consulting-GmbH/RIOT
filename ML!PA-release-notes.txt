@@ -22,3 +22,4 @@ RIOT-2022.10-mlpa-3 - Merge Notes
  - merge benpicco/suit/multi-key
  - cherry-pick 00c11c3f9de141cd31a27f155eb918da289b5597 (ipv6_addr_t in sock_udp_ep_t)
  - merge benpicco/event_periodic_callback_get_arg
+ - enable debug in MCP2515 driver for better performance
