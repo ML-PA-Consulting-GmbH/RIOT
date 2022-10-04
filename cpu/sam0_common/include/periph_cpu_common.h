@@ -773,7 +773,10 @@ static inline bool cpu_woke_from_backup(void)
  */
 typedef struct {
     gpio_t pin;             /**< ADC channel pin */
-    uint32_t muxpos;        /**< ADC channel pin multiplexer value */
+    union {
+        uint32_t muxpos;    /**< ADC channel pin multiplexer value */
+        uint32_t inputctrl; /**< ADC channel input control (upstream) */
+    };
 #ifdef ADC0
     Adc *dev;               /**< ADC device descriptor */
 #endif
