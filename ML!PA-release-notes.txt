@@ -23,3 +23,4 @@ RIOT-2022.10-mlpa-3 - Merge Notes
  - cherry-pick 00c11c3f9de141cd31a27f155eb918da289b5597 (ipv6_addr_t in sock_udp_ep_t)
  - merge benpicco/event_periodic_callback_get_arg
  - enable debug in MCP2515 driver for better performance
+ - cherry-pick 348c1fb732e4cf9e5f5ced25f3eb4311efa23fef ffd9c204b849c6d09f358ee160f7deea74071e33 e07490cf153cc7b3221f473b773883585607a42b from benpicco:nanocoap_no-response
