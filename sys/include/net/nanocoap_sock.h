@@ -241,6 +241,22 @@ ssize_t nanocoap_sock_put(nanocoap_sock_t *sock, const char *path,
                           void *response, size_t len_max);
 
 /**
+ * @brief   Simple synchronous CoAP (confirmable) PUT to URL
+ *
+ * @param[in]   url     Absolute URL pointer to source path
+ * @param[in]   request buffer containing the payload
+ * @param[in]   len     length of the payload to send
+ * @param[out]  response buffer for the response, may be NULL
+ * @param[in]   len_max length of @p response
+ *
+ * @returns     length of response payload on success
+ * @returns     <0 on error
+ */
+ssize_t nanocoap_sock_put_url(const char *url,
+                              const void *request, size_t len,
+                              void *response, size_t len_max);
+
+/**
  * @brief   Simple synchronous CoAP (confirmable) POST
  *
  * @param[in]   sock    socket to use for the request
@@ -262,10 +278,6 @@ ssize_t nanocoap_sock_post(nanocoap_sock_t *sock, const char *path,
  *
  * @param[in]   sock    socket to use for the request
  * @param[in]   path    remote path
- * @param[in]   request buffer containing the payload
- * @param[in]   len     length of the payload to send
- * @param[out]  response buffer for the response, may be NULL
- * @param[in]   len_max length of @p response
  *
  * @returns     length of response payload (or 0) on success
  * @returns     <0 on error
@@ -288,6 +300,21 @@ ssize_t nanocoap_sock_put_non(nanocoap_sock_t *sock, const char *path,
  * @returns     <0 on error
  */
 ssize_t nanocoap_sock_post_non(nanocoap_sock_t *sock, const char *path,
+
+/**
+ * @brief   Simple non-confirmable POST to URL
+ *
+ * @param[in]   sock    socket to use for the request
+ * @param[in]   path    remote path
+ * @param[in]   request buffer containing the payload
+ * @param[in]   len     length of the payload to send
+ * @param[out]  response buffer for the response, may be NULL
+ * @param[in]   len_max length of @p response
+ *
+ * @returns     length of response payload (or 0) on success
+ * @returns     <0 on error
+ */
+ssize_t nanocoap_sock_post_url(const char *url,
                                const void *request, size_t len,
                                void *response, size_t len_max);
 
