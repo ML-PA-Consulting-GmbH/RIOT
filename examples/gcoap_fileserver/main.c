@@ -45,10 +45,35 @@ static gcoap_listener_t _listener = {
     .resources_len = ARRAY_SIZE(_resources),
 };
 
+static void _event_cb(gcoap_fileserver_event_t event, gcoap_fileserver_event_ctx_t *ctx)
+{
+    switch (event) {
+    case GCOAP_FILESERVER_GET_START:
+        printf("gcoap fileserver: Download started: %s\n", ctx->file);
+        break;
+    case GCOAP_FILESERVER_GET_END:
+        printf("gcoap fileserver: Download finished: %s\n", ctx->file);
+        break;
+    case GCOAP_FILESERVER_PUT_START:
+        printf("gcoap fileserver: Upload started: %s\n", ctx->file);
+        break;
+    case GCOAP_FILESERVER_PUT_END:
+        printf("gcoap fileserver: Upload finished: %s\n", ctx->file);
+        break;
+    case GCOAP_FILESERVER_DELETE:
+        printf("gcoap fileserver: Delete %s\n", ctx->file);
+        break;
+    }
+}
+
 int main(void)
 {
     msg_init_queue(_main_msg_queue, MAIN_QUEUE_SIZE);
     gcoap_register_listener(&_listener);
+
+    if (IS_USED(MODULE_GCOAP_FILESERVER_CALLBACK)) {
+        gcoap_fileserver_set_event_cb(_event_cb, NULL);
+    }
 
     char line_buf[SHELL_DEFAULT_BUFSIZE];
     shell_run(NULL, line_buf, SHELL_DEFAULT_BUFSIZE);
