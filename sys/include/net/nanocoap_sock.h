@@ -258,6 +258,40 @@ ssize_t nanocoap_sock_post(nanocoap_sock_t *sock, const char *path,
                            void *response, size_t len_max);
 
 /**
+ * @brief   Simple non-confirmable CoAP PUT
+ *
+ * @param[in]   sock    socket to use for the request
+ * @param[in]   path    remote path
+ * @param[in]   request buffer containing the payload
+ * @param[in]   len     length of the payload to send
+ * @param[out]  response buffer for the response, may be NULL
+ * @param[in]   len_max length of @p response
+ *
+ * @returns     length of response payload (or 0) on success
+ * @returns     <0 on error
+ */
+ssize_t nanocoap_sock_put_non(nanocoap_sock_t *sock, const char *path,
+                              const void *request, size_t len,
+                              void *response, size_t len_max);
+
+/**
+ * @brief   Simple non-confirmable POST
+ *
+ * @param[in]   sock    socket to use for the request
+ * @param[in]   path    remote path
+ * @param[in]   request buffer containing the payload
+ * @param[in]   len     length of the payload to send
+ * @param[out]  response buffer for the response, may be NULL
+ * @param[in]   len_max length of @p response
+ *
+ * @returns     length of response payload (or 0) on success
+ * @returns     <0 on error
+ */
+ssize_t nanocoap_sock_post_non(nanocoap_sock_t *sock, const char *path,
+                               const void *request, size_t len,
+                               void *response, size_t len_max);
+
+/**
  * @brief    Performs a blockwise coap get request on a socket.
  *
  * This function will fetch the content of the specified resource path via
