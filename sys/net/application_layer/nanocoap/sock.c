@@ -395,7 +395,8 @@ static ssize_t _sock_put_post_url(const char *url, unsigned code,
         return res;
     }
 
-    res = _sock_put_post(&sock, sock_urlpath(url), code, request, len, response, len_max);
+    res = _sock_put_post(&sock, sock_urlpath(url), code, COAP_TYPE_CON,
+                         request, len,response, len_max);
     nanocoap_sock_close(&sock);
 
     return res;

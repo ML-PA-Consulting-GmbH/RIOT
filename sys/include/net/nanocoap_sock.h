@@ -300,6 +300,8 @@ ssize_t nanocoap_sock_put_non(nanocoap_sock_t *sock, const char *path,
  * @returns     <0 on error
  */
 ssize_t nanocoap_sock_post_non(nanocoap_sock_t *sock, const char *path,
+                              const void *request, size_t len,
+                              void *response, size_t len_max);
 
 /**
  * @brief   Simple non-confirmable POST to URL
