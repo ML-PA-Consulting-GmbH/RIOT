@@ -21,6 +21,7 @@
 
 #include "mcp2515_spi.h"
 #include "mcp2515_defines.h"
+#include "ztimer.h"
 
 #include "periph/gpio.h"
 #include "periph/spi.h"
@@ -29,6 +30,8 @@
 
 #define ENABLE_DEBUG 0
 #include "debug.h"
+
+#define MCP2515_SPI_RELEASE_DELAY_US (1)
 
 int mcp2515_spi_init(const candev_mcp2515_t *dev)
 {
@@ -51,6 +54,7 @@ int mcp2515_spi_reset(const candev_mcp2515_t *dev)
     spi_transfer_byte(dev->conf->spi, dev->conf->cs_pin, false,
                       MCP2515_SPI_RESET);
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return 0;
 }
 
@@ -64,6 +68,7 @@ int mcp2515_spi_read(const candev_mcp2515_t *dev, uint8_t addr, uint8_t *buf,
     spi_transfer_regs(dev->conf->spi, dev->conf->cs_pin, addr, NULL,
                       (void *)buf, len);
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return 0;
 }
 
@@ -78,6 +83,7 @@ int mcp2515_spi_read_rxbuf(const candev_mcp2515_t *dev, uint8_t mailbox,
     spi_transfer_bytes(dev->conf->spi, dev->conf->cs_pin, false, NULL,
                        (void *)buf, len);
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return 0;
 }
 
@@ -91,6 +97,7 @@ int mcp2515_spi_write(const candev_mcp2515_t *dev, uint8_t addr, uint8_t *buf,
     spi_transfer_regs(dev->conf->spi, dev->conf->cs_pin, addr, (void *)buf,
                       NULL, len);
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return 0;
 }
 
@@ -104,6 +111,7 @@ int mcp2515_spi_write_txbuf(const candev_mcp2515_t *dev, uint8_t mailbox,
     spi_transfer_bytes(dev->conf->spi, dev->conf->cs_pin, false, (void *)buf,
                        NULL, len);
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return 0;
 }
 
@@ -114,6 +122,7 @@ int mcp2515_spi_rts(const candev_mcp2515_t *dev, uint8_t mailbox)
     spi_transfer_byte(dev->conf->spi, dev->conf->cs_pin, false,
                       MCP2515_SPI_RTS | (1 << mailbox));
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return 0;
 }
 
@@ -127,6 +136,7 @@ uint8_t mcp2515_spi_read_status(const candev_mcp2515_t *dev)
                       MCP2515_SPI_READ_STATUS);
     status = spi_transfer_byte(dev->conf->spi, dev->conf->cs_pin, false, 0);
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return status;
 }
 
@@ -140,6 +150,7 @@ int mcp2515_spi_rx_status(const candev_mcp2515_t *dev)
                       MCP2515_SPI_RX_STATUS);
     status = spi_transfer_byte(dev->conf->spi, dev->conf->cs_pin, false, 0);
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return status;
 }
 
@@ -159,5 +170,6 @@ int mcp2515_spi_bitmod(const candev_mcp2515_t *dev, uint8_t addr, uint8_t mask,
     spi_transfer_regs(dev->conf->spi, dev->conf->cs_pin, addr,
                       (const void *)msg, NULL, sizeof(msg));
     spi_release(dev->conf->spi);
+    ztimer_sleep(ZTIMER_USEC, MCP2515_SPI_RELEASE_DELAY_US);
     return 0;
 }
