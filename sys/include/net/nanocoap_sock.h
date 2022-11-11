@@ -247,7 +247,7 @@ static inline int nanocoap_sock_connect(nanocoap_sock_t *sock,
  * @returns     0 on success
  * @returns     <0 on error
  */
-int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, const sock_udp_ep_t *local,
+int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
                                const sock_udp_ep_t *remote, credman_tag_t tag);
 #endif
 

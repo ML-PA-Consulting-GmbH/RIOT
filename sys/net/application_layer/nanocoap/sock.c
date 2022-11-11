@@ -59,15 +59,24 @@ static uint16_t _get_id(void)
 }
 
 #if IS_USED(MODULE_NANOCOAP_DTLS)
-int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, const sock_udp_ep_t *local,
+int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
                                const sock_udp_ep_t *remote, credman_tag_t tag)
 {
     int res;
     uint32_t timeout_ms = CONFIG_NANOCOAP_SOCK_DTLS_TIMEOUT_MS;
     uint8_t retries = CONFIG_NANOCOAP_SOCK_DTLS_RETRIES;
 
-    /* connect UDP socket */
-    res = nanocoap_sock_connect(sock, local, remote);
+    bool auto_port = local->port == 0;
+    do {
+        if (auto_port) {
+            /* choose random ephemeral port, since DTLS requires a local port */
+            local->port = random_uint32_range(IANA_DYNAMIC_PORTRANGE_MIN,
+                                              IANA_DYNAMIC_PORTRANGE_MAX);
+        }
+        /* connect UDP socket */
+        res = nanocoap_sock_connect(sock, local, remote);
+    } while (auto_port && (res == -EADDRINUSE));
+
     if (res < 0) {
         return res;
     }
@@ -700,11 +709,6 @@ int nanocoap_sock_url_connect(const char *url, nanocoap_sock_t *sock)
         }
 
         sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
-
-        /* choose random ephemeral port, since DTLS requires a local port */
-        local.port = IANA_DYNAMIC_PORTRANGE_MIN +
-            (random_uint32() % (IANA_SYSTEM_PORTRANGE_MAX - IANA_DYNAMIC_PORTRANGE_MIN));
-
         return nanocoap_sock_dtls_connect(sock, &local, &remote, CONFIG_NANOCOAP_SOCK_DTLS_TAG);
     } else {
         return nanocoap_sock_connect(sock, NULL, &remote);
