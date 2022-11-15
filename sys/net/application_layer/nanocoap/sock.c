@@ -91,7 +91,7 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
     }
     sock->type = COAP_SOCKET_TYPE_DTLS;
 
-    while (retries--) {
+    while (1) {
         uint8_t buf[128];
         mutex_t lock = MUTEX_INIT_LOCKED;
         ztimer_t timeout;
@@ -118,8 +118,13 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
 
         sock_dtls_session_destroy(&sock->dtls, &sock->dtls_session);
 
-        /* wait for timeout to expire */
-        mutex_lock(&lock);
+        if (retries--) {
+            /* wait for timeout to expire */
+            mutex_lock(&lock);
+        } else {
+            ztimer_remove(ZTIMER_MSEC, &timeout);
+            break;
+        }
 
         /* see https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.4.1 */
         timeout_ms *= 2U;
