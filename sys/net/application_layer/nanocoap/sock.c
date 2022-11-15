@@ -92,8 +92,12 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
     sock->type = COAP_SOCKET_TYPE_DTLS;
 
     while (retries--) {
-        uint32_t deadline = ztimer_now(ZTIMER_MSEC) + timeout_ms;
         uint8_t buf[128];
+        mutex_t lock = MUTEX_INIT_LOCKED;
+        ztimer_t timeout;
+
+        /* unlock lock after timeout */
+        ztimer_mutex_unlock_after(ZTIMER_MSEC, &timeout, timeout_ms, &lock);
 
         /* create DTLS session */
         res = sock_dtls_session_init(&sock->dtls, remote, &sock->dtls_session);
@@ -103,6 +107,7 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
                                  sizeof(buf), timeout_ms * US_PER_MS);
             if (res == -SOCK_DTLS_HANDSHAKE) {
                 DEBUG("DTLS handshake successful\n");
+                ztimer_remove(ZTIMER_MSEC, &timeout);
                 return 0;
             }
             DEBUG("Unable to establish DTLS handshake: %s\n", strerror(-res));
@@ -113,9 +118,9 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
 
         sock_dtls_session_destroy(&sock->dtls, &sock->dtls_session);
 
-        if (ztimer_now(ZTIMER_MSEC) < deadline) {
-            ztimer_sleep(ZTIMER_MSEC, deadline - ztimer_now(ZTIMER_MSEC));
-        }
+        /* wait for timeout to expire */
+        mutex_lock(&lock);
+
         /* see https://datatracker.ietf.org/doc/html/rfc6347#section-4.2.4.1 */
         timeout_ms *= 2U;
     }
