@@ -144,8 +144,8 @@ void ztimer_set_timeout_flag(ztimer_clock_t *clock, ztimer_t *t,
 }
 #endif
 
-void ztimer_mutex_unlock_after(ztimer_clock_t *clock, ztimer_t *timer, uint32_t offset,
-                               mutex_t *mutex)
+void ztimer_mutex_unlock(ztimer_clock_t *clock, ztimer_t *timer, uint32_t offset,
+                         mutex_t *mutex)
 {
     unsigned state = irq_disable();
 
