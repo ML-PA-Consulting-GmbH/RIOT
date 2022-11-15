@@ -97,7 +97,7 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
         ztimer_t timeout;
 
         /* unlock lock after timeout */
-        ztimer_mutex_unlock_after(ZTIMER_MSEC, &timeout, timeout_ms, &lock);
+        ztimer_mutex_unlock(ZTIMER_MSEC, &timeout, timeout_ms, &lock);
 
         /* create DTLS session */
         res = sock_dtls_session_init(&sock->dtls, remote, &sock->dtls_session);
