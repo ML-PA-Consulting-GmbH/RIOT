@@ -696,8 +696,8 @@ void ztimer_set_timeout_flag(ztimer_clock_t *clock, ztimer_t *timer,
  * @param[in]   timeout         timeout in ztimer_clock's ticks
  * @param[in]   mutex           mutex to unlock after timeout
  */
-void ztimer_mutex_unlock_after(ztimer_clock_t *clock, ztimer_t *timer, uint32_t offset,
-                               mutex_t *mutex);
+void ztimer_mutex_unlock_after(ztimer_clock_t *clock, ztimer_t *timer,
+                               uint32_t timeout, mutex_t *mutex);
 
 /**
  * @brief   Try to lock the given mutex, but give up after @p timeout
