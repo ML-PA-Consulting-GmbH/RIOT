@@ -92,7 +92,7 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
     sock->type = COAP_SOCKET_TYPE_DTLS;
 
     while (1) {
-        uint8_t buf[128];
+        uint8_t buf[192];
         mutex_t lock = MUTEX_INIT_LOCKED;
         ztimer_t timeout;
 
