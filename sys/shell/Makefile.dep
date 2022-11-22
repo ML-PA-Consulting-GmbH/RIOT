@@ -57,6 +57,9 @@ ifneq (,$(filter shell_cmds_default,$(USEMODULE)))
   ifneq (,$(filter gnrc_netif,$(USEMODULE)))
     USEMODULE += shell_cmd_gnrc_netif
   endif
+  ifneq (,$(filter gnrc_netif_lorawan,$(USEMODULE)))
+    USEMODULE += shell_cmd_gnrc_netif_lorawan
+  endif
   ifneq (,$(filter gnrc_pktbuf_cmd,$(USEMODULE)))
       USEMODULE += shell_cmd_gnrc_pktbuf
   endif
@@ -152,6 +155,7 @@ endif
 ifneq (,$(filter shell_cmd_cord_ep,$(USEMODULE)))
   USEMODULE += cord_ep
   USEMODULE += sock_util
+  USEMODULE += uri_parser
 endif
 ifneq (,$(filter shell_cmd_cryptoauthlib,$(USEPKG)))
   USEMODULE += cryptoauthlib
@@ -184,6 +188,10 @@ ifneq (,$(filter shell_cmd_gnrc_ipv6_whitelist,$(USEMODULE)))
 endif
 ifneq (,$(filter shell_cmd_gnrc_netif,$(USEMODULE)))
   USEMODULE += gnrc_netif
+endif
+ifneq (,$(filter shell_cmd_gnrc_netif_lorawan,$(USEMODULE)))
+  USEMODULE += gnrc_netif_lorawan
+  USEMODULE += shell_cmd_gnrc_netif
 endif
 ifneq (,$(filter shell_cmd_gnrc_pktbuf,$(USEMODULE)))
     USEMODULE += gnrc_pktbuf

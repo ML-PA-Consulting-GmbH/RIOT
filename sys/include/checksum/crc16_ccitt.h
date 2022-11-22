@@ -13,10 +13,15 @@
  * @brief       Variations of CRC16-CCITT checksum algorithms
  * @details     This provides implementations for multiple variations
  *              of CRC16 checks.
+ *
  *              There is a more generalized version in @ref sys_checksum_ucrc16,
- *              that does not utilize a look-up table as these implementation
- *              do (and is thus also far more memory efficient). Its caveat
- *              however is that it is slower by about factor 8 than these versions.
+ *              that does not optionally utilize a look-up table as these implementations
+ *              can do (and is thus also far more memory efficient). Its caveat
+ *              however is that it is slower by about factor 8 than these versions when
+ *              enabling the look-up table.
+ *
+ *              @note enable the `crc16_fast` module for a look-up table based
+ *              implementation that trades code size for speed.
  *
  * @{
  * @file

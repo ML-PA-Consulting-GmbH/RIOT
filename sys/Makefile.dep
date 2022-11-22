@@ -49,6 +49,10 @@ ifneq (,$(filter congure_reno_methods,$(USEMODULE)))
   USEMODULE += seq
 endif
 
+ifneq (,$(filter crc16_fast,$(USEMODULE)))
+  USEMODULE += checksum
+endif
+
 ifneq (,$(filter crc32_fast,$(USEMODULE)))
   USEMODULE += checksum
 endif
@@ -694,6 +698,11 @@ endif
 
 ifneq (,$(filter luid,$(USEMODULE)))
   FEATURES_OPTIONAL += periph_cpuid
+endif
+
+ifneq (,$(filter nanocoap_dtls,$(USEMODULE)))
+  USEMODULE += sock_dtls
+  USEPKG += tinydtls
 endif
 
 ifneq (,$(filter nanocoap_sock,$(USEMODULE)))
