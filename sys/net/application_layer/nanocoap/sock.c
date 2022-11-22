@@ -39,6 +39,13 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
+/**
+ * @brief   Size of the buffer used for the DTLS handshake
+ */
+#ifndef CONFIG_NANOCOAP_DTLS_HANDSHAKE_BUF_SIZE
+#define CONFIG_NANOCOAP_DTLS_HANDSHAKE_BUF_SIZE (192)
+#endif
+
 enum {
     STATE_REQUEST_SEND,     /**< request was just sent or will be sent again */
     STATE_RESPONSE_RCVD,    /**< response received but might be invalid      */
@@ -92,7 +99,7 @@ int nanocoap_sock_dtls_connect(nanocoap_sock_t *sock, sock_udp_ep_t *local,
     sock->type = COAP_SOCKET_TYPE_DTLS;
 
     while (1) {
-        uint8_t buf[192];
+        uint8_t buf[CONFIG_NANOCOAP_DTLS_HANDSHAKE_BUF_SIZE];
         mutex_t lock = MUTEX_INIT_LOCKED;
         ztimer_t timeout;
 
