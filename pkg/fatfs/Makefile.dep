@@ -1,8 +1,19 @@
+USEMODULE += fatfs_system
 USEMODULE += fatfs_diskio_mtd
 USEMODULE += mtd
 
+ifneq (1, $(RIOTBOOT_BUILD))
+ifeq (,$(filter -DFATFS_FFCONF_OPT_FS_REENTRANT%, $(CFLAGS)))
+  USEMODULE += fatfs_threadsafe
+endif
+endif
+
 ifneq (,$(filter vfs_auto_format,$(USEMODULE)))
   DEFAULT_MODULE += fatfs_vfs_format
+endif
+
+ifneq (,$(filter fatfs_threadsafe,$(USEMODULE)))
+  USEMODULE += ztimer_msec
 endif
 
 # Use RTC for timestamps if available

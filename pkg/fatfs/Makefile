@@ -11,4 +11,5 @@ include $(RIOTBASE)/pkg/pkg.mk
 CFLAGS += -Wno-overflow
 
 all:
-	$(QQ)"$(MAKE)" -C $(PKG_SOURCE_DIR)/source -f $(RIOTBASE)/Makefile.base MODULE=fatfs
+	# don't build ffsystem.c which includes example code
+	$(QQ)"$(MAKE)" -C $(PKG_SOURCE_DIR)/source -f $(RIOTBASE)/Makefile.base MODULE=fatfs SRC="ff.c ffunicode.c"
