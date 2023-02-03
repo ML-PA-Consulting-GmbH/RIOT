@@ -821,9 +821,14 @@ typedef enum {
     ADC_RES_10BIT = ADC_CTRLC_RESSEL_10BIT_Val, /**< ADC resolution: 10 bit */
     ADC_RES_12BIT = ADC_CTRLC_RESSEL_12BIT_Val, /**< ADC resolution: 12 bit */
 #endif
+    ADC_RES_16BIT_2SAMPL    = ( 1 << 2) | 0x1,  /**< sum of 2 12 bit samples    */
+    ADC_RES_16BIT_4SAMPL    = ( 2 << 2) | 0x1,  /**< sum of 4 12 bit samples    */
+    ADC_RES_16BIT_8SAMPL    = ( 3 << 2) | 0x1,  /**< sum of 8 12 bit samples    */
+    ADC_RES_16BIT_16SAMPL   = ( 4 << 2) | 0x1,  /**< sum of 16 12 bit samples   */
     ADC_RES_14BIT = 0xfe,                       /**< not supported */
-    ADC_RES_16BIT = 0xfd                        /**< not supported */
 } adc_res_t;
+
+#define ADC_RES_16BIT   ADC_RES_16BIT_16SAMPL   /**< default to 16x oversampling */
 #endif /* DOXYGEN */
 
 /**
