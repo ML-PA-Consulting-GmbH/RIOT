@@ -23,6 +23,7 @@
 #include "periph/gpio.h"
 #include "periph/adc.h"
 #include "periph_conf.h"
+#include "macros/utils.h"
 #include "mutex.h"
 
 #define ENABLE_DEBUG 0
@@ -342,7 +343,8 @@ int32_t adc_sample(adc_t line, adc_res_t res)
 
     /* 16 bit mode is implemented as oversampling */
     if ((res & 0x3) == 1) {
-        result <<= (4 - (res >> 2));
+        /* ADC does automatic right shifts beyond 16 samples */
+        result <<= (4 - MIN(4, res >> 2));
     }
 
     return result;
