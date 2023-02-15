@@ -183,6 +183,36 @@ void gpio_init_af(gpio_t pin, gpio_af_t af);
  */
 void gpio_init_analog(gpio_t pin);
 
+/* Hide this from Doxygen to avoid merging implementation details into
+ * public view on type */
+#ifndef DOXYGEN
+
+#define HAVE_GPIO_PULL_STRENGTH_T
+typedef enum {
+    GPIO_PULL_WEAKEST = 0,
+    GPIO_PULL_WEAK = 0,
+    GPIO_PULL_STRONG = 0,
+    GPIO_PULL_STRONGEST = 0
+} gpio_pull_strength_t;
+
+#define HAVE_GPIO_DRIVE_STRENGTH_T
+typedef enum {
+    GPIO_DRIVE_WEAKEST = 0,
+    GPIO_DRIVE_WEAK = 0,
+    GPIO_DRIVE_STRONG = 0,
+    GPIO_DRIVE_STRONGEST = 0
+} gpio_drive_strength_t;
+
+#define HAVE_GPIO_SLEW_T
+typedef enum {
+    GPIO_SLEW_SLOWEST = 0,
+    GPIO_SLEW_SLOW = 1,
+    GPIO_SLEW_FAST = 2,
+    GPIO_SLEW_FASTEST = 2,
+} gpio_slew_t;
+
+#endif /* !DOXYGEN */
+
 /**
  * @brief   Available number of ADC devices
  */
@@ -196,6 +226,19 @@ typedef struct {
     uint8_t dev;            /**< ADCx - 1 device used for the channel */
     uint8_t chan;           /**< CPU ADC channel connected to the pin */
 } adc_conf_t;
+
+/**
+ * @brief   GD32V DAC has 2 channels
+ */
+#define DAC_CHANNEL_NUMOF (2)
+
+/**
+ * @brief   DAC line configuration data
+ */
+typedef struct {
+    gpio_t pin;             /**< pin connected to the line */
+    uint8_t chan;           /**< DAC device used for this line */
+} dac_conf_t;
 
 /**
  * @brief   GD32V timers have 4 capture-compare channels
