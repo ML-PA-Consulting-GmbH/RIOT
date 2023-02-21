@@ -17,3 +17,4 @@ RIOT-2023.01-mlpa-1 - Merge Notes
  - merge benpicco/slipdev-chunked_rb
  - merge benpicco/sock-addr_struct
  - merge benpicco/cpu/sam0_adc-avg
+ - merge benpicco/shell_cmd_suit
