@@ -331,14 +331,17 @@ int32_t adc_sample(adc_t line, adc_res_t res)
     /* Wait for the result */
     while (!(dev->INTFLAG.reg & ADC_INTFLAG_RESRDY)) {}
 
-    int16_t result = dev->RESULT.reg;
+    uint16_t sample = dev->RESULT.reg;
+    int result;
 
     _adc_poweroff(dev);
     _done();
 
     /* in differential mode we lose one bit for the sign */
     if (diffmode) {
-        result *= 2;
+        result = 2 * (int16_t)sample;
+    } else {
+        result = sample;
     }
 
     /* 16 bit mode is implemented as oversampling */
