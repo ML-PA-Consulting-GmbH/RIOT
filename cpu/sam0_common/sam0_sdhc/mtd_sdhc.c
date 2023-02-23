@@ -90,7 +90,10 @@ static int _read_page(mtd_dev_t *dev, void *buff, uint32_t page,
     }
 
     if (sdhc_read_blocks(&ctx->state, page, buff, pages)) {
-        return -EIO;
+        if (sdhc_init(&ctx->state) < 0
+                || sdhc_read_blocks(&ctx->state, page, buff, pages)) {
+            return -EIO;
+        }
     }
 
     return pages * SD_MMC_BLOCK_SIZE;
@@ -115,7 +118,10 @@ static int _write_page(mtd_dev_t *dev, const void *buff, uint32_t page,
         size = min(SD_MMC_BLOCK_SIZE - offset, size);
 
         if (sdhc_read_blocks(&ctx->state, page, dev->work_area, 1)) {
-            return -EIO;
+            if (sdhc_init(&ctx->state) < 0
+                    || sdhc_read_blocks(&ctx->state, page, dev->work_area, 1)) {
+                return -EIO;
+            }
         }
 
         memcpy(dev->work_area + offset, buff, size);
@@ -128,7 +134,10 @@ static int _write_page(mtd_dev_t *dev, const void *buff, uint32_t page,
     }
 
     if (sdhc_write_blocks(&ctx->state, page, buff, pages)) {
-        return -EIO;
+        if (sdhc_init(&ctx->state) < 0
+                || sdhc_write_blocks(&ctx->state, page, buff, pages)) {
+            return -EIO;
+        }
     }
 
     return min(size, pages * SD_MMC_BLOCK_SIZE);
@@ -139,7 +148,10 @@ static int _erase_sector(mtd_dev_t *dev, uint32_t sector, uint32_t count)
     mtd_sam0_sdhc_t *ctx = container_of(dev, mtd_sam0_sdhc_t, base);
 
     if (sdhc_erase_blocks(&ctx->state, sector, count)) {
-        return -EIO;
+        if (sdhc_init(&ctx->state) < 0
+                || sdhc_erase_blocks(&ctx->state, sector, count)) {
+            return -EIO;
+        }
     }
 
     return 0;

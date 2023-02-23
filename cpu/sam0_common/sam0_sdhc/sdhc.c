@@ -208,6 +208,9 @@ int sdhc_init(sdhc_state_t *state)
     bool f8;
     uint32_t response;
 
+    /* set power control bits to 0 */
+    SDHC_DEV->PCR.reg = 0;
+
     /* set the initial clock slow, single bit and normal speed */
     state->type = CARD_TYPE_SD;
     state->version = CARD_VER_UNKNOWN;
@@ -319,7 +322,7 @@ int sdhc_init(sdhc_state_t *state)
 
 bool sdhc_send_cmd(sdhc_state_t *state, uint32_t cmd, uint32_t arg)
 {
-    uint32_t timeout = 0xFFFFFFFF;
+    uint32_t timeout = 0xFFFF;
     uint32_t command;
     uint32_t eis;
 
