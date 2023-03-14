@@ -18,3 +18,5 @@ RIOT-2023.01-mlpa-1 - Merge Notes
  - merge benpicco/sock-addr_struct
  - merge benpicco/cpu/sam0_adc-avg
  - merge benpicco/shell_cmd_suit
+ - cherry-pick merged changes from benpicco/vfs_umount-force (now on upstream master): 3b587d9268c799e9237089e0be986ced975d2d9b c19c25e078f1bdbb455bae65d2a5b4cf77d5b372 2658eb151b0e33f406fd5272c0a96fad95a205fb
+ - cherry-pick changes from benpicco/sam0_sdhc-stability (unmerged): cd51ab2750ac3dc39f168dfa76abfcb48c4432a6 c42ef5a8dbf23833037e25a825c754c40aab4b02 c1d4811a353a2c5a269907497dc133c30ae3715c a6a2071c642543c206ea5b3f4d49d13e8f989e25
