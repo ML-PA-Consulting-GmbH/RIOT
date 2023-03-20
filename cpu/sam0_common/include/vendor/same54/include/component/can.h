@@ -934,9 +934,9 @@ typedef union {
 #define CAN_SIDFC_OFFSET            0x84         /**< \brief (CAN_SIDFC offset) Standard ID Filter Configuration */
 #define CAN_SIDFC_RESETVALUE        _U_(0x00000000) /**< \brief (CAN_SIDFC reset_value) Standard ID Filter Configuration */
 
-#define CAN_SIDFC_FLSSA_Pos         0            /**< \brief (CAN_SIDFC) Filter List Standard Start Address */
-#define CAN_SIDFC_FLSSA_Msk         (_U_(0xFFFF) << CAN_SIDFC_FLSSA_Pos)
-#define CAN_SIDFC_FLSSA(value)      (CAN_SIDFC_FLSSA_Msk & ((value) << CAN_SIDFC_FLSSA_Pos))
+#define CAN_SIDFC_FLSSA_Pos         2            /**< \brief (CAN_SIDFC) Filter List Standard Start Address */
+#define CAN_SIDFC_FLSSA_Msk         (_U_(0x3FFF) << CAN_SIDFC_FLSSA_Pos)
+#define CAN_SIDFC_FLSSA(value)      (CAN_SIDFC_FLSSA_Msk & value)
 #define CAN_SIDFC_LSS_Pos           16           /**< \brief (CAN_SIDFC) List Size Standard */
 #define CAN_SIDFC_LSS_Msk           (_U_(0xFF) << CAN_SIDFC_LSS_Pos)
 #define CAN_SIDFC_LSS(value)        (CAN_SIDFC_LSS_Msk & ((value) << CAN_SIDFC_LSS_Pos))
@@ -957,9 +957,9 @@ typedef union {
 #define CAN_XIDFC_OFFSET            0x88         /**< \brief (CAN_XIDFC offset) Extended ID Filter Configuration */
 #define CAN_XIDFC_RESETVALUE        _U_(0x00000000) /**< \brief (CAN_XIDFC reset_value) Extended ID Filter Configuration */
 
-#define CAN_XIDFC_FLESA_Pos         0            /**< \brief (CAN_XIDFC) Filter List Extended Start Address */
-#define CAN_XIDFC_FLESA_Msk         (_U_(0xFFFF) << CAN_XIDFC_FLESA_Pos)
-#define CAN_XIDFC_FLESA(value)      (CAN_XIDFC_FLESA_Msk & ((value) << CAN_XIDFC_FLESA_Pos))
+#define CAN_XIDFC_FLESA_Pos         2            /**< \brief (CAN_XIDFC) Filter List Extended Start Address */
+#define CAN_XIDFC_FLESA_Msk         (_U_(0x3FFF) << CAN_XIDFC_FLESA_Pos)
+#define CAN_XIDFC_FLESA(value)      (value & CAN_XIDFC_FLESA_Msk)
 #define CAN_XIDFC_LSE_Pos           16           /**< \brief (CAN_XIDFC) List Size Extended */
 #define CAN_XIDFC_LSE_Msk           (_U_(0x7F) << CAN_XIDFC_LSE_Pos)
 #define CAN_XIDFC_LSE(value)        (CAN_XIDFC_LSE_Msk & ((value) << CAN_XIDFC_LSE_Pos))
@@ -1259,9 +1259,9 @@ typedef union {
 #define CAN_RXF0C_OFFSET            0xA0         /**< \brief (CAN_RXF0C offset) Rx FIFO 0 Configuration */
 #define CAN_RXF0C_RESETVALUE        _U_(0x00000000) /**< \brief (CAN_RXF0C reset_value) Rx FIFO 0 Configuration */
 
-#define CAN_RXF0C_F0SA_Pos          0            /**< \brief (CAN_RXF0C) Rx FIFO 0 Start Address */
-#define CAN_RXF0C_F0SA_Msk          (_U_(0xFFFF) << CAN_RXF0C_F0SA_Pos)
-#define CAN_RXF0C_F0SA(value)       (CAN_RXF0C_F0SA_Msk & ((value) << CAN_RXF0C_F0SA_Pos))
+#define CAN_RXF0C_F0SA_Pos          2            /**< \brief (CAN_RXF0C) Rx FIFO 0 Start Address */
+#define CAN_RXF0C_F0SA_Msk          (_U_(0x3FFF) << CAN_RXF0C_F0SA_Pos)
+#define CAN_RXF0C_F0SA(value)       (CAN_RXF0C_F0SA_Msk & value)
 #define CAN_RXF0C_F0S_Pos           16           /**< \brief (CAN_RXF0C) Rx FIFO 0 Size */
 #define CAN_RXF0C_F0S_Msk           (_U_(0x7F) << CAN_RXF0C_F0S_Pos)
 #define CAN_RXF0C_F0S(value)        (CAN_RXF0C_F0S_Msk & ((value) << CAN_RXF0C_F0S_Pos))
@@ -1341,9 +1341,9 @@ typedef union {
 #define CAN_RXBC_OFFSET             0xAC         /**< \brief (CAN_RXBC offset) Rx Buffer Configuration */
 #define CAN_RXBC_RESETVALUE         _U_(0x00000000) /**< \brief (CAN_RXBC reset_value) Rx Buffer Configuration */
 
-#define CAN_RXBC_RBSA_Pos           0            /**< \brief (CAN_RXBC) Rx Buffer Start Address */
-#define CAN_RXBC_RBSA_Msk           (_U_(0xFFFF) << CAN_RXBC_RBSA_Pos)
-#define CAN_RXBC_RBSA(value)        (CAN_RXBC_RBSA_Msk & ((value) << CAN_RXBC_RBSA_Pos))
+#define CAN_RXBC_RBSA_Pos           2            /**< \brief (CAN_RXBC) Rx Buffer Start Address */
+#define CAN_RXBC_RBSA_Msk           (_U_(0x3FFF) << CAN_RXBC_RBSA_Pos)
+#define CAN_RXBC_RBSA(value)        (CAN_RXBC_RBSA_Msk & value)
 #define CAN_RXBC_MASK               _U_(0x0000FFFF) /**< \brief (CAN_RXBC) MASK Register */
 
 /* -------- CAN_RXF1C : (CAN Offset: 0xB0) (R/W 32) Rx FIFO 1 Configuration -------- */
@@ -1363,9 +1363,9 @@ typedef union {
 #define CAN_RXF1C_OFFSET            0xB0         /**< \brief (CAN_RXF1C offset) Rx FIFO 1 Configuration */
 #define CAN_RXF1C_RESETVALUE        _U_(0x00000000) /**< \brief (CAN_RXF1C reset_value) Rx FIFO 1 Configuration */
 
-#define CAN_RXF1C_F1SA_Pos          0            /**< \brief (CAN_RXF1C) Rx FIFO 1 Start Address */
-#define CAN_RXF1C_F1SA_Msk          (_U_(0xFFFF) << CAN_RXF1C_F1SA_Pos)
-#define CAN_RXF1C_F1SA(value)       (CAN_RXF1C_F1SA_Msk & ((value) << CAN_RXF1C_F1SA_Pos))
+#define CAN_RXF1C_F1SA_Pos          2            /**< \brief (CAN_RXF1C) Rx FIFO 1 Start Address */
+#define CAN_RXF1C_F1SA_Msk          (_U_(0x3FFF) << CAN_RXF1C_F1SA_Pos)
+#define CAN_RXF1C_F1SA(value)       (CAN_RXF1C_F1SA_Msk & value)
 #define CAN_RXF1C_F1S_Pos           16           /**< \brief (CAN_RXF1C) Rx FIFO 1 Size */
 #define CAN_RXF1C_F1S_Msk           (_U_(0x7F) << CAN_RXF1C_F1S_Pos)
 #define CAN_RXF1C_F1S(value)        (CAN_RXF1C_F1S_Msk & ((value) << CAN_RXF1C_F1S_Pos))
@@ -1538,9 +1538,9 @@ typedef union {
 #define CAN_TXBC_OFFSET             0xC0         /**< \brief (CAN_TXBC offset) Tx Buffer Configuration */
 #define CAN_TXBC_RESETVALUE         _U_(0x00000000) /**< \brief (CAN_TXBC reset_value) Tx Buffer Configuration */
 
-#define CAN_TXBC_TBSA_Pos           0            /**< \brief (CAN_TXBC) Tx Buffers Start Address */
-#define CAN_TXBC_TBSA_Msk           (_U_(0xFFFF) << CAN_TXBC_TBSA_Pos)
-#define CAN_TXBC_TBSA(value)        (CAN_TXBC_TBSA_Msk & ((value) << CAN_TXBC_TBSA_Pos))
+#define CAN_TXBC_TBSA_Pos           2            /**< \brief (CAN_TXBC) Tx Buffers Start Address */
+#define CAN_TXBC_TBSA_Msk           (_U_(0x3FFF) << CAN_TXBC_TBSA_Pos)
+#define CAN_TXBC_TBSA(value)        (CAN_TXBC_TBSA_Msk & value)
 #define CAN_TXBC_NDTB_Pos           16           /**< \brief (CAN_TXBC) Number of Dedicated Transmit Buffers */
 #define CAN_TXBC_NDTB_Msk           (_U_(0x3F) << CAN_TXBC_NDTB_Pos)
 #define CAN_TXBC_NDTB(value)        (CAN_TXBC_NDTB_Msk & ((value) << CAN_TXBC_NDTB_Pos))
@@ -2405,9 +2405,9 @@ typedef union {
 #define CAN_TXEFC_OFFSET            0xF0         /**< \brief (CAN_TXEFC offset) Tx Event FIFO Configuration */
 #define CAN_TXEFC_RESETVALUE        _U_(0x00000000) /**< \brief (CAN_TXEFC reset_value) Tx Event FIFO Configuration */
 
-#define CAN_TXEFC_EFSA_Pos          0            /**< \brief (CAN_TXEFC) Event FIFO Start Address */
-#define CAN_TXEFC_EFSA_Msk          (_U_(0xFFFF) << CAN_TXEFC_EFSA_Pos)
-#define CAN_TXEFC_EFSA(value)       (CAN_TXEFC_EFSA_Msk & ((value) << CAN_TXEFC_EFSA_Pos))
+#define CAN_TXEFC_EFSA_Pos          2            /**< \brief (CAN_TXEFC) Event FIFO Start Address */
+#define CAN_TXEFC_EFSA_Msk          (_U_(0x3FFF) << CAN_TXEFC_EFSA_Pos)
+#define CAN_TXEFC_EFSA(value)       (CAN_TXEFC_EFSA_Msk & value)
 #define CAN_TXEFC_EFS_Pos           16           /**< \brief (CAN_TXEFC) Event FIFO Size */
 #define CAN_TXEFC_EFS_Msk           (_U_(0x3F) << CAN_TXEFC_EFS_Pos)
 #define CAN_TXEFC_EFS(value)        (CAN_TXEFC_EFS_Msk & ((value) << CAN_TXEFC_EFS_Pos))
