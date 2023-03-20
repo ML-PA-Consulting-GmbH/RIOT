@@ -30,11 +30,13 @@ typedef enum {
 } can_mode_t;
 
 static int _init(candev_t *candev);
+static int _send(candev_t *candev, const struct can_frame *frame);
 
 static int _set_mode(Can *can, can_mode_t mode);
 
 static const candev_driver_t candev_samd5x_driver = {
     .init = _init,
+    .send = _send,
 };
 
 static const struct can_bittiming_const bittiming_const = {
@@ -206,4 +208,62 @@ static int _init(candev_t *candev)
     _set_bit_timing(dev);
 
     return res;
+}
+
+static void _exit_init_mode(Can *can)
+{
+    if (can->CCCR.reg &= 0x1) {
+        DEBUG_PUTS("exiting Initialization");
+        can->CCCR.reg &= ~CAN_CCCR_INIT;
+    }
+    else {
+        DEBUG_PUTS("Already out of init mode");
+    }
+}
+
+static int _send(candev_t *candev, const struct can_frame *frame)
+{
+    can_t *dev = container_of(candev, can_t, candev);
+
+    if (frame->can_dlc > CAN_MAX_DLEN) {
+        DEBUG_PUTS("CAN frame payload not supported");
+        return -1;
+    }
+
+    _exit_init_mode(dev->conf->can);
+
+    can_mm_t can_mm = {0};
+    DEBUG("TXFQS = 0x%08lx\n", dev->conf->can->TXFQS.reg);
+    uint8_t fifo_queue_put_idx = (dev->conf->can->TXFQS.reg & 0x001F0000) >> 16;
+    uint8_t fifo_queue_get_idx = (dev->conf->can->TXFQS.reg & 0x00001F00) >> 8;
+    can_mm.put = fifo_queue_put_idx;
+    can_mm.get = fifo_queue_get_idx;
+
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.id = frame->can_id & CAN_EFF_MASK;
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.xtd = (frame->can_id & CAN_EFF_FLAG) >> 31;
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.rtr = (frame->can_id & CAN_RTR_FLAG) >> 30;
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.dlc = frame->can_dlc;
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.efc = 1;
+    memcpy(dev->msg_ram_conf.tx_fifo_queue[can_mm.put].data.data_8, frame->data, frame->can_dlc);
+    memcpy(&(dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm), &can_mm, sizeof(can_mm_t));
+
+    DEBUG("T1 mm get = %u\n", dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm.get);
+    DEBUG("T1 mm put = %u\n", dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm.put);
+
+    DEBUG("TXEFS = 0x%08lx\n", dev->conf->can->TXEFS.reg);
+    uint8_t fifo_event_put_index = (dev->conf->can->TXEFS.reg & 0x001F0000) >> 16;
+    // uint8_t fifo_event_get_index = (dev->conf->can->TXEFS.reg & 0x00001F00) >> 8;
+    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E0.id = frame->can_id & CAN_EFF_MASK;
+    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E0.rtr = (frame->can_id & CAN_EFF_FLAG) >> 31;
+    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E0.xtd = (frame->can_id & CAN_RTR_FLAG) >> 30;
+    memcpy(&(dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E1.mm), &(dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm), sizeof(can_mm_t));
+    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E1.et = 0x1;
+    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E1.dlc = frame->can_dlc;
+
+    dev->conf->can->TXBAR.reg |= (1 << can_mm.put);
+    DEBUG("TXFQS = 0x%08lx\n", dev->conf->can->TXFQS.reg);
+    DEBUG("TXBRP = 0x%08lx\n", dev->conf->can->TXBRP.reg);
+    DEBUG("TXBTO = 0x%08lx\n", dev->conf->can->TXBTO.reg);
+
+    return 0;
 }
