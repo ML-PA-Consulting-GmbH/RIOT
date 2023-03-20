@@ -18,6 +18,7 @@ static const can_conf_t candev_conf[] = {
         .tdc_ctrl = false,
         .dar_ctrl = false,
         .tx_fifo_queue_ctrl = false,
+        .global_filter_cfg = CAN_ACCEPT_RX_FIFO_0,
     },
     {
         /* SAME54-xpro pins */
@@ -26,7 +27,9 @@ static const can_conf_t candev_conf[] = {
         .tx_pin = GPIO_PIN(PB, 12),
         .mux = GPIO_MUX_H,
         .tdc_ctrl = false,
-        .tx_fifo_queue_ctrl = true,
+        .dar_ctrl = false,
+        .tx_fifo_queue_ctrl = false,
+        .global_filter_cfg = CAN_ACCEPT_RX_FIFO_1,
     }
 };
 

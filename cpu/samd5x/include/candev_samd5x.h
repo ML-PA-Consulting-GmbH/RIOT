@@ -19,7 +19,7 @@ extern "C" {
 #endif
 
 #ifndef CANDEV_SAMD5X_DEFAULT_STD_FILTER_NUM
-#define CANDEV_SAMD5X_DEFAULT_STD_FILTER_NUM	10
+#define CANDEV_SAMD5X_DEFAULT_STD_FILTER_NUM	3
 #endif
 
 #ifndef CANDEV_SAMD5X_DEFAULT_EXT_FILTER_NUM
@@ -56,14 +56,23 @@ extern "C" {
 #define CANDEV_SAMD5X_MAX_TX_BUFFER			32
 #define CANDEV_SAMD5X_MSG_RAM_MAX_SIZE		446
 
+typedef enum {
+	CAN_ACCEPT_RX_FIFO_0 = 0x00,
+	CAN_ACCEPT_RX_FIFO_1,
+	CAN_REJECT
+} can_non_matching_filter_t;
+
 typedef struct {
 	Can *can;
 	gpio_t rx_pin;
 	gpio_t tx_pin;
-	bool tdc_ctrl;	/** Enable/Disable Transceiver Delay Compensation */
-	bool tx_fifo_queue_ctrl;	/** False to use Tx FIFO operation
-									True to use Tx Queue operation */
-
+	gpio_mux_t mux;
+	bool tdc_ctrl;									/** Enable/Disable Transceiver Delay Compensation */
+	bool dar_ctrl;									/** Enable/Disable Automatic Retransmission */
+	bool tx_fifo_queue_ctrl;						/** False to use Tx FIFO operation
+														True to use Tx Queue operation */
+	can_non_matching_filter_t global_filter_cfg;	/** Configure how to treat the messages that do
+														not match the CAN filters */
 } can_conf_t;
 #define HAVE_CAN_CONF_T
 

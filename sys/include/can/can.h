@@ -95,12 +95,36 @@ struct can_frame {
     uint8_t data[CAN_MAX_DLEN] __attribute__((aligned(8)));
 };
 
+#if defined(CPU_SAME54)
+typedef enum {
+    CAN_FILTER_TYPE_RANGE = 0x00,   /**< Range filter from Filter 1 to Filter 2 (Filter 2 > Filter 1) */
+    CAN_FILTER_TYPE_DUAL,           /**< Dual ID Filter (Filter 2 or Filter 1) */
+    CAN_FILTER_TYPE_CLASSIC,        /**< Classic Filter: Filter ID and Mask */
+    CAN_FILTER_TYPE_EXT_RANGE       /**< For extended filters, Range filter from Filter 1 to Filter 2 (Filter 2 > Filter 1) */
+} can_filte_type_t;
+
+typedef enum {
+    CAN_FILTER_DISABLE = 0x00,      /**< Disable Filter element */
+    CAN_FILTER_RX_FIFO_0,           /**< Store message in Rx FIFO 0 if filter matches */
+    CAN_FILTER_RX_FIFO_1,           /**< Store message in Rx FIFO 1 if filter matches */
+    CAN_FILTER_RX_REJECT,           /**< Reject message if filter matches */
+    CAN_FILTER_RX_PRIO,             /**< Set priority if filter matches */
+    CAN_FILTER_RX_PRIO_FIFO_0,      /**< Set priority and store message in Rx FIFO 0 if filter matches */
+    CAN_FILTER_RX_PRIO_FIFO_1,      /**< Set priority and store message in Rx FIFO 1 if filter matches */
+    CAN_FILTER_RX_STRXBUF           /**< Store message in the RX buffer or as debug message */
+} can_filter_conf_t;
+#endif
+
 /**
  * @brief Controller Area Network filter
  */
 struct can_filter {
-    canid_t can_id;    /**< CAN ID */
-    canid_t can_mask;  /**< Mask */
+#if defined(CPU_SAME54)
+    can_filter_conf_t can_filter_conf;      /**< CAN filter configuration for same54 */
+    can_filte_type_t can_filter_type;       /**< CAN filtertype for same54 */
+#endif
+    canid_t can_id;    /**< CAN ID, for same54 CAN ID 1*/
+    canid_t can_mask;  /**< Mask, for same54 CAN ID 2 */
 #if defined(MODULE_MCP2515)
     uint8_t target_mailbox; /**< The mailbox to apply the filter to */
 #endif

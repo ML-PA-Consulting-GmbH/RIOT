@@ -20,7 +20,7 @@
 #include "can/device.h"
 #include "periph_cpu.h"
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 typedef enum {
@@ -31,12 +31,14 @@ typedef enum {
 
 static int _init(candev_t *candev);
 static int _send(candev_t *candev, const struct can_frame *frame);
+static int _set_filter(candev_t *candev, const struct can_filter *filter);
 
 static int _set_mode(Can *can, can_mode_t mode);
 
 static const candev_driver_t candev_samd5x_driver = {
     .init = _init,
     .send = _send,
+    .set_filter = _set_filter,
 };
 
 static const struct can_bittiming_const bittiming_const = {
@@ -274,4 +276,102 @@ static int _send(candev_t *candev, const struct can_frame *frame)
     DEBUG("TXBTO = 0x%08lx\n", dev->conf->can->TXBTO.reg);
 
     return 0;
+}
+
+static bool _find_filter(can_t *can, const struct can_filter *filter, bool is_std_filter, int16_t *idx)
+{
+    if (is_std_filter) {
+        for (uint8_t i = 0; i < ARRAY_SIZE(can->msg_ram_conf.std_filter); i++) {
+            if ((filter->can_id == can->msg_ram_conf.std_filter[i].sfid1)) {
+                *idx = i;
+                return true;
+            }
+        }
+    }
+    else {
+        for (uint8_t i = 0; i < ARRAY_SIZE(can->msg_ram_conf.ext_filter); i++) {
+            if ((filter->can_id == can->msg_ram_conf.ext_filter[i].F0.efid1)) {
+                *idx = i;
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
+static int _set_filter(candev_t *candev, const struct can_filter *filter)
+{
+    can_t *dev = container_of(candev, can_t, candev);
+
+    int16_t idx = 0;
+    bool _filter_exists = false;
+    if (filter->can_id & CAN_EFF_FLAG) {
+        DEBUG_PUTS("Extended filter to add in the extended filter section of the message RAM");
+        /* Check if the filter already exists */
+        _filter_exists = _find_filter(dev, filter, false, &idx);
+        if (_filter_exists) {
+            DEBUG_PUTS("Extended filter already exists --> Update it");
+        }
+        else {
+            /* Find a free slot where to save the filter */
+            /* Use static function instead */
+            for (;(uint16_t)idx < ARRAY_SIZE(dev->msg_ram_conf.ext_filter); idx++) {
+                if (dev->msg_ram_conf.ext_filter[idx].F0.efec == CAN_FILTER_DISABLE) {
+                    DEBUG_PUTS("empty slot");
+                    break;
+                }
+            }
+        }
+
+        DEBUG("idx = %d\n", idx);
+        if (idx == ARRAY_SIZE(dev->msg_ram_conf.ext_filter)) {
+            DEBUG_PUTS("Reached maximum capacity of extended filters --> Could not add filter");
+            return -1;
+        }
+
+        dev->msg_ram_conf.ext_filter[idx].F0.efid1 = filter->can_id;
+        dev->msg_ram_conf.ext_filter[idx].F0.efec = filter->can_filter_conf;
+        dev->msg_ram_conf.ext_filter[idx].F1.efid2 = filter->can_mask;
+        dev->msg_ram_conf.ext_filter[idx].F1.eft = filter->can_filter_type;
+
+        for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.ext_filter); i++) {
+            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx\n", i, (uint32_t)(dev->msg_ram_conf.ext_filter[i].F0.efid1));
+        }
+    }
+    else {
+        DEBUG_PUTS("Standard filter to add in the standard filter section of the message RAM");
+        /* Check if the filter already exists */
+        _filter_exists = _find_filter(dev, filter, true, &idx);
+        if (_filter_exists) {
+            DEBUG_PUTS("Standard filter already exists --> Update it");
+        }
+        else {
+            /* Find a free slot where to save the filter */
+            /* Use static function instead */
+            for (; (uint16_t)idx < ARRAY_SIZE(dev->msg_ram_conf.std_filter); idx++) {
+                /* Find a free slot where to save the filter */
+                if (dev->msg_ram_conf.std_filter[idx].sfec == CAN_FILTER_DISABLE) {
+                    DEBUG_PUTS("empty slot");
+                    break;
+                }
+            }
+        }
+
+        if (idx == ARRAY_SIZE(dev->msg_ram_conf.std_filter)) {
+            DEBUG_PUTS("Reached maximum capacity of standard filters --> Could not add filter");
+            return -1;
+        }
+
+        dev->msg_ram_conf.std_filter[idx].sfec = filter->can_filter_conf;
+        dev->msg_ram_conf.std_filter[idx].sft = filter->can_filter_type;
+        dev->msg_ram_conf.std_filter[idx].sfid2 = filter->can_mask;
+        dev->msg_ram_conf.std_filter[idx].sfid1 = filter->can_id;
+
+        for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.std_filter); i++) {
+            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx\n", i, (uint32_t)(dev->msg_ram_conf.std_filter[i].sfid1));
+        }
+    }
+
+    return idx;
 }
