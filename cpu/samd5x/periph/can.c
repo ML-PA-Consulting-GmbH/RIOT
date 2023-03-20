@@ -26,12 +26,12 @@
 typedef enum {
     MODE_INIT,
     MODE_TEST,
-    MODE_MONITORING
 } can_mode_t;
 
 static int _init(candev_t *candev);
 static int _send(candev_t *candev, const struct can_frame *frame);
 static int _set_filter(candev_t *candev, const struct can_filter *filter);
+static int _remove_filter(candev_t *candev, const struct can_filter *filter);
 
 static int _set_mode(Can *can, can_mode_t mode);
 
@@ -39,6 +39,7 @@ static const candev_driver_t candev_samd5x_driver = {
     .init = _init,
     .send = _send,
     .set_filter = _set_filter,
+    .remove_filter = _remove_filter,
 };
 
 static const struct can_bittiming_const bittiming_const = {
@@ -82,11 +83,6 @@ static int _set_mode(Can *can, can_mode_t can_mode)
             can->CCCR.reg |= CAN_CCCR_INIT | CAN_CCCR_CCE;
             can->CCCR.reg |= CAN_CCCR_TEST;
             can->TEST.reg |= CAN_TEST_LBCK;
-            break;
-        case MODE_MONITORING:
-            DEBUG_PUTS("Monitoring mode");
-            can->CCCR.reg |= CAN_CCCR_INIT | CAN_CCCR_CCE;
-            can->CCCR.reg |= CAN_CCCR_MON;
             break;
         default:
             DEBUG_PUTS("Unsupported mode");
@@ -282,7 +278,7 @@ static bool _find_filter(can_t *can, const struct can_filter *filter, bool is_st
 {
     if (is_std_filter) {
         for (uint8_t i = 0; i < ARRAY_SIZE(can->msg_ram_conf.std_filter); i++) {
-            if ((filter->can_id == can->msg_ram_conf.std_filter[i].sfid1)) {
+            if (((filter->can_id & CAN_SFF_MASK) == can->msg_ram_conf.std_filter[i].sfid1)) {
                 *idx = i;
                 return true;
             }
@@ -290,7 +286,7 @@ static bool _find_filter(can_t *can, const struct can_filter *filter, bool is_st
     }
     else {
         for (uint8_t i = 0; i < ARRAY_SIZE(can->msg_ram_conf.ext_filter); i++) {
-            if ((filter->can_id == can->msg_ram_conf.ext_filter[i].F0.efid1)) {
+            if (((filter->can_id & CAN_EFF_MASK) == can->msg_ram_conf.ext_filter[i].F0.efid1)) {
                 *idx = i;
                 return true;
             }
@@ -324,19 +320,20 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
             }
         }
 
-        DEBUG("idx = %d\n", idx);
         if (idx == ARRAY_SIZE(dev->msg_ram_conf.ext_filter)) {
             DEBUG_PUTS("Reached maximum capacity of extended filters --> Could not add filter");
             return -1;
         }
 
+        DEBUG("Filter to add at idx = %d\n", idx);
         dev->msg_ram_conf.ext_filter[idx].F0.efid1 = filter->can_id;
         dev->msg_ram_conf.ext_filter[idx].F0.efec = filter->can_filter_conf;
-        dev->msg_ram_conf.ext_filter[idx].F1.efid2 = filter->can_mask;
-        dev->msg_ram_conf.ext_filter[idx].F1.eft = filter->can_filter_type;
+        dev->msg_ram_conf.ext_filter[idx].F1.efid2 = filter->can_mask & CAN_EFF_MASK;
+        dev->msg_ram_conf.ext_filter[idx].F1.eft = filter->can_filter_type & CAN_EFF_MASK;
 
         for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.ext_filter); i++) {
-            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx\n", i, (uint32_t)(dev->msg_ram_conf.ext_filter[i].F0.efid1));
+            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx, filter conf = %u\n", i,
+                    (uint32_t)(dev->msg_ram_conf.ext_filter[i].F0.efid1), dev->msg_ram_conf.ext_filter[i].F0.efec);
         }
     }
     else {
@@ -363,15 +360,159 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
             return -1;
         }
 
+        DEBUG("Filter to add at idx = %d\n", idx);
         dev->msg_ram_conf.std_filter[idx].sfec = filter->can_filter_conf;
         dev->msg_ram_conf.std_filter[idx].sft = filter->can_filter_type;
-        dev->msg_ram_conf.std_filter[idx].sfid2 = filter->can_mask;
-        dev->msg_ram_conf.std_filter[idx].sfid1 = filter->can_id;
+        dev->msg_ram_conf.std_filter[idx].sfid2 = filter->can_mask & CAN_SFF_MASK;
+        dev->msg_ram_conf.std_filter[idx].sfid1 = filter->can_id & CAN_SFF_MASK;
 
         for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.std_filter); i++) {
-            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx\n", i, (uint32_t)(dev->msg_ram_conf.std_filter[i].sfid1));
+            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx, filter conf = %u\n", i,
+                    (uint32_t)(dev->msg_ram_conf.std_filter[i].sfid1), dev->msg_ram_conf.std_filter[i].sfec);
         }
     }
 
     return idx;
+}
+
+static int _remove_filter(candev_t *candev, const struct can_filter *filter)
+{
+    can_t *dev = container_of(candev, can_t, candev);
+
+    int16_t idx = 0;
+    bool _filter_exists = false;
+    if (filter->can_id & CAN_EFF_FLAG) {
+        _filter_exists = _find_filter(dev, filter, false, &idx);
+        if (_filter_exists) {
+            DEBUG("Extended filter to disable at idx = %d\n", idx);
+            dev->msg_ram_conf.ext_filter[idx].F0.efec = CAN_FILTER_DISABLE;
+
+            for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.ext_filter); i++) {
+                DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx, filter conf = %u\n", i,
+                        (uint32_t)(dev->msg_ram_conf.ext_filter[i].F0.efid1), dev->msg_ram_conf.ext_filter[i].F0.efec);
+            }
+        }
+        else {
+            DEBUG_PUTS("Filter not found");
+            return -1;
+        }
+    }
+    else {
+        _filter_exists = _find_filter(dev, filter, true, &idx);
+        if(_filter_exists) {
+            DEBUG("Standard filter to disable at idx = %d\n", idx);
+            dev->msg_ram_conf.std_filter[idx].sfec = CAN_FILTER_DISABLE;
+
+            for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.std_filter); i++) {
+                DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx, filter conf = %u\n", i,
+                        (uint32_t)(dev->msg_ram_conf.std_filter[i].sfid1), dev->msg_ram_conf.std_filter[i].sfec);
+            }
+        }
+        else {
+            DEBUG_PUTS("Filter not found");
+            return -1;
+        }
+    }
+
+    return idx;
+}
+
+static void _isr(candev_t *candev)
+{
+    can_t *dev = container_of(candev, can_t, candev);
+
+    uint32_t irq_reg = dev->conf->can->IR.reg;
+    DEBUG("IR = 0x%08lx\n", irq_reg);
+    if (irq_reg & CAN_IR_TSW) {
+        DEBUG_PUTS("Timestamp wraparound interrupt");
+        /* Clear the interrupt source flag */
+        dev->conf->can->IR.reg |= CAN_IR_TSW;
+    }
+
+    if (irq_reg & CAN_IR_RF0N) {
+        DEBUG_PUTS("New message in Rx FIFO 0");
+        /* Clear the interrupt source flag */
+        dev->conf->can->IR.reg |= CAN_IR_RF0N;
+
+        uint16_t rx_get_idx = 0;
+        uint16_t rx_put_idx = 0;
+        rx_get_idx = (dev->conf->can->RXF0S.reg & 0x00003F00) >> 8;
+        DEBUG("rx get index = %u\n", rx_get_idx);
+        rx_put_idx = (dev->conf->can->RXF0S.reg & 0x003F0000) >> 16;
+        DEBUG("rx put index = %u\n", rx_put_idx);
+
+        struct can_frame frame_received = {0};
+        if (!dev->msg_ram_conf.rx_fifo_0[rx_get_idx].R0.xtd) {
+            DEBUG_PUTS("Received standard CAN frame");
+            frame_received.can_id = dev->msg_ram_conf.rx_fifo_0[rx_get_idx].R0.id >> 18;
+        }
+        else {
+            DEBUG_PUTS("Received extended CAN frame");
+            frame_received.can_id = dev->msg_ram_conf.rx_fifo_0[rx_get_idx].R0.id;
+        }
+        frame_received.can_dlc = dev->msg_ram_conf.rx_fifo_0[rx_get_idx].R1.dlc;
+        memcpy(frame_received.data, dev->msg_ram_conf.rx_fifo_0[rx_get_idx].data.data_8, frame_received.can_dlc);
+
+        dev->conf->can->RXF0A.reg = CAN_RXF0A_F0AI(rx_get_idx);
+        if (dev->candev.event_callback) {
+            dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_INDICATION, &frame_received);
+        }
+    }
+
+    if (irq_reg & CAN_IR_RF1N) {
+        DEBUG_PUTS("New message in Rx FIFO 1");
+        /* Clear the interrupt source flag */
+        dev->conf->can->IR.reg |= CAN_IR_RF1N;
+
+        uint16_t rx_get_idx = 0;
+        uint16_t rx_put_idx = 0;
+        rx_get_idx = (dev->conf->can->RXF1S.reg & 0x00003F00) >> 8;
+        DEBUG("rx get index = %u\n", rx_get_idx);
+        rx_put_idx = (dev->conf->can->RXF1S.reg & 0x003F0000) >> 16;
+        DEBUG("rx put index = %u\n", rx_put_idx);
+
+        struct can_frame frame_received = {0};
+        if (!dev->msg_ram_conf.rx_fifo_1[rx_get_idx].R0.xtd) {
+            DEBUG_PUTS("Received standard CAN frame");
+            frame_received.can_id = dev->msg_ram_conf.rx_fifo_1[rx_get_idx].R0.id >> 18;
+        }
+        else {
+            DEBUG_PUTS("Received extended CAN frame");
+            frame_received.can_id = dev->msg_ram_conf.rx_fifo_1[rx_get_idx].R0.id;
+        }
+        frame_received.can_dlc = dev->msg_ram_conf.rx_fifo_1[rx_get_idx].R1.dlc;
+        memcpy(frame_received.data, dev->msg_ram_conf.rx_fifo_1[rx_get_idx].data.data_8, frame_received.can_dlc);
+
+        dev->conf->can->RXF1A.reg = CAN_RXF1A_F1AI(rx_get_idx);
+        if (dev->candev.event_callback) {
+            dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_RX_INDICATION, &frame_received);
+        }
+    }
+    if (irq_reg & CAN_IR_TEFN) {
+        DEBUG_PUTS("New Tx event FIFO entry");
+        dev->conf->can->IR.reg |= CAN_IR_TEFN;
+        DEBUG("IR after clear = 0x%08lx\n", dev->conf->can->IR.reg);
+        if (dev->candev.event_callback) {
+            dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_CONFIRMATION, NULL);
+        }
+    }
+}
+
+void ISR_CAN1(void)
+{
+    DEBUG_PUTS("ISR CAN1");
+
+    if (_can->candev.event_callback) {
+        _can->candev.event_callback(&(_can->candev), CANDEV_EVENT_ISR, NULL);
+    }
+
+}
+
+void ISR_CAN0(void)
+{
+    DEBUG_PUTS("ISR CAN0");
+
+    if (_can->candev.event_callback) {
+        _can->candev.event_callback(&(_can->candev), CANDEV_EVENT_ISR, NULL);
+    }
 }
