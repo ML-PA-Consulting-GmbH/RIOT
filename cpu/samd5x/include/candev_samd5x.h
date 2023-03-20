@@ -174,4 +174,6 @@ void candev_samd5x_set_pins(can_t *dev);
 
 void candev_samd5x_tdc_control(can_t *dev);
 
+void candev_samd5x_enter_test_mode(candev_t *candev);
+
 #endif

@@ -146,6 +146,14 @@ void candev_samd5x_tdc_control(can_t *dev)
     }
 }
 
+void candev_samd5x_enter_test_mode(candev_t *candev)
+{
+    can_t *dev = container_of(candev, can_t, candev);
+
+    DEBUG_PUTS("entering test mode");
+    _set_mode(dev->conf->can, MODE_TEST);
+}
+
 void can_init(can_t *dev, const can_conf_t *conf)
 {
     DEBUG("CCCR register = 0x%08lx\n", dev->conf->can->CCCR.reg);
