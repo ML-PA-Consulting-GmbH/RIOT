@@ -20,7 +20,7 @@
 #include "can/device.h"
 #include "periph_cpu.h"
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 #include "debug.h"
 
 typedef enum {
@@ -28,10 +28,13 @@ typedef enum {
     MODE_TEST,
 } can_mode_t;
 
+static can_t *_can;
+
 static int _init(candev_t *candev);
 static int _send(candev_t *candev, const struct can_frame *frame);
 static int _set_filter(candev_t *candev, const struct can_filter *filter);
 static int _remove_filter(candev_t *candev, const struct can_filter *filter);
+static void _isr(candev_t *candev);
 
 static int _set_mode(Can *can, can_mode_t mode);
 
@@ -40,6 +43,7 @@ static const candev_driver_t candev_samd5x_driver = {
     .send = _send,
     .set_filter = _set_filter,
     .remove_filter = _remove_filter,
+    .isr = _isr,
 };
 
 static const struct can_bittiming_const bittiming_const = {
@@ -71,18 +75,52 @@ static int _power_on(can_t *dev)
     return 0;
 }
 
+static void _enter_init_mode(Can *can)
+{
+    can->CCCR.reg |= CAN_CCCR_INIT;
+    while(!(can->CCCR.reg & CAN_CCCR_INIT));
+    DEBUG_PUTS("Device in init mode");
+}
+
+static void _exit_init_mode(Can *can)
+{
+    if (can->CCCR.reg & CAN_CCCR_INIT) {
+        can->CCCR.reg &= ~CAN_CCCR_INIT;
+    }
+
+    while(can->CCCR.reg & CAN_CCCR_INIT);
+    DEBUG_PUTS("Device out of init mode");
+}
+
+static void _enter_sleep_mode(Can *can)
+{
+    can->CCCR.reg |= CAN_CCCR_CSR;
+    while(!(can->CCCR.reg & CAN_CCCR_CSA));
+    DEBUG("CCCR = 0x%08lx\n", can->CCCR.reg);
+    DEBUG_PUTS("Device in sleep mode");
+}
+
+static void _exit_sleep_mode(Can *can)
+{
+    can->CCCR.reg &= ~CAN_CCCR_CSR;
+    while(can->CCCR.reg & CAN_CCCR_CSA);
+    DEBUG_PUTS("Device out of sleep mode");
+}
+
 static int _set_mode(Can *can, can_mode_t can_mode)
 {
     switch (can_mode) {
         case MODE_INIT:
-            DEBUG_PUTS("Initialization mode");
-            can->CCCR.reg |= CAN_CCCR_INIT | CAN_CCCR_CCE;
+            _enter_init_mode(can);
+            can->CCCR.reg |= CAN_CCCR_CCE;
             break;
         case MODE_TEST:
-            DEBUG_PUTS("Test mode");
-            can->CCCR.reg |= CAN_CCCR_INIT | CAN_CCCR_CCE;
+            DEBUG_PUTS("test mode");
+            _enter_init_mode(can);
+            can->CCCR.reg |= CAN_CCCR_CCE;
             can->CCCR.reg |= CAN_CCCR_TEST;
             can->TEST.reg |= CAN_TEST_LBCK;
+            _exit_init_mode(can);
             break;
         default:
             DEBUG_PUTS("Unsupported mode");
@@ -95,10 +133,10 @@ static int _set_mode(Can *can, can_mode_t can_mode)
 static void _setup_clock(can_t *dev)
 {
     if (dev->conf->can == CAN0) {
-        GCLK->PCHCTRL[CAN0_GCLK_ID].reg = GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN(SAM0_GCLK_MAIN);
+        GCLK->PCHCTRL[CAN0_GCLK_ID].reg = GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN(SAM0_GCLK_PERIPH);
     }
     else if (dev->conf->can == CAN1) {
-        GCLK->PCHCTRL[CAN1_GCLK_ID].reg = GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN(SAM0_GCLK_MAIN);
+        GCLK->PCHCTRL[CAN1_GCLK_ID].reg = GCLK_PCHCTRL_CHEN | GCLK_PCHCTRL_GEN(SAM0_GCLK_PERIPH);
     }
     else {
         DEBUG_PUTS("CAN channel not supported");
@@ -129,7 +167,10 @@ void candev_samd5x_set_pins(can_t *dev)
     assert(dev->conf->rx_pin != GPIO_UNDEF);
 
     gpio_init(dev->conf->tx_pin, GPIO_OUT);
-    gpio_init(dev->conf->rx_pin, GPIO_IN_PU);
+    gpio_init(dev->conf->rx_pin, GPIO_IN);
+
+    gpio_init_mux(dev->conf->tx_pin, dev->conf->mux);
+    gpio_init_mux(dev->conf->rx_pin, dev->conf->mux);
 }
 
 void candev_samd5x_tdc_control(can_t *dev)
@@ -148,20 +189,17 @@ void candev_samd5x_enter_test_mode(candev_t *candev)
 {
     can_t *dev = container_of(candev, can_t, candev);
 
-    DEBUG_PUTS("entering test mode");
     _set_mode(dev->conf->can, MODE_TEST);
 }
 
 void can_init(can_t *dev, const can_conf_t *conf)
 {
-    DEBUG("CCCR register = 0x%08lx\n", dev->conf->can->CCCR.reg);
     dev->candev.driver = &candev_samd5x_driver;
 
     struct can_bittiming timing = { .bitrate = CANDEV_SAMD5X_DEFAULT_BITRATE,
                                     .sample_point = CANDEV_SAMD5X_DEFAULT_SPT };
 
-    uint32_t clk_freq = sam0_gclk_freq(SAM0_GCLK_MAIN);
-    DEBUG("clock frequency = %lu\n", clk_freq);
+    uint32_t clk_freq = sam0_gclk_freq(SAM0_GCLK_PERIPH);
     can_device_calc_bittiming(clk_freq, &bittiming_const, &timing);
 
     memcpy(&dev->candev.bittiming, &timing, sizeof(timing));
@@ -173,58 +211,80 @@ static int _init(candev_t *candev)
     can_t *dev = container_of(candev, can_t, candev);
     int res = 0;
 
-    sam0_gclk_enable(SAM0_GCLK_MAIN);
+    sam0_gclk_enable(SAM0_GCLK_PERIPH);
 
     _setup_clock(dev);
     _power_on(dev);
 
+    _enter_sleep_mode(dev->conf->can);
     candev_samd5x_set_pins(dev);
+    _exit_sleep_mode(dev->conf->can);
+
     res = _set_mode(dev->conf->can, MODE_INIT);
+
+    _set_bit_timing(dev);
 
     candev_samd5x_tdc_control(dev);
 
     /*Configure the start addresses of the RAM message sections */
     dev->conf->can->SIDFC.reg = CAN_SIDFC_FLSSA((uint32_t)(dev->msg_ram_conf.std_filter)) | CAN_SIDFC_LSS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.std_filter)));
-    DEBUG("start address = %p\n", dev->msg_ram_conf.std_filter);
-    DEBUG("SIDFC = 0x%08lx\n", dev->conf->can->SIDFC.reg);
     dev->conf->can->XIDFC.reg = CAN_XIDFC_FLESA((uint32_t)(dev->msg_ram_conf.ext_filter)) | CAN_XIDFC_LSE((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.ext_filter)));
-    DEBUG("start address = %p\n", dev->msg_ram_conf.ext_filter);
-    DEBUG("XIDFC = 0x%08lx\n", dev->conf->can->XIDFC.reg);
     dev->conf->can->RXF0C.reg = CAN_RXF0C_F0SA((uint32_t)(dev->msg_ram_conf.rx_fifo_0)) | CAN_RXF0C_F0S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_0)));
-    DEBUG("start address = %p\n", dev->msg_ram_conf.rx_fifo_0);
-    DEBUG("RXF0C = 0x%08lx\n", dev->conf->can->RXF0C.reg);
-    dev->conf->can->RXF1C.reg = CAN_RXF0C_F0SA((uint32_t)(dev->msg_ram_conf.rx_fifo_1)) | CAN_RXF0C_F0S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
-    DEBUG("start address = %p\n", dev->msg_ram_conf.rx_fifo_1);
-    DEBUG("RXF1C = 0x%08lx\n", dev->conf->can->RXF1C.reg);
+    dev->conf->can->RXF1C.reg = CAN_RXF1C_F1SA((uint32_t)(dev->msg_ram_conf.rx_fifo_1)) | CAN_RXF1C_F1SA((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
     dev->conf->can->RXBC.reg = CAN_RXBC_RBSA((uint32_t)(dev->msg_ram_conf.rx_buffer));
-    DEBUG("start address = %p\n", dev->msg_ram_conf.rx_buffer);
-    DEBUG("RXBC = 0x%08lx\n", dev->conf->can->RXBC.reg);
+
     dev->conf->can->TXEFC.reg = CAN_TXEFC_EFSA((uint32_t)(dev->msg_ram_conf.tx_event_fifo)) | CAN_TXEFC_EFS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_event_fifo)));
-    DEBUG("start address = %p\n", dev->msg_ram_conf.tx_event_fifo);
-    DEBUG("TXEFC = 0x%08lx\n", dev->conf->can->TXEFC.reg);
-    dev->conf->can->TXBC.reg = CAN_TXBC_TBSA((uint32_t)(dev->msg_ram_conf.tx_fifo_queue)) /*| CAN_TXBC_NDTB((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_buffer))) */
-                                    | CAN_TXBC_TFQS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_fifo_queue)));
-    DEBUG("start address = %p\n", dev->msg_ram_conf.tx_fifo_queue);
-    DEBUG("TXBC = 0x%08lx\n", dev->conf->can->TXBC.reg);
+
+    dev->conf->can->TXBC.reg = CAN_TXBC_TBSA((uint32_t)(dev->msg_ram_conf.tx_fifo_queue)) | CAN_TXBC_TFQS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_fifo_queue)));
+
+    dev->conf->can->TXESC.reg = CAN_TXESC_TBDS_DATA8;
+
+    dev->conf->can->CCCR.reg |= CAN_CCCR_DAR;
 
     /* Control FIFO/queue op */
 
-    /* Enable the interrupts */
+    /* Enable the peripheral's interrupt */
+    if (dev->conf->can == CAN0) {
+        NVIC_EnableIRQ(CAN0_IRQn);
+    }
+    else {
+        NVIC_EnableIRQ(CAN1_IRQn);
+    }
 
-    _set_bit_timing(dev);
+    dev->conf->can->IE.reg |= CAN_IE_RF0NE;
+    /* Enable the interrupt lines */
+    dev->conf->can->ILE.reg = CAN_ILE_EINT0 | CAN_ILE_EINT1;
+    /* Enable the interrupt on every Tx buffer transmission */
+    // dev->conf->can->TXBTIE.reg = CAN_TXBTIE_MASK;
+    dev->conf->can->IE.reg |= CAN_IE_TEFNE;
+
+    _can = dev;
+
+    /* Exit initialization mode */
+    _exit_init_mode(dev->conf->can);
 
     return res;
 }
 
-static void _exit_init_mode(Can *can)
+/* Maybe do not provide this API to the user and init the interrupts according to your use case */
+int candev_samd5x_irq_init(candev_t *candev, can_irq_source_t irq_source, can_irq_line_t irq_line)
 {
-    if (can->CCCR.reg &= 0x1) {
-        DEBUG_PUTS("exiting Initialization");
-        can->CCCR.reg &= ~CAN_CCCR_INIT;
+    can_t *dev = container_of(candev, can_t, candev);
+
+    assert((irq_line == CAN_IRQ_LINE_0) | (irq_line == CAN_IRQ_LINE_1));
+
+    dev->conf->can->IE.reg |= (1 << irq_source);
+    DEBUG("IE = 0x%08lx\n", dev->conf->can->IE.reg);
+
+    if (irq_line == CAN_IRQ_LINE_0) {
+        dev->conf->can->ILS.reg &= ~(1 << irq_source);
     }
     else {
-        DEBUG_PUTS("Already out of init mode");
+        dev->conf->can->ILS.reg |= (1 << irq_source);
     }
+    DEBUG("ILS = 0x%08lx\n", dev->conf->can->ILS.reg);
+
+    return 0;
 }
 
 static int _send(candev_t *candev, const struct can_frame *frame)
@@ -236,41 +296,47 @@ static int _send(candev_t *candev, const struct can_frame *frame)
         return -1;
     }
 
-    _exit_init_mode(dev->conf->can);
+    /* Check if the Tx FIFO is full */
+    if (dev->conf->can->TXFQS.reg & CAN_TXFQS_TFQF) {
+        DEBUG_PUTS("Tx FIFO is full");
+        return -1;
+    }
 
     can_mm_t can_mm = {0};
-    DEBUG("TXFQS = 0x%08lx\n", dev->conf->can->TXFQS.reg);
     uint8_t fifo_queue_put_idx = (dev->conf->can->TXFQS.reg & 0x001F0000) >> 16;
+    DEBUG("Tx FIFO put index = %u\n", fifo_queue_put_idx);
     uint8_t fifo_queue_get_idx = (dev->conf->can->TXFQS.reg & 0x00001F00) >> 8;
+    DEBUG("Tx FIFO get index = %u\n", fifo_queue_get_idx);
     can_mm.put = fifo_queue_put_idx;
     can_mm.get = fifo_queue_get_idx;
 
-    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.id = frame->can_id & CAN_EFF_MASK;
-    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.xtd = (frame->can_id & CAN_EFF_FLAG) >> 31;
+    /* Add frame to the Tx FIFO */
+    if (frame->can_id & CAN_EFF_FLAG) {
+        DEBUG_PUTS("Extended ID");
+        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.id = frame->can_id & CAN_EFF_MASK;
+        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.xtd = 1;
+    }
+    else {
+        DEBUG_PUTS("Standard identifier");
+        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.id = (frame->can_id & CAN_SFF_MASK) << 18;
+        dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.xtd = 0;
+    }
     dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.rtr = (frame->can_id & CAN_RTR_FLAG) >> 30;
+    dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T0.esi = 1;
     dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.dlc = frame->can_dlc;
     dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.efc = 1;
-    memcpy(dev->msg_ram_conf.tx_fifo_queue[can_mm.put].data.data_8, frame->data, frame->can_dlc);
     memcpy(&(dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm), &can_mm, sizeof(can_mm_t));
+    memcpy(dev->msg_ram_conf.tx_fifo_queue[can_mm.put].data.data_8, frame->data, frame->can_dlc);
 
-    DEBUG("T1 mm get = %u\n", dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm.get);
-    DEBUG("T1 mm put = %u\n", dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm.put);
-
-    DEBUG("TXEFS = 0x%08lx\n", dev->conf->can->TXEFS.reg);
-    uint8_t fifo_event_put_index = (dev->conf->can->TXEFS.reg & 0x001F0000) >> 16;
-    // uint8_t fifo_event_get_index = (dev->conf->can->TXEFS.reg & 0x00001F00) >> 8;
-    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E0.id = frame->can_id & CAN_EFF_MASK;
-    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E0.rtr = (frame->can_id & CAN_EFF_FLAG) >> 31;
-    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E0.xtd = (frame->can_id & CAN_RTR_FLAG) >> 30;
-    memcpy(&(dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E1.mm), &(dev->msg_ram_conf.tx_fifo_queue[can_mm.put].T1.mm), sizeof(can_mm_t));
-    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E1.et = 0x1;
-    dev->msg_ram_conf.tx_event_fifo[fifo_event_put_index].E1.dlc = frame->can_dlc;
-
+    /* Request transmission */
     dev->conf->can->TXBAR.reg |= (1 << can_mm.put);
-    DEBUG("TXFQS = 0x%08lx\n", dev->conf->can->TXFQS.reg);
-    DEBUG("TXBRP = 0x%08lx\n", dev->conf->can->TXBRP.reg);
-    DEBUG("TXBTO = 0x%08lx\n", dev->conf->can->TXBTO.reg);
 
+    /* Wait for successful transmission */
+    while(!(dev->conf->can->TXBTO.reg & (1 << can_mm.put)));
+
+    // if(dev->candev.event_callback){
+    //     dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_CONFIRMATION, (void *)frame);
+    // }
     return 0;
 }
 

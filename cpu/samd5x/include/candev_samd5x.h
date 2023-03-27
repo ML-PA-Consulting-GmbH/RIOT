@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 #ifndef CANDEV_SAMD5X_DEFAULT_TX_EVT_FIFO_ELTS_NUM	
-#define CANDEV_SAMD5X_DEFAULT_TX_EVT_FIFO_ELTS_NUM	3
+#define CANDEV_SAMD5X_DEFAULT_TX_EVT_FIFO_ELTS_NUM	1
 #endif
 
 #ifndef CANDEV_SAMD5X_DEFAULT_TX_BUFFER_NUM
@@ -43,7 +43,7 @@ extern "C" {
 #endif
 
 #ifndef CANDEV_SAMD5X_DEFAULT_TX_BUFFER_FIFO_QUEUE_NUM
-#define CANDEV_SAMD5X_DEFAULT_TX_BUFFER_FIFO_QUEUE_NUM		20
+#define CANDEV_SAMD5X_DEFAULT_TX_BUFFER_FIFO_QUEUE_NUM		3
 #endif
 
 /* unit: elements */
@@ -54,7 +54,7 @@ extern "C" {
 #define CANDEV_SAMD5X_MAX_RX_BUFFER			64
 #define CANDEV_SAMD5X_MAX_TX_EVT_FIFO_ELTS	32
 #define CANDEV_SAMD5X_MAX_TX_BUFFER			32
-#define CANDEV_SAMD5X_MSG_RAM_MAX_SIZE		446
+#define CANDEV_SAMD5X_MSG_RAM_MAX_SIZE		448
 
 typedef enum {
 	CAN_ACCEPT_RX_FIFO_0 = 0x00,
@@ -98,8 +98,8 @@ typedef struct {
 		can_mm_t mm; 		/** Message Marker */
 	} T1 __attribute__((packed));
 	union {
-		uint32_t data_32[16];
-		uint8_t data_8[64];
+		uint32_t data_32[2];
+		uint8_t data_8[8];
 	} data;
 } can_tx_buffer_t;
 
@@ -137,8 +137,8 @@ typedef struct {
 		uint32_t anmf:1;	/** Accepted Non-matching Frame */
 	} R1;
 	union {
-		uint32_t data_32[16];
-		uint8_t data_8[64];
+		uint32_t data_32[2];
+		uint8_t data_8[8];
 	} data;
 } can_rx_buffer_t;
 
@@ -179,10 +179,54 @@ typedef struct {
 } can_t;
 #define HAVE_CAN_T
 
+typedef enum {
+	CAN_RF0N_IRQ = 0,		/**< Rx FIFO 0 new message interrupt */
+	CAN_RF0W_IRQ,			/**< Rx FIFO 0 watermark reached interrupt */
+	CAN_RF0F_IRQ,			/**< Rx FIFO 0 full interrupt */
+	CAN_RF0L_IRQ,			/**< Rx FIFO 0 message lost interrupt */
+	CAN_RF1N_IRQ,			/**< Rx FIFO 1 new message interrupt */
+	CAN_RF1W_IRQ,			/**< Rx FIFO 1 watermark reached interrupt */
+	CAN_RF1F_IRQ,			/**< Rx FIFO 1 full interrupt */
+	CAN_RF1L_IRQ,			/**< Rx FIFO 1 message lost interrupt */
+	CAN_HPM_IRQ,			/**< High priority message received interrupt */
+	CAN_TC_IRQ,				/**< Timestamp completed interrupt */
+	CAN_TCF_IRQ,			/**< Transmission cancellation finished interrupt */
+	CAN_TFE_IRQ,			/**< Tx FIFO empty interrupt */
+	CAN_TEFN_IRQ,			/**< Tx event FIFO new entry interrupt */
+	CAN_TEFW_IRQ,			/**< Tx event FIFO watermark reached interrupt */
+	CAN_TEFF_IRQ,			/**< Tx event FIFO full interrupt */
+	CAN_TEFL_IRQ,			/**< Tx event FIFO element lost interrupt */
+	CAN_TSW_IRQ,			/**< Timestamp wrap-around interrupt */
+	CAN_MRAF_IRQ,			/**< Message RAM access failure interrupt */
+	CAN_TOO_IRQ,			/**< Timeout occured interrupt */
+	CAN_DRX_IRQ,			/**< Message stored to dedicated Rx buffer interrupt */
+	CAN_BEC_IRQ,			/**< Bit error corrected interrupt */
+	CAN_BEU_IRQ,			/**< Bit error uncorrected interrupt */
+	CAN_ELO_IRQ,			/**< Error logginng overflow interrupt */
+	CAN_EP_IRQ,				/**< Error passive interrupt */
+	CAN_EW_IRQ,				/**< Error warning interrupt */
+	CAN_BO_IRQ,				/**< Bus off interrupt */
+	CAN_WDI_IRQ,			/**< Watchdog interrupt */
+	CAN_PEA_IRQ,			/**< Protocol error in arbitration phase interrupt */
+	CAN_PED_IRQ,			/**< Protocol error in data phase */
+	CAN_ARA_IRQ				/**< Access to reserved address */
+} can_irq_source_t;
+
+typedef enum {
+	CAN_IRQ_LINE_0 = 0,		/**< CAN interrupt line 0 */
+	CAN_IRQ_LINE_1			/**< CAN interrupt line 1 */
+} can_irq_line_t;
+
+/* Interrupt service routine functions */
+#define ISR_CAN0	isr_can0
+#define ISR_CAN1	isr_can1
+
 void candev_samd5x_set_pins(can_t *dev);
 
 void candev_samd5x_tdc_control(can_t *dev);
 
 void candev_samd5x_enter_test_mode(candev_t *candev);
+
+int candev_samd5x_irq_init(candev_t *candev, can_irq_source_t irq_source, can_irq_line_t irq_line);
 
 #endif

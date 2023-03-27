@@ -95,7 +95,7 @@ struct can_frame {
     uint8_t data[CAN_MAX_DLEN] __attribute__((aligned(8)));
 };
 
-#if defined(CPU_SAME54)
+#if defined(MCU_SAMD5X)
 typedef enum {
     CAN_FILTER_TYPE_RANGE = 0x00,   /**< Range filter from Filter 1 to Filter 2 (Filter 2 > Filter 1) */
     CAN_FILTER_TYPE_DUAL,           /**< Dual ID Filter (Filter 2 or Filter 1) */
@@ -119,7 +119,7 @@ typedef enum {
  * @brief Controller Area Network filter
  */
 struct can_filter {
-#if defined(CPU_SAME54)
+#if defined(MCU_SAMD5X)
     can_filter_conf_t can_filter_conf;      /**< CAN filter configuration for same54 */
     can_filte_type_t can_filter_type;       /**< CAN filtertype for same54 */
 #endif
