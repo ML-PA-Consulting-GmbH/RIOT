@@ -1,3 +1,11 @@
+/*
+ * Copyright (C) 2023 ML!PA Consulting GmbH
+ *
+ * This file is subject to the terms and conditions of the GNU Lesser
+ * General Public License v2.1. See the file LICENSE in the top level
+ * directory for more details.
+ */
+
 /**
  * @ingroup     cpu_samd5x
  * @{
@@ -90,21 +98,6 @@ static void _exit_init_mode(Can *can)
 
     while(can->CCCR.reg & CAN_CCCR_INIT);
     DEBUG_PUTS("Device out of init mode");
-}
-
-static void _enter_sleep_mode(Can *can)
-{
-    can->CCCR.reg |= CAN_CCCR_CSR;
-    while(!(can->CCCR.reg & CAN_CCCR_CSA));
-    DEBUG("CCCR = 0x%08lx\n", can->CCCR.reg);
-    DEBUG_PUTS("Device in sleep mode");
-}
-
-static void _exit_sleep_mode(Can *can)
-{
-    can->CCCR.reg &= ~CAN_CCCR_CSR;
-    while(can->CCCR.reg & CAN_CCCR_CSA);
-    DEBUG_PUTS("Device out of sleep mode");
 }
 
 static int _set_mode(Can *can, can_mode_t can_mode)
@@ -216,9 +209,7 @@ static int _init(candev_t *candev)
     _setup_clock(dev);
     _power_on(dev);
 
-    _enter_sleep_mode(dev->conf->can);
     candev_samd5x_set_pins(dev);
-    _exit_sleep_mode(dev->conf->can);
 
     res = _set_mode(dev->conf->can, MODE_INIT);
 
@@ -230,16 +221,18 @@ static int _init(candev_t *candev)
     dev->conf->can->SIDFC.reg = CAN_SIDFC_FLSSA((uint32_t)(dev->msg_ram_conf.std_filter)) | CAN_SIDFC_LSS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.std_filter)));
     dev->conf->can->XIDFC.reg = CAN_XIDFC_FLESA((uint32_t)(dev->msg_ram_conf.ext_filter)) | CAN_XIDFC_LSE((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.ext_filter)));
     dev->conf->can->RXF0C.reg = CAN_RXF0C_F0SA((uint32_t)(dev->msg_ram_conf.rx_fifo_0)) | CAN_RXF0C_F0S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_0)));
-    dev->conf->can->RXF1C.reg = CAN_RXF1C_F1SA((uint32_t)(dev->msg_ram_conf.rx_fifo_1)) | CAN_RXF1C_F1SA((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
+    dev->conf->can->RXF1C.reg = CAN_RXF1C_F1SA((uint32_t)(dev->msg_ram_conf.rx_fifo_1)) | CAN_RXF1C_F1S((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.rx_fifo_1)));
     dev->conf->can->RXBC.reg = CAN_RXBC_RBSA((uint32_t)(dev->msg_ram_conf.rx_buffer));
-
     dev->conf->can->TXEFC.reg = CAN_TXEFC_EFSA((uint32_t)(dev->msg_ram_conf.tx_event_fifo)) | CAN_TXEFC_EFS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_event_fifo)));
-
     dev->conf->can->TXBC.reg = CAN_TXBC_TBSA((uint32_t)(dev->msg_ram_conf.tx_fifo_queue)) | CAN_TXBC_TFQS((uint32_t)(ARRAY_SIZE(dev->msg_ram_conf.tx_fifo_queue)));
-
     dev->conf->can->TXESC.reg = CAN_TXESC_TBDS_DATA8;
 
     dev->conf->can->CCCR.reg |= CAN_CCCR_DAR;
+
+    /* Global configuration of filters */
+    dev->conf->can->GFC.reg = CAN_GFC_ANFE((uint32_t)dev->conf->global_filter_cfg) | CAN_GFC_ANFS((uint32_t)dev->conf->global_filter_cfg);
+    /* Reject all remote frames */
+    dev->conf->can->GFC.reg |= CAN_GFC_RRFE | CAN_GFC_RRFS;
 
     /* Control FIFO/queue op */
 
@@ -251,12 +244,12 @@ static int _init(candev_t *candev)
         NVIC_EnableIRQ(CAN1_IRQn);
     }
 
-    dev->conf->can->IE.reg |= CAN_IE_RF0NE;
+    dev->conf->can->IE.reg |= CAN_IE_RF0NE | CAN_IE_RF1NE;
+    dev->conf->can->IE.reg |= CAN_IE_TEFNE;
     /* Enable the interrupt lines */
     dev->conf->can->ILE.reg = CAN_ILE_EINT0 | CAN_ILE_EINT1;
     /* Enable the interrupt on every Tx buffer transmission */
     // dev->conf->can->TXBTIE.reg = CAN_TXBTIE_MASK;
-    dev->conf->can->IE.reg |= CAN_IE_TEFNE;
 
     _can = dev;
 
@@ -331,12 +324,6 @@ static int _send(candev_t *candev, const struct can_frame *frame)
     /* Request transmission */
     dev->conf->can->TXBAR.reg |= (1 << can_mm.put);
 
-    /* Wait for successful transmission */
-    while(!(dev->conf->can->TXBTO.reg & (1 << can_mm.put)));
-
-    // if(dev->candev.event_callback){
-    //     dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_CONFIRMATION, (void *)frame);
-    // }
     return 0;
 }
 
@@ -396,11 +383,6 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
         dev->msg_ram_conf.ext_filter[idx].F0.efec = filter->can_filter_conf;
         dev->msg_ram_conf.ext_filter[idx].F1.efid2 = filter->can_mask & CAN_EFF_MASK;
         dev->msg_ram_conf.ext_filter[idx].F1.eft = filter->can_filter_type & CAN_EFF_MASK;
-
-        for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.ext_filter); i++) {
-            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx, filter conf = %u\n", i,
-                    (uint32_t)(dev->msg_ram_conf.ext_filter[i].F0.efid1), dev->msg_ram_conf.ext_filter[i].F0.efec);
-        }
     }
     else {
         DEBUG_PUTS("Standard filter to add in the standard filter section of the message RAM");
@@ -431,11 +413,6 @@ static int _set_filter(candev_t *candev, const struct can_filter *filter)
         dev->msg_ram_conf.std_filter[idx].sft = filter->can_filter_type;
         dev->msg_ram_conf.std_filter[idx].sfid2 = filter->can_mask & CAN_SFF_MASK;
         dev->msg_ram_conf.std_filter[idx].sfid1 = filter->can_id & CAN_SFF_MASK;
-
-        for (uint8_t i = 0; i < ARRAY_SIZE(dev->msg_ram_conf.std_filter); i++) {
-            DEBUG("can->msg_ram_conf.std_filter[%u] = 0x%08lx, filter conf = %u\n", i,
-                    (uint32_t)(dev->msg_ram_conf.std_filter[i].sfid1), dev->msg_ram_conf.std_filter[i].sfec);
-        }
     }
 
     return idx;

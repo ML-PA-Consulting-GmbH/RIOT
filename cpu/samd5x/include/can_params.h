@@ -1,12 +1,14 @@
 #ifndef CAN_PARAMS_H
 #define CAN_PARAMS_H
 
-#include "can/device.h"
-#include "candev_samd5x.h"
-
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#include "can/device.h"
+#include "candev_samd5x.h"
+
+#include "board.h"
 
 /** Default SAMD5x CAN devices config */
 static const can_conf_t candev_conf[] = {
@@ -29,7 +31,7 @@ static const can_conf_t candev_conf[] = {
         .tdc_ctrl = false,
         .dar_ctrl = false,
         .tx_fifo_queue_ctrl = false,
-        .global_filter_cfg = CAN_ACCEPT_RX_FIFO_1,
+        .global_filter_cfg = CAN_REJECT,
     }
 };
 
