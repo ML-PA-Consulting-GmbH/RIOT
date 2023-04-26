@@ -156,3 +156,9 @@ const mtd_desc_t mtd_flashpage_driver = {
     .write_page = _write_page,
     .erase_sector = _erase_sector,
 };
+
+#if CONFIG_SLOT_AUX_LEN
+mtd_flashpage_t mtd_flash_aux_slot = MTD_FLASHPAGE_AUX_INIT_VAL(CONFIG_SLOT_AUX_OFFSET,
+                                                                CONFIG_SLOT_AUX_LEN);
+mtd_dev_t *mtd_aux = &mtd_flash_aux_slot.base;
+#endif
