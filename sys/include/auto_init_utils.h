@@ -69,29 +69,45 @@ typedef struct {
 
 #if IS_ACTIVE(CONFIG_AUTO_INIT_ENABLE_DEBUG) || defined(DOXYGEN)
 /**
+ * @brief   Add a module to an auto-initialization array @p xfa
+ *
+ * @param   xfa         An XFA
+ * @param   function    Function to be called on initialization @ref auto_init_fn_t
+ * @param   priority    Priority level @ref auto_init_prio_t
+ */
+#define _AUTO_INIT(xfa, function, priority)                                             \
+    XFA_CONST(xfa, priority)                                                            \
+    auto_init_module_t xfa ## _ ## function                                             \
+        = { .init = (auto_init_fn_t)function,                                           \
+            .prio = priority,                                                           \
+            .name = XTSTR(function) }
+#else
+#define _AUTO_INIT(xfa, function, priority)                                             \
+    XFA_CONST(xfa, priority)                                                            \
+    auto_init_module_t xfa ## _ ## function                                             \
+        = { .init = (auto_init_fn_t)function }
+#endif
+
+/**
  * @brief   Add a module to the auto-initialization array
  *
  * @param   function    Function to be called on initialization @ref auto_init_fn_t
  * @param   priority    Priority level @ref auto_init_prio_t
  */
-#define AUTO_INIT(function, priority)                                                   \
-    XFA_CONST(auto_init_xfa, priority)                                                  \
-    auto_init_module_t auto_init_xfa_ ## function                                       \
-        = { .init = (auto_init_fn_t)function,                                           \
-            .prio = priority,                                                           \
-            .name = XTSTR(function) }
-#else
-#define AUTO_INIT(function, priority)                                                   \
-    XFA_CONST(auto_init_xfa, priority)                                                  \
-    auto_init_module_t auto_init_xfa_ ## function                                       \
-        = { .init = (auto_init_fn_t)function }
-#endif
+#define AUTO_INIT(function, priority)       _AUTO_INIT(auto_init_xfa, function, priority)
 
 /**
  * @brief   Construct a priority value equal to @p priority + 1,
  *          to be used with @ref AUTO_INIT
  */
 #define AUTO_INIT_PRIORITY_AFTER(priority)  RIOT_PP_SUCCESSOR(priority)
+
+/**
+ * @brief   Call the auto-init function of module @p module
+ *
+ * @param[in]   module      Module to be initialized
+ */
+void auto_init_module(const volatile auto_init_module_t *module);
 
 #ifdef __cplusplus
 }
