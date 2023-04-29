@@ -75,11 +75,12 @@ struct fal_flash_dev mtd_flash0 = {
 void fdb_mtd_init(mtd_dev_t *mtd)
 {
     unsigned sector_size;
+    if (!_mtd) {
+        mtd_init(mtd);
+        _mtd = mtd;
 
-    mtd_init(mtd);
-    _mtd = mtd;
-
-    /* long offset limits addressable MTD range */
-    sector_size = _mtd->page_size * _mtd->pages_per_sector;
-    _mtd->sector_count = MIN(_mtd->sector_count, LONG_MAX / sector_size);
+        /* long offset limits addressable MTD range */
+        sector_size = _mtd->page_size * _mtd->pages_per_sector;
+        _mtd->sector_count = MIN(_mtd->sector_count, LONG_MAX / sector_size);
+    }
 }
