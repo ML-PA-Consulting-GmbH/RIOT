@@ -27,18 +27,7 @@
 #include "auto_init_priorities.h"
 #include "kernel_defines.h"
 
-#define ENABLE_DEBUG CONFIG_AUTO_INIT_ENABLE_DEBUG
-#include "debug.h"
-
 XFA_INIT_CONST(auto_init_module_t, auto_init_xfa);
-
-void auto_init_module(const volatile auto_init_module_t *module)
-{
-#if IS_ACTIVE(CONFIG_AUTO_INIT_ENABLE_DEBUG)
-    DEBUG("auto_init: %s (%u)\n", module->name, module->prio);
-#endif
-    module->init();
-}
 
 #if IS_USED(MODULE_AUTO_INIT_ZTIMER)
 extern void ztimer_init(void);

@@ -27,6 +27,7 @@
 #ifndef AUTO_INIT_UTILS_H
 #define AUTO_INIT_UTILS_H
 
+#include <stdio.h>
 #include <stdint.h>
 #include "xfa.h"
 #include "macros/xtstr.h"
@@ -107,7 +108,13 @@ typedef struct {
  *
  * @param[in]   module      Module to be initialized
  */
-void auto_init_module(const volatile auto_init_module_t *module);
+static inline void auto_init_module(const volatile auto_init_module_t *module)
+{
+#if IS_ACTIVE(CONFIG_AUTO_INIT_ENABLE_DEBUG)
+    printf("auto_init: %s (%u)\n", module->name, module->prio);
+#endif
+    module->init();
+}
 
 #ifdef __cplusplus
 }
