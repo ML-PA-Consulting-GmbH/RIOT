@@ -288,17 +288,27 @@ typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
  * @brief   Handler prototype to store configuration data to a persistent storage backend
  *
  * This is called by the configuration handler on export.
+ * Backends with byte granularity can optimize storage access when only a partial value in
+ * the export object must be synced. The partial data to be exported is
+ * ```
+ * ((const uint8_t *)val) + part_offset
+ * ```
+ * and the size of the partial update is @p part_size.
  *
  * @param[in]           be          Reference to the backend
  * @param[in]           key         Configuration key which belongs to the configuration item
  * @param[in]           val         Export location of the configuration value
  * @param[in, out]      size        Size of the value to be exported as input,
  *                                  and 0 as output
+ * @param[in]           part_offset Offset in @p value of the actual data to be updated
+ *                                  in the struct stored in the backend
+ * @param[in]           part_size   Size of the value to be updated
  *
  * @return  0 on success
  */
 typedef int (*conf_backend_store_handler) (const struct conf_backend *be,
-                                           const char *key, const void *val, size_t *size);
+                                           const char *key, const void *val, size_t *size,
+                                           off_t part_offset, size_t part_size);
 
 /**
  * @brief   Handler prototype to delete configuration data from a persistent storage backend
