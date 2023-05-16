@@ -239,7 +239,7 @@ int _any_food_export(const conf_handler_t *handler,
             key[key_len] = '/';
             strcpy(&key[key_len + 1], keys[at]);
             if ((err = _backend->ops->be_store(_backend,
-                                               key, &food[at], &sz))) {
+                                               key, &food[at], &sz, 0, sz))) {
                 DEBUG("test configuration: backend export key %s failed (%d)\n", key, err);
             }
         }
@@ -256,7 +256,7 @@ int _any_food_export(const conf_handler_t *handler,
         key[key_len] = '/';
         strcpy(&key[key_len + 1], next);
         if ((err = _backend->ops->be_store(_backend,
-                                           key, &food[at], &sz))) {
+                                           key, &food[at], &sz, 0, sz))) {
             DEBUG("test configuration: backend export key %s failed (%d)\n", key, err);
             return err;
         }
@@ -674,7 +674,7 @@ int _any_drinks_export(const conf_handler_t *handler,
             key[key_len] = '/';
             strcpy(&key[key_len + 1], keys[at]);
             if ((err = _backend->ops->be_store(_backend,
-                                               key, &drinks[at], &sz))) {
+                                               key, &drinks[at], &sz, 0, sz))) {
                 DEBUG("test configuration: backend export key %s failed (%d)\n", key, err);
             }
         }
@@ -691,7 +691,7 @@ int _any_drinks_export(const conf_handler_t *handler,
         key[key_len] = '/';
         strcpy(&key[key_len + 1], next);
         if ((err = _backend->ops->be_store(_backend,
-                                           key, &drinks[at], &sz))) {
+                                           key, &drinks[at], &sz, 0, sz))) {
             DEBUG("test configuration: backend export key %s failed (%d)\n", key, err);
             return err;
         }

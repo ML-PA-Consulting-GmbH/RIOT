@@ -76,9 +76,10 @@ static int _be_ram_load(const struct conf_backend *be,
 }
 
 static int _be_ram_store(const struct conf_backend *be,
-                         const char *key, const void *val, size_t *size)
+                         const char *key, const void *val, size_t *size,
+                         off_t part_offset, size_t part_size)
 {
-    (void)be;
+    (void)be; (void)part_offset; (void)part_size;
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
         if (!strcmp(key, _kv[i].key)) {
             memcpy(_kv[i].value, val, *size);
