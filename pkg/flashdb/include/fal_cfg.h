@@ -61,6 +61,9 @@ extern struct fal_flash_dev mtd_flash0;
  * @brief   Have at least the label of partition 0 defined
  */
 #define FAL_PART0_LABEL                             "part0"
+#endif
+
+#if !defined(FAL_PART0_LENGTH)
 /**
  * @brief   Have at least the length of partition 0 defined
  */
