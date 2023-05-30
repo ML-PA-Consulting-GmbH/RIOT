@@ -87,6 +87,53 @@ extern "C" {
 #define CONFIGURATION_DEPTH_MAX             CONFIG_CONFIGURATION_DEPTH_MAX
 
 /**
+ * @brief   The configuration root path for this RIOT release version
+ *
+ * The prepended root does not count for @ref CONFIGURATION_DEPTH_MAX
+ */
+#define CONFIGURATION_RIOT_ROOT             "/c/RIOT/2307"
+
+/**
+ * @brief   Length of RIOT configuration root path
+ */
+#define CONFIGURATION_RIOT_ROOT_LEN         (ARRAY_SIZE((char[]){CONFIGURATION_RIOT_ROOT}) - 1)
+
+/**
+ * @brief   Key buffer type with a static maximum key length
+ *
+ * @param   len             Buffer length to store a key
+ */
+#define CONF_KEY_T(len)                                 \
+struct {                                                \
+    char *next;                                         \
+    unsigned char buf_len;                              \
+    char buf[len];                                      \
+}
+
+/**
+ * @brief   Key buffer initializer with a static maximum key length
+ *
+ * @param   len             Buffer length to store a key
+ * @param   cstring         Constant string value to initialize the key buffer with
+ */
+#define CONF_KEY_INITIALIZER(len, cstring)              \
+{                                                       \
+    "",                                                 \
+    len,                                                \
+    cstring,                                            \
+}
+
+/**
+ * @brief   Abstraction type of a configuration key buffer
+ */
+typedef CONF_KEY_T() conf_key_buf_t;
+
+/**
+ * @brief   Configuration key type
+ */
+typedef void conf_key_t;
+
+/**
  * @brief   Forward declaration of a configuration handler
  */
 struct conf_handler;
@@ -109,7 +156,7 @@ struct conf_handler;
  * @return  0 on success
  */
 typedef int (*conf_data_set_handler) (const struct conf_handler *handler,
-                                      char *key, char *next, const void *val,
+                                      conf_key_buf_t *key, const void *val,
                                       size_t *size);
 
 /**
@@ -119,7 +166,6 @@ typedef int (*conf_data_set_handler) (const struct conf_handler *handler,
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
- * @param[in]           next        Comes after the key and the handler knows how to process
  * @param[in]           val         Destination to write the configuration item to
  * @param[in, out]      size        Maximum size in bytes of the value get as input,
  *                                  and remaining length as output
@@ -127,7 +173,7 @@ typedef int (*conf_data_set_handler) (const struct conf_handler *handler,
  * @return  0 on success
  */
 typedef int (*conf_data_get_handler) (const struct conf_handler *handler,
-                                      char *key, char *next, void *val,
+                                      conf_key_buf_t *key, void *val,
                                       size_t *size);
 
 /**
@@ -138,12 +184,11 @@ typedef int (*conf_data_get_handler) (const struct conf_handler *handler,
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
- * @param[in]           next        Comes after the key and the handler knows how to process
  *
  * @return  0 on success
  */
 typedef int (*conf_data_import_handler) (const struct conf_handler *handler,
-                                         char *key, char *next);
+                                         conf_key_buf_t *key);
 
 /**
  * @brief   Handler prototype to export a configuration value from the internal
@@ -153,12 +198,11 @@ typedef int (*conf_data_import_handler) (const struct conf_handler *handler,
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
- * @param[in]           next        Comes after the key and the handler knows how to process
  *
  * @return  0 on success
  */
 typedef int (*conf_data_export_handler) (const struct conf_handler *handler,
-                                         char *key, char *next);
+                                         conf_key_buf_t *key);
 
 /**
  * @brief   Handler prototype to delete a configuration value from persistent storage
@@ -167,12 +211,11 @@ typedef int (*conf_data_export_handler) (const struct conf_handler *handler,
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
- * @param[in]           next        Comes after the key and the handler knows how to process
  *
  * @return  0 on success
  */
 typedef int (*conf_data_delete_handler) (const struct conf_handler *handler,
-                                         char *key, char *next);
+                                         conf_key_buf_t *key);
 
 /**
  * @brief   Handler prototype to verify the internal representation of a configuration item
@@ -181,12 +224,11 @@ typedef int (*conf_data_delete_handler) (const struct conf_handler *handler,
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
- * @param[in]           next        Comes after the key and the handler knows how to process
  *
  * @return  0 on success
  */
 typedef int (*conf_data_verify_handler) (const struct conf_handler *handler,
-                                         char *key, char *next);
+                                         conf_key_buf_t *key);
 
 /**
  * @brief   Handler prototype to apply the internal representation of a configuration item to
@@ -198,12 +240,11 @@ typedef int (*conf_data_verify_handler) (const struct conf_handler *handler,
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
- * @param[in]           next        Comes after the key and the handler knows how to process
  *
  * @return  0 on success
  */
 typedef int (*conf_data_apply_handler) (const struct conf_handler *handler,
-                                         char *key, char *next);
+                                        conf_key_buf_t *key);
 
 /**
  * @brief   Configuration handler operations
@@ -282,7 +323,7 @@ struct conf_backend;
  * @return  0 on success
  */
 typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
-                                          const char *key, void *val, size_t *size);
+                                          conf_key_buf_t *key, void *val, size_t *size);
 
 /**
  * @brief   Handler prototype to store configuration data to a persistent storage backend
@@ -307,7 +348,7 @@ typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
  * @return  0 on success
  */
 typedef int (*conf_backend_store_handler) (const struct conf_backend *be,
-                                           const char *key, const void *val, size_t *size,
+                                           conf_key_buf_t *key, const void *val, size_t *size,
                                            off_t part_offset, size_t part_size);
 
 /**
@@ -322,7 +363,7 @@ typedef int (*conf_backend_store_handler) (const struct conf_backend *be,
  * @return  0 on success
  */
 typedef int (*conf_backend_delete_handler) (const struct conf_backend *be,
-                                            const char *key);
+                                            conf_key_buf_t *key);
 
 /**
  * @brief   Configuration storage backend operations
@@ -363,9 +404,9 @@ void configuration_register(conf_handler_node_t *parent, conf_handler_node_t *no
  *
  * @return  0 on success
  * @return -ENOENT no handler found by key
- * @return -ECANCELED handler error
+ * @return Negative errno on handler error
  */
-int configuration_import(char key[]);
+int configuration_import(conf_key_t *key);
 
 /**
  * @brief   Export a configuration value by its key to the persistent storage backend
@@ -376,9 +417,9 @@ int configuration_import(char key[]);
  *
  * @return  0 on success
  * @return -ENOENT no handler found by key
- * @return -ECANCELED handler error
+ * @return Negative errno on handler error
  */
-int configuration_export(char key[]);
+int configuration_export(conf_key_t *key);
 
 /**
  * @brief   Delete a configuration value by its key from the persistent storage backend
@@ -388,7 +429,7 @@ int configuration_export(char key[]);
  * @return  0 on success
  * @return -ENOENT no handler found by key
  */
-int configuration_delete(char key[]);
+int configuration_delete(conf_key_t *key);
 
 /**
  * @brief   Set the value of a configuration item identified by key
@@ -399,9 +440,9 @@ int configuration_delete(char key[]);
  *
  * @return  0 on success
  * @return -ENOENT no handler found by key
- * @return -ECANCELED handler error
+ * @return Negative errno on handler error
  */
-int configuration_set(char key[], const void *value, size_t *size);
+int configuration_set(conf_key_t *key, const void *value, size_t *size);
 
 /**
  * @brief   Get the value of a configuration item identified by key
@@ -412,9 +453,9 @@ int configuration_set(char key[], const void *value, size_t *size);
  *
  * @return  0 on success
  * @return -ENOENT no handler found by key
- * @return -ECANCELED handler error
+ * @return Negative errno on handler error
  */
-int configuration_get(char key[], void *value, size_t *size);
+int configuration_get(conf_key_t *key, void *value, size_t *size);
 
 /**
  * @brief   Lock a subtree of the configuration tree for unique modification permission
@@ -426,7 +467,7 @@ int configuration_get(char key[], void *value, size_t *size);
  * @return  0 on success
  * @return -ENOENT no handler found by key
  */
-int configuration_lock(char key[]);
+int configuration_lock(conf_key_t *key);
 
 /**
  * @brief   Unlock a subtree of the configuration tree after modification
@@ -436,7 +477,7 @@ int configuration_lock(char key[]);
  * @return  0 on success
  * @return -ENOENT no handler found by key
  */
-int configuration_unlock(char key[]);
+int configuration_unlock(conf_key_t *key);
 
 /**
  * @brief   Verify the correctness of a configuration subtree
@@ -446,9 +487,9 @@ int configuration_unlock(char key[]);
  *                                      value if verification fails when a bad value was set
  * @return  0 on success
  * @return -ENOENT no handler found by key
- * @return -ECANCELED verification handler failed
+ * @return Negative errno on handler error
  */
-int configuration_verify(char key[], bool try_reimport);
+int configuration_verify(conf_key_t *key, bool try_reimport);
 
 /**
  * @brief   Apply the configuration subtree
@@ -458,7 +499,33 @@ int configuration_verify(char key[], bool try_reimport);
  * @return  0 on success
  * @return -ENOENT no handler found by key
  */
-int configuration_apply(char key[]);
+int configuration_apply(conf_key_t *key);
+
+/**
+ * @brief   Prepend a root path to a configuration key to distinguish between
+ *          stored configurations for different firmware versions
+ *
+ * This must be called by a RIOT handler implementation to prepend
+ * @ref CONFIGURATION_RIOT_ROOT to the configuration key in
+ * @ref conf_handler_ops_t::import,
+ * @ref conf_handler_ops_t::export,
+ * @ref conf_handler_ops_t::delete.
+ *
+ * @param[in,out]       key         Key to identify the subtree
+ * @param[in]           root        Root path to prepend before @p key
+ *
+ * @return  Position of original key value in buffer or NULL on error
+ */
+char *configuration_key_prepend_root(conf_key_buf_t *key, const char *root);
+
+/**
+ * @brief   This is called to restore the original input key which must be done by a handler
+ *
+ * @param[in,out]       key         Key to identify the subtree
+ * @param[in]           restore     Key string to restore
+ * @param[in]           restore_len Length of the key to restore
+ */
+void configuration_key_restore(conf_key_buf_t *key_buf, const char *key, size_t key_len);
 
 #ifdef __cplusplus
 }
