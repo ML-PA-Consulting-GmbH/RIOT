@@ -51,23 +51,23 @@ struct kv {
 };
 
 static struct kv _kv[] = {
-    {"/food/bread/white", &persist_conf.food.food_bread[0]},
-    {"/food/bread/whole grain", &persist_conf.food.food_bread[1]},
+    {CONFIGURATION_RIOT_ROOT"/food/bread/white", &persist_conf.food.food_bread[0]},
+    {CONFIGURATION_RIOT_ROOT"/food/bread/whole grain", &persist_conf.food.food_bread[1]},
 
-    {"/food/cake/cheesecake", &persist_conf.food.food_cake[0]},
-    {"/food/cake/donut", &persist_conf.food.food_cake[1]},
+    {CONFIGURATION_RIOT_ROOT"/food/cake/cheesecake", &persist_conf.food.food_cake[0]},
+    {CONFIGURATION_RIOT_ROOT"/food/cake/donut", &persist_conf.food.food_cake[1]},
 
-    {"/drinks/coffee", &persist_conf.drinks[0]},
-    {"/drinks/tea", &persist_conf.drinks[1]},
-    {"/drinks/cocoa", &persist_conf.drinks[2]},
+    {CONFIGURATION_RIOT_ROOT"/drinks/coffee", &persist_conf.drinks[0]},
+    {CONFIGURATION_RIOT_ROOT"/drinks/tea", &persist_conf.drinks[1]},
+    {CONFIGURATION_RIOT_ROOT"/drinks/cocoa", &persist_conf.drinks[2]},
 };
 
 static int _be_ram_load(const struct conf_backend *be,
-                        const char *key, void *val, size_t *size)
+                        conf_key_buf_t *key, void *val, size_t *size)
 {
     (void)be;
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
-        if (!strcmp(key, _kv[i].key)) {
+        if (!strcmp(key->buf, _kv[i].key)) {
             memcpy(val, _kv[i].value, *size);
             return 0;
         }
@@ -76,12 +76,12 @@ static int _be_ram_load(const struct conf_backend *be,
 }
 
 static int _be_ram_store(const struct conf_backend *be,
-                         const char *key, const void *val, size_t *size,
+                         conf_key_buf_t *key, const void *val, size_t *size,
                          off_t part_offset, size_t part_size)
 {
     (void)be; (void)part_offset; (void)part_size;
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
-        if (!strcmp(key, _kv[i].key)) {
+        if (!strcmp(key->buf, _kv[i].key)) {
             memcpy(_kv[i].value, val, *size);
             return 0;
         }
