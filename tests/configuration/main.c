@@ -1422,7 +1422,7 @@ static void test_configuration_delete(void)
         strcpy(key_buf.buf, "/food/bread/");
         strcat(key_buf.buf, food_bread_keys[0]);
         TEST_ASSERT(configuration_import(&key_buf));
-        TEST_ASSERT(!strncmp(key_buf.buf, "/food/bread/", 12) && strcmp(key_buf.buf + 12, food_bread_keys[0]));
+        TEST_ASSERT(!strncmp(key_buf.buf, "/food/bread/", 12) && !strcmp(key_buf.buf + 12, food_bread_keys[0]));
 
         strcpy(key_buf.buf, "/drinks");
         TEST_ASSERT(!configuration_delete(&key_buf));
@@ -1433,7 +1433,7 @@ static void test_configuration_delete(void)
         strcpy(key_buf.buf, "/drinks/");
         strcat(key_buf.buf, drinks_keys[0]);
         TEST_ASSERT(configuration_import(&key_buf));
-        TEST_ASSERT(!strncmp(key_buf.buf, "/drinks/", 8) && strcmp(key_buf.buf + 8, drinks_keys[0]));
+        TEST_ASSERT(!strncmp(key_buf.buf, "/drinks/", 8) && !strcmp(key_buf.buf + 8, drinks_keys[0]));
     }
 
     _conf = conf_backup;
