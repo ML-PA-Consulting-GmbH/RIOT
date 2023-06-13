@@ -229,4 +229,8 @@ void candev_samd5x_enter_test_mode(candev_t *candev);
 
 int candev_samd5x_irq_init(candev_t *candev, can_irq_source_t irq_source, can_irq_line_t irq_line);
 
+void candev_samd5x_enter_sleep_mode(candev_t *candev);
+
+void candev_samd5x_exit_sleep_mode(candev_t *candev);
+
 #endif

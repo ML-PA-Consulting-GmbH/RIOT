@@ -166,6 +166,24 @@ void candev_samd5x_set_pins(can_t *dev)
     gpio_init_mux(dev->conf->rx_pin, dev->conf->mux);
 }
 
+void candev_samd5x_enter_sleep_mode(candev_t *candev)
+{
+    can_t *dev = container_of(candev, can_t, candev);
+
+    dev->conf->can->CCCR.reg |= CAN_CCCR_CSR;
+    while(!(dev->conf->can->CCCR.reg & CAN_CCCR_CSA));
+    DEBUG_PUTS("Device in sleep mode");
+}
+
+void candev_samd5x_exit_sleep_mode(candev_t *candev)
+{
+    can_t *dev = container_of(candev, can_t, candev);
+
+    dev->conf->can->CCCR.reg &= ~CAN_CCCR_CSR;
+    while(dev->conf->can->CCCR.reg & CAN_CCCR_CSA);
+    DEBUG_PUTS("Device out of sleep mode");
+}
+
 void candev_samd5x_tdc_control(can_t *dev)
 {
     if(dev->conf->tdc_ctrl) {
