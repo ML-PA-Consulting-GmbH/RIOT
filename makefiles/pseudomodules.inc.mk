@@ -255,6 +255,7 @@ PSEUDOMODULES += gnrc_sixlowpan_frag_sfr_congure_sfr
 ## @}
 PSEUDOMODULES += gnrc_sixlowpan_iphc_nhc
 PSEUDOMODULES += gnrc_sixlowpan_nd_border_router
+PSEUDOMODULES += gnrc_sixlowpan_no_ctx
 PSEUDOMODULES += gnrc_sixlowpan_router_default
 ## @defgroup net_gnrc_udp_cmd  gnrc_udp_cmd
 ## @ingroup net_gnrc_udp
