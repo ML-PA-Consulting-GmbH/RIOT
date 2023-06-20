@@ -10,7 +10,7 @@ RIOT-2023.04-mlpa-1 - Merge Notes
  - cherry-pick 7eb78f419b24bfa303b7668e73d9dc5ab482af0e (enable debug in MCP2515 driver for better performance)
  - merge benpicco/cpu/sam0_common/flashpage_irq_disable
  - merge benpicco/gnrc_sixlowpan_ctx-optional
- - merge feat/20211108__sys-bus__add_rtc_bus	TODO
+ - merge feat/20211108__sys-bus__add_rtc_bus
  - merge benpicco/drivers/rtt_rtc-no-retain
  - merge benpicco/pkg/fatfs-threadsafe
  - merge firas-hamdi/fix/extended_CAN_filters_not_applied
