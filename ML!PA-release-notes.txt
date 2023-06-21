@@ -1,4 +1,4 @@
-RIOT-2023.04-mlpa-1 - Merge Notes
+RIOT-2023.04-mlpa-2 - Merge Notes
 =================================
 
 - based on 2023.07-devel-693-g561e19303d
