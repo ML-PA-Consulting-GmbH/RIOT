@@ -78,3 +78,10 @@ int stdio_available(void)
     return tsrb_avail(&stdin_isrpipe.tsrb);
 }
 #endif
+
+#if IS_USED(MODULE_STDIO_FLUSH_RX)
+void stdio_flush_rx(void)
+{
+    tsrb_clear(&stdin_isrpipe.tsrb);
+}
+#endif
