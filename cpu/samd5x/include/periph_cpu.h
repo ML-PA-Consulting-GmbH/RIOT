@@ -224,6 +224,15 @@ struct sam0_aux_cfg_mapping {
 };
 
 /**
+ * @brief  CPU ISR vector has NVMCTRL0 interrupt service routine
+ */
+#define isr_nvmctrl     isr_nvmctrl0
+/**
+ * @brief  CPU NVMCTRL IRQ number
+ */
+#define NVMCTRL_IRQn    NVMCTRL_0_IRQn
+
+/**
  * @name QSPI pins are fixed
  * @{
  */

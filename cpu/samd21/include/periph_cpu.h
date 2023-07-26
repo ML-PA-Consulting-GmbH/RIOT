@@ -182,7 +182,7 @@ struct sam0_aux_cfg_mapping {
     uint64_t bod33_level                :  6; /**< BOD33 threshold level at power-on.   */
     uint64_t bod33_enable               :  1; /**< BOD33 Enable at power-on.            */
     uint64_t bod33_action               :  2; /**< BOD33 Action at power-on.            */
-    uint64_t reserved_2                 :  8; /**< Factory settings - do not change.    */
+    const uint64_t bod12_calibration    :  8; /**< BOD12 configuration - do not change. */
     uint64_t wdt_enable                 :  1; /**< WDT Enable at power-on.              */
     uint64_t wdt_always_on              :  1; /**< WDT Always-On at power-on.           */
     uint64_t wdt_period                 :  4; /**< WDT Period at power-on.              */
@@ -190,11 +190,20 @@ struct sam0_aux_cfg_mapping {
     uint64_t wdt_ewoffset               :  4; /**< WDT Early Warning Interrupt Offset   */
     uint64_t wdt_window_enable          :  1; /**< WDT Window mode enabled on power-on  */
     uint64_t bod33_hysteresis           :  1; /**< BOD33 Hysteresis configuration       */
-    const uint64_t bod12_calibration    :  1; /**< Factory settings - do not change.    */
-    uint64_t reserved_3                 :  6; /**< Factory settings - do not change.    */
+    const uint64_t bod12_hysteresis     :  1; /**< Factory settings - do not change.    */
+    uint64_t reserved_2                 :  6; /**< Factory settings - do not change.    */
     uint64_t nvm_locks                  : 16; /**< NVM Region Lock Bits.                */
 };
 /** @} */
+
+/**
+ * @brief  CPU ISR vector has NVMCTRL interrupt service routine
+ */
+#define isr_nvmctrl     isr_nvmctrl
+/**
+ * @brief  CPU NVMCTRL IRQ number
+ */
+#define NVMCTRL_IRQn    NVMCTRL_IRQn
 
 #ifdef __cplusplus
 }
