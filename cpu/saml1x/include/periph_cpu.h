@@ -155,6 +155,15 @@ struct sam0_aux_cfg_mapping {
     uint32_t user_crc;            /**< CRC of NVM User Row bits 223:64 (words 2…6)      */
 };
 
+/**
+ * @brief  CPU ISR vector has NVMCTRL interrupt service routine
+ */
+#define isr_nvmctrl     isr_nvmctrl
+/**
+ * @brief  CPU NVMCTRL IRQ number
+ */
+#define NVMCTRL_IRQn    NVMCTRL_IRQn
+
 #ifdef __cplusplus
 }
 #endif
