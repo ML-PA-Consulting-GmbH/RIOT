@@ -56,6 +56,13 @@ extern struct fal_flash_dev mtd_flash0;
 #define FAL_MTD                                     MTD_0
 #endif
 
+#if !defined(FAL_PART_LABEL)
+/**
+ * @brief   Default FAL partition to use for flashdb
+ */
+#define FAL_PART_LABEL                              FAL_PART0_LABEL
+#endif
+
 #if !defined(FAL_PART0_LABEL)
 /**
  * @brief   Have at least the label of partition 0 defined
