@@ -52,21 +52,24 @@ extern "C" {
 /**
  * @brief   MTD for FlashDB FAL device mode
  */
-#define CONFIGURATION_FLASHDB_MTD_DEV               FAL_MTD
+#define CONFIGURATION_FLASHDB_MTD_DEV               \
+    configuration_backend_flashdb_mtd_choose_dev()
 #endif
 
 #if !defined(CONFIGURATION_FLASHDB_MTD_PARTITION) || defined(DOXYGEN)
 /**
  * @brief   FAL partition to use for configuration data
  */
-#define CONFIGURATION_FLASHDB_MTD_PARTITION_LABEL   FAL_PART0_LABEL
+#define CONFIGURATION_FLASHDB_MTD_PARTITION_LABEL   \
+    configuration_backend_flashdb_mtd_choose_partition()
 #endif
 
 #if !defined(CONFIGURATION_FLASHDB_VFS_MTD_DEV) || defined(DOXYGEN)
 /**
  * @brief   MTD for FlashDB VFS mode
  */
-#define CONFIGURATION_FLASHDB_VFS_MTD_DEV           MTD_0
+#define CONFIGURATION_FLASHDB_VFS_MTD_DEV           \
+    configuration_backend_flashdb_vfs_choose_dev()
 #endif
 
 #if !defined(CONFIGURATION_FLASHDB_VFS_MAX_SECTORS) || defined(DOXYGEN)
@@ -89,8 +92,50 @@ extern "C" {
  * @brief   Full location path of the folder in the VFS where the configuration
  *          file is stored in FlashDB VFS mode
  */
-#define CONFIGURATION_FLASHDB_VFS_PATH              VFS_DEFAULT_DATA"/"CONFIGURATION_FLASHDB_VFS_FOLDER
+#define CONFIGURATION_FLASHDB_VFS_PATH              \
+    configuration_backend_flashdb_vfs_choose_path()
 #endif
+
+/**
+ * @brief   __attribute__((weak)) function to select the FAL device for FlashDB
+ *          when the module configuration_backend_flashdb_mtd is used
+ *
+ * The default implementation is to return @ref FAL_MTD.
+ *
+ * @return  MTD device to use in the FAL mode of FlashDB
+ */
+mtd_dev_t *configuration_backend_flashdb_mtd_choose_dev(void);
+
+/**
+ * @brief   __attribute__((weak)) function to select the FAL partition for FlashDB
+ *          when the module configuration_backend_flashdb_mtd is used
+ *
+ * The default implementation is to return @ref FAL_PART_LABEL.
+ *
+ * @return  FAL partition label to use in the FAL mode of FlashDB
+ */
+const char *configuration_backend_flashdb_mtd_choose_partition(void);
+
+/**
+ * @brief   __attribute__((weak)) function to select the MTD for FlashDB
+ *          when the module configuration_backend_flashdb_vfs is used
+ *
+ * The default implementation is to return @ref MTD_0.
+ *
+ * @return  MTD device to use in the VFS mode of FlashDB
+ */
+mtd_dev_t *configuration_backend_flashdb_vfs_choose_dev(void);
+
+/**
+ * @brief   __attribute__((weak)) function to select the path for FlashDB
+ *          when the module configuration_backend_flashdb_vfs is used
+ *
+ * The default implementation is to return VFS_DEFAULT_DATA"/"CONFIGURATION_FLASHDB_VFS_FOLDER.
+ * @ref CONFIGURATION_FLASHDB_VFS_FOLDER
+ *
+ * @return  Path to use in the VFS mode of FlashDB
+ */
+const char *configuration_backend_flashdb_vfs_choose_path(void);
 
 /**
  * @brief   Get the FlashDB backend

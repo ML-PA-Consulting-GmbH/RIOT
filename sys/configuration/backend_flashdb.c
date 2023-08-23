@@ -24,12 +24,37 @@
 #include "configuration.h"
 #include "configuration_backend_flashdb.h"
 #include "mutex.h"
+#include "mtd_default.h"
 #if IS_USED(MODULE_CONFIGURATION_BACKEND_FLASHDB_VFS)
 #include "vfs_default.h"
 #endif
 
 static mutex_t _kvdb_locker = MUTEX_INIT;
 static struct fdb_kvdb _kvdb = { 0 };
+
+__attribute__((weak))
+mtd_dev_t *configuration_backend_flashdb_mtd_choose_dev(void)
+{
+    return FAL_MTD;
+}
+
+__attribute__((weak))
+const char *configuration_backend_flashdb_mtd_choose_partition(void)
+{
+    return FAL_PART_LABEL;
+}
+
+__attribute__((weak))
+mtd_dev_t *configuration_backend_flashdb_vfs_choose_dev(void)
+{
+    return MTD_0;
+}
+
+__attribute__((weak))
+const char *configuration_backend_flashdb_vfs_choose_path(void)
+{
+    return VFS_DEFAULT_DATA"/"CONFIGURATION_FLASHDB_VFS_FOLDER;
+}
 
 static void _lock(fdb_db_t db)
 {
