@@ -1,6 +1,8 @@
 DEFAULT_MODULE += auto_init_configuration
 DEFAULT_MODULE += auto_init_configuration_backend_flashdb
 
+USEMODULE += fmt
+
 ifneq (,$(filter configuration_backend_flashdb%,$(USEMODULE)))
   USEMODULE += configuration_backend_flashdb
   USEMODULE += flashdb_kvdb

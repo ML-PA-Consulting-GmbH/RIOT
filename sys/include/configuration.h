@@ -13,15 +13,21 @@
  *              which must keep persistent configuration parameters
  *
  * Configuration values are accessed in a key - value manner, where a key is
- * basically a path to the correct configuration handler. Handlers are the leaf
- * nodes in an internal tree structure of handler nodes where each node carries
- * a segment of the path key. The handler operations must be implemented
+ * basically a path to the correct configuration handler subtree.
+ * Each node in the configuration tree carries a segment of the path key.
+ * The root node in a subtree of handlers handles the whole subtree, while
+ * each node below handles an attribute of the configuration item.
+ * The handler operations must be implemented
  * by a configuration subsystem. The set() and get() implementations are
  * mandatory for a handler.
  *
  * A configuration subsystem must have been initialized with a storage backend
  * where configuration data is stored and can be exported to.
+ * Subhandlers can also be initialized with a different backend to store specific attributes
+ * of one configuration object on another backend.
  * A backend must at least implement the load(), and store() functions.
+ * An array is not stored as a whole but each item is exported with its own key because
+ * the array size can change between applications.
  *
  * The configuration API is thread save if the configuration subtree has been locked.
  * You would usually lock the subtree, perform some set() or get() operations and check
@@ -36,8 +42,10 @@
  *
  * A key consists of a static and a dynamic part. The static part identifies the handler
  * node. The dynamic part is often called "next" in the API and the handler is supposed
- * to handle it. The dynamic part is necessary to create new values if the backend
- * supports it in the export() function.
+ * to handle it. The dynamic part is, what is left of the key path after the handler
+ * has been found. An implementation can choose to not handle any dynamic part, by
+ * having one dedicated node for every subitem in a configuration object, or
+ * to handle subitems with the top level handler and the dynamic key part.
  *
  * @{
  *
@@ -91,7 +99,7 @@ extern "C" {
  *
  * The prepended root does not count for @ref CONFIGURATION_DEPTH_MAX
  */
-#define CONFIGURATION_RIOT_ROOT             "/c/RIOT/2307"
+#define CONFIGURATION_RIOT_ROOT             "/RIOT/2307/c"
 
 /**
  * @brief   Length of RIOT configuration root path
@@ -106,6 +114,7 @@ extern "C" {
 #define CONF_KEY_T(len)                                 \
 struct {                                                \
     char *next;                                         \
+    int offset;                                         \
     unsigned char buf_len;                              \
     char buf[len];                                      \
 }
@@ -119,6 +128,7 @@ struct {                                                \
 #define CONF_KEY_INITIALIZER(len, cstring)              \
 {                                                       \
     "",                                                 \
+    0,                                                  \
     len,                                                \
     cstring,                                            \
 }
@@ -139,6 +149,11 @@ typedef void conf_key_t;
 struct conf_handler;
 
 /**
+ * @brief   Forward declaration for a persistent configuration storage backend
+ */
+struct conf_backend;
+
+/**
  * @brief   Handler prototype to set a configuration value
  *
  * This is called by @ref configuration_set() for the handler.
@@ -148,10 +163,9 @@ struct conf_handler;
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
- * @param[in]           next        Comes after the key and the handler knows how to process
  * @param[in]           val         Value to apply to the configuration item identified by the key
  * @param[in, out]      size        Size in bytes of the value to set as input,
- *                                  and 0 as output
+ *                                  and remaining size as output
  *
  * @return  0 on success
  */
@@ -167,7 +181,7 @@ typedef int (*conf_data_set_handler) (const struct conf_handler *handler,
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
  * @param[in]           val         Destination to write the configuration item to
- * @param[in, out]      size        Maximum size in bytes of the value get as input,
+ * @param[in, out]      size        Maximum size in bytes of the value to get as input,
  *                                  and remaining length as output
  *
  * @return  0 on success
@@ -258,17 +272,22 @@ typedef struct conf_handler_ops {
                                                  to persistent storage */
     conf_data_delete_handler delete;        /**< Delete a configuration value
                                                  from persistent storage */
+} conf_handler_ops_t;
+
+typedef struct conf_handler_data_ops {
     conf_data_verify_handler verify;        /**< Verify the currently set configuration */
     conf_data_apply_handler apply;          /**< Apply the currently set configuration */
-} conf_handler_ops_t;
+} conf_handler_data_ops_t;
 
 /**
  * @brief   An intermediate node in the configuration tree
  */
 typedef struct conf_handler_node {
     list_node_t node;                       /**< Every node is in a list, managed by its parent */
-    struct conf_handler_node *sub_nodes;    /**< Every node has a list of subnodes */
+    struct conf_handler_node *subnodes;     /**< Every node has a list of subnodes */
     const char *subtree;                    /**< A segment in a key to a configuration item */
+    const conf_handler_ops_t *ops;          /**< Handler operations */
+    const conf_handler_data_ops_t *ops_dat; /**< Handler data operations */
     unsigned level;                         /**< Level in the configuration tree (root = 0) */
 } conf_handler_node_t;
 
@@ -283,31 +302,71 @@ typedef struct conf_handler_node {
 }
 
 /**
- * @brief   A leaf node with handler operations in the configuration tree
+ * @brief   A node with handler operations in the configuration tree
  */
 typedef struct conf_handler {
-    conf_handler_node_t node;           /**< Configuration tree node */
-    const conf_handler_ops_t *ops;      /**< Handler operations */
-    mutex_t mutex;                      /**< Lock for unique access to the configuration item */
+    conf_handler_node_t node;               /**< Configuration tree node */
+    mutex_t mutex;                          /**< Lock for unique access to the configuration item */
+    const struct conf_backend *src_backend; /**< Backend to store the configuration item */
+    const struct conf_backend *dst_backend; /**< Backend to store the configuration item TODO */
+    void *data;                             /**< Pointer to the configuration item data location */
+    unsigned size;                          /**< Configuration item size in bytes */
+    bool handles_array;                     /**< True if the handler handles an array of items */
 } conf_handler_t;
+
+/**
+ * @brief   A node with handler operations, which handle an array of configuration objects
+ *          in the configuration tree
+ */
+typedef struct conf_array_handler {
+    conf_handler_t handler;             /**< Configuration handler */
+    unsigned array_size;                /**< Number of items in the array */
+} conf_array_handler_t;
 
 /**
  * @brief   Static initializer for a configuration handler node
  *
  * @param   path        Configuration path segment
  * @param   operations  Pointer to handler operations
+ * @param   item_size   Size of the configuration object
+ * @param   location    Location of the configuration data
  */
-#define CONF_HANDLER_INITIALIZER(path, operations)      \
-{                                                       \
-    .node = CONF_HANDLER_NODE_INITIALIZER(path),        \
-    .ops = operations,                                  \
-    .mutex = MUTEX_INIT,                                \
+#define CONF_HANDLER_INITIALIZER(path, operations, data_operations, item_size, location)    \
+{                                                                                           \
+    .node = {                                                                               \
+        .subtree = path,                                                                    \
+        .ops = operations,                                                                  \
+        .ops_dat = data_operations,                                                         \
+    },                                                                                      \
+    .data = location,                                                                       \
+    .size = item_size,                                                                      \
+    .mutex = MUTEX_INIT,                                                                    \
 }
 
 /**
- * @brief   Forward declaration for a persistent configuration storage backend
+ * @brief   Static initializer for a configuration handler node
+ *
+ * @param   path        Configuration path segment
+ * @param   operations  Pointer to handler operations
+ * @param   size        Size of a single item in the array
+ * @param   numof       Number of items in the array
+ * @param   location    Location of the configuration data
  */
-struct conf_backend;
+#define CONF_ARRAY_HANDLER_INITIALIZER(path, operations, data_operations, item_size, numof, location)   \
+{                                                                                                       \
+    .handler = {                                                                                        \
+        .node = {                                                                                       \
+            .subtree = path,                                                                            \
+            .ops = operations,                                                                          \
+            .ops_dat = data_operations,                                                                 \
+        },                                                                                              \
+        .data = location,                                                                               \
+        .size = item_size,                                                                              \
+        .mutex = MUTEX_INIT,                                                                            \
+        .handles_array = true,                                                                          \
+    },                                                                                                  \
+    .array_size = numof,                                                                                \
+}
 
 /**
  * @brief   Handler prototype to load configuration data from a persistent storage backend
@@ -316,7 +375,7 @@ struct conf_backend;
  *
  * @param[in]           be          Reference to the backend
  * @param[in]           key         Configuration key which belongs to the configuration item
- * @param[in]           val         Import location of the configuration value
+ * @param[out]          val         Import location of the configuration value
  * @param[in, out]      size        Maximum size of the value to be imported as input,
  *                                  and remaining size as output
  *
@@ -329,27 +388,17 @@ typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
  * @brief   Handler prototype to store configuration data to a persistent storage backend
  *
  * This is called by the configuration handler on export.
- * Backends with byte granularity can optimize storage access when only a partial value in
- * the export object must be synced. The partial data to be exported is
- * ```
- * ((const uint8_t *)val) + part_offset
- * ```
- * and the size of the partial update is @p part_size.
  *
  * @param[in]           be          Reference to the backend
  * @param[in]           key         Configuration key which belongs to the configuration item
  * @param[in]           val         Export location of the configuration value
  * @param[in, out]      size        Size of the value to be exported as input,
  *                                  and 0 as output
- * @param[in]           part_offset Offset in @p value of the actual data to be updated
- *                                  in the struct stored in the backend
- * @param[in]           part_size   Size of the value to be updated
  *
  * @return  0 on success
  */
 typedef int (*conf_backend_store_handler) (const struct conf_backend *be,
-                                           conf_key_buf_t *key, const void *val, size_t *size,
-                                           off_t part_offset, size_t part_size);
+                                           conf_key_buf_t *key, const void *val, size_t *size);
 
 /**
  * @brief   Handler prototype to delete configuration data from a persistent storage backend
@@ -358,7 +407,6 @@ typedef int (*conf_backend_store_handler) (const struct conf_backend *be,
  *
  * @param[in]           be          Reference to the backend
  * @param[in]           key         Configuration key which belongs to the configuration item
- * @param[in]           val         Export location of the configuration value
  *
  * @return  0 on success
  */
@@ -502,6 +550,21 @@ int configuration_verify(conf_key_t *key, bool try_reimport);
 int configuration_apply(conf_key_t *key);
 
 /**
+ * @brief   Set the backend to store the configuration item
+ *
+ * @param[in,out]       key             Key to identify the subtree
+ * @param[in]           src_backend     Backend to load the configuration item from
+ *                                      and to store the configuration item to
+ * @param[in]           dst_backend     Optional backend to store the configuration item to
+ *
+ * @return  0 on success
+ * @return -ENOENT no handler found by key
+ */
+int configuration_set_backend(conf_key_t *key,
+                              const conf_backend_t *src_backend,
+                              const conf_backend_t *dst_backend);
+
+/**
  * @brief   Prepend a root path to a configuration key to distinguish between
  *          stored configurations for different firmware versions
  *
@@ -526,6 +589,74 @@ char *configuration_key_prepend_root(conf_key_buf_t *key, const char *root);
  * @param[in]           restore_len Length of the key to restore
  */
 void configuration_key_restore(conf_key_buf_t *key_buf, const char *key, size_t key_len);
+
+/**
+ * @brief   Default set-handler to be used for a simple configuration item
+ *
+ * @param[in]           handler     Reference to the handler
+ * @param[in]           key         Configuration key which belongs to the configuration handler
+ * @param[in]           val         Value to apply to the configuration item identified by the key
+ * @param[in, out]      size        Size in bytes of the value to set as input,
+ *                                  and remaining size as output
+ *
+ * @return  @ref conf_data_set_handler
+ */
+int configuration_set_handler_default(const conf_handler_t *handler,
+                                      conf_key_buf_t *key, const void *val,
+                                      size_t *size);
+
+/**
+ * @brief   Default get-handler to be used for a simple configuration item
+ *
+ * @param[in]           handler     Reference to the handler
+ * @param[in]           key         Configuration key which belongs to the configuration handler
+ * @param[in]           val         Destination to write the configuration item to
+ * @param[in, out]      size        Maximum size in bytes of the value to get as input,
+ *                                  and remaining length as output
+ *
+ * @return  @ref conf_data_get_handler
+ */
+int configuration_get_handler_default(const conf_handler_t *handler,
+                                      conf_key_buf_t *key, void *val,
+                                      size_t *size);
+
+/**
+ * @brief   Default import-handler to be used for a simple configuration item
+ *
+ * @param[in]           handler     Reference to the handler
+ * @param[in]           key         Configuration key which belongs to the configuration handler
+ *
+ * @return  @ref conf_data_import_handler
+ */
+int configuration_import_handler_default(const conf_handler_t *handler,
+                                         conf_key_buf_t *key);
+
+/**
+ * @brief   Default export-handler to be used for a simple configuration item
+ *
+ * @param[in]           handler     Reference to the handler
+ * @param[in]           key         Configuration key which belongs to the configuration handler
+ *
+ * @return  @ref conf_data_export_handler
+ */
+int configuration_export_handler_default(const conf_handler_t *handler,
+                                         conf_key_buf_t *key);
+
+/**
+ * @brief   Default delete-handler to be used for a simple configuration item
+ *
+ * @param[in]           handler     Reference to the handler
+ * @param[in]           key         Configuration key which belongs to the configuration handler
+ *
+ * @return  @ref conf_data_delete_handler
+ */
+int configuration_delete_handler_default(const conf_handler_t *handler,
+                                         conf_key_buf_t *key);
+
+/**
+ * @brief   Default handler operations
+ */
+extern const conf_handler_ops_t configuration_default_ops;
 
 #ifdef __cplusplus
 }

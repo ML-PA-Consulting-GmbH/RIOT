@@ -19,10 +19,15 @@
  */
 
 #include <errno.h>
+#include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <limits.h>
+#include <ctype.h>
 
+#include "fmt.h"
 #include "modules.h"
 #include "container.h"
 #include "configuration.h"
@@ -39,7 +44,11 @@ typedef struct configuration_iterator {
     /**
      * @brief   Stack pointer
      */
-    unsigned sp;
+    unsigned short sp;
+    /**
+     * @brief  Whether to retrieve all subhandlers or just the first one
+     */
+    bool max_depth;
     /**
      * @brief   Stack of handlers for iteration
      */
@@ -65,10 +74,10 @@ static char *_configuration_key_next(char *key, const char *subkey)
     return key;
 }
 
-static const conf_handler_node_t *_configuration_handler_next(const conf_handler_node_t *handler,
+static const conf_handler_node_t *_configuration_subnode_next(const conf_handler_node_t *handler,
                                                               char *key)
 {
-    const conf_handler_node_t *sub = handler->sub_nodes;
+    const conf_handler_node_t *sub = handler->subnodes;
     while (sub) {
         if (_configuration_key_next(key, sub->subtree)) {
             return sub;
@@ -78,7 +87,24 @@ static const conf_handler_node_t *_configuration_handler_next(const conf_handler
     return NULL;
 }
 
-static int _configuration_find_handler(const conf_handler_node_t **next_handler, char **key)
+static char *_configuration_key_array_index(char *key, long *index)
+{
+    char *endptr = key;
+    long at = strtol(key, &endptr, 10);
+    if (endptr == key) {
+        return NULL;
+    }
+    else if (errno == ERANGE && ((at == LONG_MIN) || (at == LONG_MAX) || (at < 0))) {
+        return NULL;
+    }
+    while (*endptr == '/') {
+        endptr++;
+    }
+    *index = at;
+    return endptr;
+}
+
+static int _configuration_find_handler(const conf_handler_node_t **next_handler, char **key, unsigned *offset)
 {
     char *next = *key;
     const conf_handler_node_t *handler = *next_handler;
@@ -86,26 +112,51 @@ static int _configuration_find_handler(const conf_handler_node_t **next_handler,
         !_configuration_key_next(*key, (*next_handler)->subtree)) {
         return -ENOENT;
     }
-    while ((next = _configuration_key_next(*key, (*next_handler)->subtree))) {
-        *key = next;
-        if (!*next) {
-            break;
-        }
-        if (!(handler = _configuration_handler_next(handler, next))) {
-            break;
-        }
-        *next_handler = handler;
+    long index;
+    while ((next = _configuration_key_next(*key, (*next_handler)->subtree)) && *(*key = next)) {
+        long off = -1;
+        do {
+            if ((handler = _configuration_subnode_next(*next_handler, next))) {
+                if ((*next_handler)->ops &&
+                    container_of(*next_handler, conf_handler_t, node)->handles_array &&
+                    off < 0) {
+                    /* for an array there must be an index before a new handler, like
+                       if config was an array /config/next is invalid */
+                    return -ENOENT;
+                }
+                *next_handler = handler;
+            }
+            else if ((next = _configuration_key_array_index(next, &index))) {
+                *key = next;
+                if (!(*next_handler)->ops ||
+                    !container_of(*next_handler, conf_handler_t, node)->handles_array ||
+                    off >= 0) {
+                    /* if ther is an index, it must be an array */
+                    /* do not allow multidimensional array, like config/0/1 */
+                    return -ENOENT;
+                }
+                if ((unsigned)(off = index * container_of(*next_handler, conf_handler_t, node)->size)
+                    >= container_of(*next_handler, conf_array_handler_t, handler.node)->array_size *
+                       container_of(*next_handler, conf_handler_t, node)->size) {
+                    /* index out of bounds */
+                    return -ENOENT;
+                }
+                *offset += off;
+            }
+        } while (!handler && next);
     }
     return 0;
 }
 
 static void _configuration_iterator_init(conf_iterator_t *iter,
-                                         const conf_handler_node_t *handler)
+                                         const conf_handler_node_t *handler,
+                                         bool max_depth)
 {
     assert(iter);
     assert(handler);
     iter->root = handler;
     iter->sp = 0;
+    iter->max_depth = max_depth;
     iter->stack[iter->sp++] = handler;
 }
 
@@ -114,9 +165,15 @@ static void _configuration_append_next(conf_key_buf_t *key, const conf_handler_n
     /* need to find l '/' for a node on level l in the tree */
     char *slash = key->buf;
     assert(*slash == '/');
-    for (unsigned l = 0; l < next->level; l++, slash++) {
+    if (slash[strlen(slash) - 1] != '/') {
+        strcat(key->buf, "/");
+    }
+    for (unsigned l = 0; l < next->level; slash++) {
         slash = strchr(slash, '/');
         assert(slash);
+        if (!isdigit((int)slash[1])) {
+            l++;
+        }
     }
     strcpy(slash, next->subtree);
     strcat(key->buf, "/");
@@ -130,36 +187,102 @@ static void _configuration_remove_trailing(conf_key_buf_t *key)
     }
 }
 
-static conf_handler_t *_configuration_iterator_next(conf_iterator_t *iter, conf_key_buf_t *key)
+static conf_handler_node_t *_configuration_handler_iterator_next(conf_iterator_t *iter, conf_key_buf_t *key)
 {
-    while (iter->sp > 0) {
+    if (iter->sp > 0) {
         const conf_handler_node_t *next = iter->stack[--iter->sp];
         if (next != iter->root) {
-            _configuration_append_next(key, next);
+            if (key) {
+                _configuration_append_next(key, next);
+            }
             if (next->node.next) {
                 assert(iter->sp < ARRAY_SIZE(iter->stack));
                 iter->stack[iter->sp++] = container_of(next->node.next, conf_handler_node_t, node);
             }
         }
-        const conf_handler_node_t *subhandler = next->sub_nodes;
-        if (subhandler) {
-            assert(iter->sp < ARRAY_SIZE(iter->stack));
-            iter->stack[iter->sp++] = subhandler;
+        const conf_handler_node_t *subnodes = next->subnodes;
+        if (subnodes) {
+            if (!next->ops || iter->max_depth) {
+                assert(iter->sp < ARRAY_SIZE(iter->stack));
+                iter->stack[iter->sp++] = subnodes;
+            }
         }
-        else {
+        if (key) {
             _configuration_remove_trailing(key);
-            return (conf_handler_t *)next;
         }
+        return (conf_handler_node_t *)next;
+
+    }
+    return NULL;
+}
+
+static int _configuration_append_index(conf_key_buf_t *key, const conf_handler_node_t *next)
+{
+    assert(container_of(next, conf_handler_t, node)->handles_array);
+    char *slash = &key->buf[strlen(key->buf) - 1];
+    if (*slash != '/') {
+        strcat(slash, "/");
+        slash = strrchr(key->buf, '/');
+    }
+    uint32_t index = 0;
+    if (!isdigit((int)slash[-1])) {
+        strcat(slash, "0");
+    }
+    else {
+        slash = strrchr(slash, '/');
+        assert(slash);
+        index = scn_u32_dec(slash + 1, strlen(key->buf) - strlen(slash));
+        slash[fmt_u32_dec(slash + 1, ++index) + 1] = '\0';
+    }
+    return (index + 1) < container_of(next, conf_array_handler_t, handler.node)->array_size
+        ? (index + 1) : 0;
+}
+
+static conf_handler_node_t *_configuration_path_iterator_next(conf_iterator_t *iter,
+                                                              conf_key_buf_t *key)
+{
+    if (iter->sp > 0) {
+        const conf_handler_node_t *next = iter->stack[--iter->sp];
+        if (next != iter->root) {
+            if (next->ops && container_of(next, conf_handler_t, node)->handles_array) {
+                if (_configuration_append_index(key, next) > 0) {
+                    assert(iter->sp < ARRAY_SIZE(iter->stack));
+                    iter->stack[iter->sp++] = next;
+                }
+                else if (next->node.next) {
+                    assert(iter->sp < ARRAY_SIZE(iter->stack));
+                    iter->stack[iter->sp++] = container_of(next->node.next, conf_handler_node_t, node);
+                }
+            }
+            else {
+                _configuration_append_next(key, next);
+                if (next->node.next) {
+                    assert(iter->sp < ARRAY_SIZE(iter->stack));
+                    iter->stack[iter->sp++] = container_of(next->node.next, conf_handler_node_t, node);;
+                }
+            }
+        }
+        const conf_handler_node_t *subnodes = next->subnodes;
+        if (subnodes) {
+            if (!next->ops || iter->max_depth) {
+                assert(iter->sp < ARRAY_SIZE(iter->stack));
+                iter->stack[iter->sp++] = subnodes;
+            }
+        }
+        _configuration_remove_trailing(key);
+        return (conf_handler_node_t *)next;
     }
     return NULL;
 }
 
 static int _configuration_prepare(const conf_handler_node_t **next_handler, conf_key_buf_t *key)
 {
+    unsigned offset = 0;
     key->next = key->buf;
-    if (_configuration_find_handler(next_handler, &key->next) < 0) {
+    if (_configuration_find_handler(next_handler, &key->next, &offset) < 0) {
         return -ENOENT;
     }
+    key->offset = offset;
     int ret;
     if (*key->next) {
         if (&(key->next)[-1] == key->buf) {
@@ -203,13 +326,18 @@ static int _configuration_handler_set_internal(const conf_handler_node_t *root,
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
+    _configuration_iterator_init(&iter, root, false);
     int ret = 0;
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_handler_iterator_next(&iter, key))) {
+        if (!handler->ops || !handler->ops->set) {
+            if (*key->next) {
+                return -ENOENT;
+            }
+            continue;
+        }
         size_t sz = size ? *size : 0;
-        assert(handler->ops->set);
-        if ((ret = handler->ops->set(handler, key, value, size))) {
+        if ((ret = handler->ops->set(container_of(handler, conf_handler_t, node), key, value, size))) {
             break;
         }
         if (value) {
@@ -233,13 +361,18 @@ static int _configuration_handler_get_internal(const conf_handler_node_t *root,
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
+    _configuration_iterator_init(&iter, root, false);
     int ret = 0;
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_handler_iterator_next(&iter, key))) {
+        if (!handler->ops || !handler->ops->get) {
+            if (*key->next) {
+                return -ENOENT;
+            }
+            continue;
+        }
         size_t sz = *size;
-        assert(handler->ops->get);
-        if ((ret = handler->ops->get(handler, key, value, size))) {
+        if ((ret = handler->ops->get(container_of(handler, conf_handler_t, node), key, value, size))) {
             break;
         }
         value = (uint8_t *)value + (sz - *size);
@@ -259,18 +392,19 @@ static int _configuration_handler_import_internal(const conf_handler_node_t *roo
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
-    int ret = 0;
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
-        if (handler->ops->import) {
-            if ((ret = handler->ops->import(handler, key))) {
-                break;
+    _configuration_iterator_init(&iter, root, true);
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_path_iterator_next(&iter, key))) {
+        if (!handler->ops || !handler->ops->import) {
+            if (*key->next) {
+                return -ENOENT;
             }
+            continue;
         }
+        handler->ops->import(container_of(handler, conf_handler_t, node), key);
     }
     configuration_key_restore(key, key->buf, key_len);
-    return ret;
+    return 0;
 }
 
 static int _configuration_handler_export_internal(const conf_handler_node_t *root,
@@ -284,19 +418,23 @@ static int _configuration_handler_export_internal(const conf_handler_node_t *roo
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
+    _configuration_iterator_init(&iter, root, true);
     int ret = 0;
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
-        if (handler->ops->export) {
-            if (handler->ops->verify) {
-                if (handler->ops->verify(handler, key)) {
-                    continue;
-                }
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_path_iterator_next(&iter, key))) {
+        if (!handler->ops || !handler->ops->export) {
+            if (*key->next) {
+                return -ENOENT;
             }
-            if ((ret = handler->ops->export(handler, key))) {
-                break;
+            continue;
+        }
+        if (handler->ops_dat->verify) {
+            if (handler->ops_dat->verify(container_of(handler, conf_handler_t, node), key)) {
+                continue;
             }
+        }
+        if ((ret = handler->ops->export(container_of(handler, conf_handler_t, node), key))) {
+            break;
         }
     }
     configuration_key_restore(key, key->buf, key_len);
@@ -314,14 +452,16 @@ static int _configuration_handler_delete_internal(const conf_handler_node_t *roo
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
-        if (handler->ops->delete) {
-            if (handler->ops->delete(handler, key)) {
-                continue;
+    _configuration_iterator_init(&iter, root, true);
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_path_iterator_next(&iter, key))) {
+        if (!handler->ops || !handler->ops->delete) {
+            if (*key->next) {
+                return -ENOENT;
             }
+            continue;
         }
+        handler->ops->delete(container_of(handler, conf_handler_t, node), key);
     }
     configuration_key_restore(key, key->buf, key_len);
     return 0;
@@ -338,14 +478,18 @@ static int _configuration_handler_apply_internal(const conf_handler_node_t *root
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
+    _configuration_iterator_init(&iter, root, false);
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_handler_iterator_next(&iter, key))) {
+        if (!handler->ops_dat || !handler->ops_dat->apply) {
+            if (*key->next) {
+                return -ENOENT;
+            }
+            continue;
+        }
         /* If this fails, there would be an inconsistency between verify() and applied values, or
            an API misuse where verify() was not called before. */
-        if (handler->ops->apply) {
-            handler->ops->apply(handler, key);
-        }
+        handler->ops_dat->apply(container_of(handler, conf_handler_t, node), key);
     }
     configuration_key_restore(key, key->buf, key_len);
     return 0;
@@ -361,10 +505,13 @@ static int _configuration_handler_lock(const conf_handler_node_t *root, conf_key
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
-        mutex_lock(&handler->mutex);
+    _configuration_iterator_init(&iter, root, true);
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_handler_iterator_next(&iter, key))) {
+        if (!handler->ops) {
+            continue;
+        }
+        mutex_lock(&container_of(handler, conf_handler_t, node)->mutex);
     }
     configuration_key_restore(key, key->buf, key_len);
     return 0;
@@ -380,10 +527,13 @@ static int _configuration_handler_unlock(const conf_handler_node_t *root, conf_k
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
-        mutex_unlock(&handler->mutex);
+    _configuration_iterator_init(&iter, root, true);
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_handler_iterator_next(&iter, key))) {
+        if (!handler->ops) {
+            continue;
+        }
+        mutex_unlock(&container_of(handler, conf_handler_t, node)->mutex);
     }
     configuration_key_restore(key, key->buf, key_len);
     return 0;
@@ -400,21 +550,56 @@ static int _configuration_handler_verify_internal(const conf_handler_node_t *roo
         return -ENOENT;
     }
     conf_iterator_t iter;
-    _configuration_iterator_init(&iter, root);
+    _configuration_iterator_init(&iter, root, false);
     int ret = 0;
-    conf_handler_t *handler;
-    while ((handler = _configuration_iterator_next(&iter, key))) {
-        if (handler->ops->verify) {
-            if (handler->ops->verify(handler, key)) {
-                if (!try_reimport || !handler->ops->import) {
-                    ret = -ECANCELED;
-                    break;
-                }
-                else if ((ret = handler->ops->import(handler, key))) {
-                    break;
-                }
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_handler_iterator_next(&iter, key))) {
+        if (!handler->ops || !handler->ops_dat->verify) {
+            if (*key->next) {
+                return -ENOENT;
+            }
+            continue;
+        }
+        if (handler->ops_dat->verify(container_of(handler, conf_handler_t, node), key)) {
+            if (!try_reimport || !handler->ops->import) {
+                ret = -ECANCELED;
+                break;
+            }
+            else if ((ret = _configuration_handler_import_internal(configuration_get_root(), key))) {
+                break;
+            }
+            if (handler->ops_dat->verify(container_of(handler, conf_handler_t, node), key)) {
+                ret = -ECANCELED;
+                break;
             }
         }
+    }
+    configuration_key_restore(key, key->buf, key_len);
+    return ret;
+}
+
+static int _configuration_set_backend_internal(const conf_handler_node_t *root, conf_key_buf_t *key,
+                                               const conf_backend_t *src_backend,
+                                               const conf_backend_t *dst_backend)
+{
+    assert(root);
+    assert(key);
+    assert(src_backend);
+
+    int key_len;
+    if ((key_len = _configuration_prepare(&root, key)) <= 0) {
+        return -ENOENT;
+    }
+    conf_iterator_t iter;
+    _configuration_iterator_init(&iter, root, false);
+    int ret = 0;
+    conf_handler_node_t *handler;
+    while ((handler = _configuration_handler_iterator_next(&iter, key))) {
+        if (!handler->ops) {
+            continue;
+        }
+        container_of(handler, conf_handler_t, node)->src_backend = src_backend;
+        container_of(handler, conf_handler_t, node)->dst_backend = dst_backend;
     }
     configuration_key_restore(key, key->buf, key_len);
     return ret;
@@ -429,7 +614,8 @@ void configuration_register(conf_handler_node_t *parent, conf_handler_node_t *no
 {
     assert(parent);
     assert(node);
-    conf_handler_node_t **end = &parent->sub_nodes;
+    assert(!node->node.next); /* must be registered from the root to the leafs */
+    conf_handler_node_t **end = &parent->subnodes;
     while (*end) {
         end = (conf_handler_node_t **)&(*end)->node.next;
     }
@@ -480,6 +666,14 @@ int configuration_delete(conf_key_t *key)
 int configuration_apply(conf_key_t *key)
 {
     return _configuration_handler_apply_internal(configuration_get_root(), key);
+}
+
+int configuration_set_backend(conf_key_t *key,
+                              const conf_backend_t *src_backend,
+                              const conf_backend_t *dst_backend)
+{
+    return _configuration_set_backend_internal(configuration_get_root(), key,
+                                               src_backend, dst_backend);
 }
 
 char *configuration_key_prepend_root(conf_key_buf_t *key, const char *root)
