@@ -132,11 +132,10 @@ static int _be_fdb_load(const struct conf_backend *be,
 }
 
 static int _be_fdb_store(const struct conf_backend *be,
-                         conf_key_buf_t *key, const void *val, size_t *size,
-                         off_t part_offset, size_t part_size)
+                         conf_key_buf_t *key, const void *val, size_t *size)
 {
     /* Flash cannot take real benefit from offset parameter */
-    (void)be; (void)part_offset; (void)part_size;
+    (void)be;
     struct fdb_blob blob;
     fdb_err_t err;
     if ((err = fdb_kv_set_blob(&_kvdb, key->buf, fdb_blob_make(&blob, val, *size))) != FDB_NO_ERR) {
