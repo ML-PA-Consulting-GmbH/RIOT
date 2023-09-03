@@ -24,19 +24,6 @@ extern "C" {
 #endif
 
 /**
- * @brief   Number of "/food/bread" items to store
- */
-#define CONF_FOOD_BREAD_NUMOF   2
-/**
- * @brief   Number of "/food/cake" items to store
- */
-#define CONF_FOOD_CAKE_NUMOF    2
-/**
- * @brief   Number of "/drinks" items to store
- */
-#define CONF_DRINKS_NUMOF       3
-
-/**
  * @brief   Food configuration item
  */
 typedef struct food {
@@ -51,14 +38,42 @@ typedef struct drink {
 } drink_t;
 
 /**
+ * @brief   Order configuration item
+ */
+typedef struct order_item_t {
+    char item[12]; /**< Ordered item name */
+} order_item_t;
+
+/**
+ * @brief   Order configuration
+ */
+typedef struct order {
+    order_item_t items[2];  /**< Ordered items */
+} order_t;
+
+
+#define TEST_CONFIGURATION_MAX_ORDERS   3
+
+/**
  * @brief   Full configuration compound item
  */
 struct configuration {
     struct {
-        food_t food_bread[CONF_FOOD_BREAD_NUMOF];   /**< location of "/food/bread "*/
-        food_t food_cake[CONF_FOOD_CAKE_NUMOF];     /**< location of "/food/drinks" */
+        struct {
+            food_t white;                           /**< location of "/food/bread/white" */
+            food_t whole_grain;                     /**< location of "/food/bread/whole_grain" */
+        } bread;                                    /**< location of "/food/bread" */
+        struct {
+            food_t cheesecake;                      /**< location of "/food/cake/cheesecake" */
+            food_t donut;                           /**< location of "/food/cake/donut" */
+        } cake;                                     /**< location of "/food/cake" */
     } food;                                         /**< location of "/food" */
-    drink_t drinks[CONF_DRINKS_NUMOF];              /**< location of "/drinks" */
+    struct {
+        drink_t coffee;                             /**< location of "/drinks/coffee" */
+        drink_t tea;                                /**< location of "/drinks/tea" */
+        drink_t cocoa;                              /**< location of "/drinks/cocoa" */
+    } drinks;                                       /**< location of "/drinks" */
+    order_t orders[TEST_CONFIGURATION_MAX_ORDERS];  /**< location of "/orders" */
 };
 
 #ifdef __cplusplus

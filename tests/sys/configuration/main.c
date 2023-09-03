@@ -47,302 +47,23 @@ static struct configuration persist_conf; /* dummy */
 static CONF_KEY_T(40) key_buf
     = CONF_KEY_INITIALIZER(40, "");
 
-static const char *food_bread_keys[CONF_FOOD_BREAD_NUMOF] = {
-    "white",
-    "whole grain",
-};
-
-static const char *food_cake_keys[CONF_FOOD_CAKE_NUMOF] = {
-    "cheesecake",
-    "donut",
-};
-
-static const char *drinks_keys[CONF_DRINKS_NUMOF] = {
-    "coffee",
-    "tea",
-    "cocoa",
-};
-
 struct configuration _conf = {
     .food = {
-        .food_bread = {
-            {"2.00"},
-            {"2.20"}
+        .bread = {
+            .white = {"2.00"},
+            .whole_grain = {"2.20"}
         },
-        .food_cake = {
-            {"2.99"},
-            {"2.00"},
+        .cake = {
+            .cheesecake = {"2.99"},
+            .donut = {"2.00"},
         },
     },
     .drinks = {
-        {"1.00"},
-        {"1.00"},
-        {"1.50"},
+        .coffee = {"1.00"},
+        .tea = {"1.00"},
+        .cocoa = {"1.50"},
     }
 };
-
-static conf_handler_node_t _products_food_conf_handler
-    = CONF_HANDLER_NODE_INITIALIZER("food");
-
-static const conf_backend_t *_backend;
-
-static int _any_food_set(const conf_handler_t *handler,
-                         conf_key_buf_t *key, const void *val, size_t *size,
-                         const char *keys[], food_t food[], unsigned food_numof)
-{
-    assert(handler);
-    assert((val && size && *size) || (!val && !size));
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    size_t sz = size ? *size : 0;
-    int at = -1;
-    if (!*key->next) {
-        if (val) {
-            if (sz < sizeof(food_t) * food_numof) {
-                return -ENOBUFS;
-            }
-        }
-        sz = sizeof(food_t) * food_numof;
-        at = 0;
-    }
-    else {
-        if(val) {
-            if (sz < sizeof(food_t)) {
-                return -ENOBUFS;
-            }
-        }
-        sz = sizeof(food_t);
-        for (unsigned i = 0; at == -1 && i < food_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            return -ENOENT;
-        }
-    }
-    if (val) {
-        *size -= sz;
-        memcpy(&food[at], val, sz);
-    }
-    else {
-        memset(&food[at], 0, sz);
-    }
-    return 0;
-}
-
-static int _any_food_get(const conf_handler_t *handler,
-                         conf_key_buf_t *key, void *val, size_t *size,
-                         const char *keys[], const food_t food[], unsigned food_numof)
-{
-    assert(handler);
-    assert(val);
-    assert(size);
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    size_t sz;
-    int at = -1;
-    if (!*key->next) {
-        sz = sizeof(food_t) * food_numof;
-        at = 0;
-    }
-    else {
-        sz = sizeof(food_t);
-        for (unsigned i = 0; at == -1 && i < food_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1 || !*(food[at].price)) {
-            return -ENOENT;
-        }
-    }
-    if (*size < sz) {
-        return -ENOBUFS;
-    }
-    *size -= sz;
-    memcpy(val, &food[at], sz);
-    return 0;
-}
-
-int _any_food_import(const conf_handler_t *handler,
-                     conf_key_buf_t *key,
-                     const char *keys[], food_t food[], unsigned food_numof)
-{
-    assert(handler);
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    if (!_backend) {
-        return -ENODATA;
-    }
-    assert(_backend->ops);
-    assert(_backend->ops->be_load);
-    size_t sz = sizeof(food_t);
-    int ret = 0;
-    int at = -1;
-    int restore_len = strlen(key->buf);
-    const char *restore = configuration_key_prepend_root(key, CONFIGURATION_RIOT_ROOT);
-    if (!restore) {
-        return -ENOBUFS;
-    }
-    int key_len = strlen(key->buf);
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < food_numof; at++) {
-            if (key->buf_len - key_len <= (int)(1 + strlen(keys[at]))) {
-                DEBUG("test configuration: %s is too long to be appended for deletion\n", keys[at]);
-                continue;
-            }
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], keys[at]);
-            int err; (void)err;
-            if ((err = _backend->ops->be_load(_backend, key, &food[at], &sz))) {
-                DEBUG("test configuration: backend import key %s failed (%d)\n", key->buf, err);
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < food_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            ret = -ENOENT;
-        }
-        else {
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], key->next);
-            if ((ret = _backend->ops->be_load(_backend, key, &food[at], &sz))) {
-                DEBUG("test configuration: backend import key %s failed (%d)\n", key->buf, ret);
-            }
-        }
-    }
-    configuration_key_restore(key, restore, restore_len);
-    return ret;
-}
-
-int _any_food_export(const conf_handler_t *handler,
-                     conf_key_buf_t *key,
-                     const char *keys[], const food_t food[], unsigned food_numof)
-{
-    assert(handler);
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    if (!_backend) {
-        return -ENODATA;
-    }
-    assert(_backend->ops);
-    assert(_backend->ops->be_store);
-    size_t sz = sizeof(food_t);
-    int ret = 0;
-    int at = -1;
-    int restore_len = strlen(key->buf);
-    const char *restore = configuration_key_prepend_root(key, CONFIGURATION_RIOT_ROOT);
-    if (!restore) {
-        return -ENOBUFS;
-    }
-    int key_len = strlen(key->buf);
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < food_numof; at++) {
-            if (key->buf_len - key_len <= (int)(1 + strlen(keys[at]))) {
-                DEBUG("test configuration: %s is too long to be appended for deletion\n", keys[at]);
-                continue;
-            }
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], keys[at]);
-            int err; (void)err;
-            if ((err = _backend->ops->be_store(_backend, key, &food[at], &sz, 0, sz))) {
-                DEBUG("test configuration: backend export key %s failed (%d)\n", key->buf, err);
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < food_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            ret = -ENOENT;
-        }
-        else {
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], key->next);
-            if ((ret = _backend->ops->be_store(_backend, key, &food[at], &sz, 0, sz))) {
-                DEBUG("test configuration: backend export key %s failed (%d)\n", key->buf, ret);
-            }
-        }
-    }
-    configuration_key_restore(key, restore, restore_len);
-    return ret;
-}
-
-int _any_food_delete(const conf_handler_t *handler,
-                     conf_key_buf_t *key,
-                     const char *keys[], unsigned food_numof)
-{
-    assert(handler);
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    if (!_backend) {
-        return -ENODATA;
-    }
-    assert(_backend->ops);
-    if (!_backend->ops->be_delete) {
-        return -ENOTSUP;
-    }
-    int ret = 0;
-    int at = -1;
-    int restore_len = strlen(key->buf);
-    const char *restore = configuration_key_prepend_root(key, CONFIGURATION_RIOT_ROOT);
-    if (!restore) {
-        return -ENOBUFS;
-    }
-    int key_len = strlen(key->buf);
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < food_numof; at++) {
-            if (key->buf_len - key_len <= (int)(1 + strlen(keys[at]))) {
-                DEBUG("test configuration: %s is too long to be appended for deletion\n", keys[at]);
-                continue;
-            }
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], keys[at]);
-            int err; (void)err;
-            if ((err = _backend->ops->be_delete(_backend, key))) {
-                DEBUG("test configuration: backend delete key %s failed (%d)\n", key->buf, err);
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < food_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            ret = -ENOENT;
-        }
-        else {
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], key->next);
-            if ((ret = _backend->ops->be_delete(_backend, key))) {
-                DEBUG("test configuration: backend delete key %s failed (%d)\n", key->buf, ret);
-            }
-        }
-    }
-    configuration_key_restore(key, restore, restore_len);
-    return ret;
-}
 
 static inline bool _verify_price(const char *price)
 {
@@ -368,33 +89,14 @@ static inline bool _verify_price(const char *price)
 
 int _any_food_verify(const struct conf_handler *handler,
                      conf_key_buf_t *key,
-                     const char *keys[], const food_t food[], unsigned food_numof)
+                     const food_t *food)
 {
-    assert(handler);
+    assert(handler); (void)handler;
     assert(key);
-    assert(*key->buf);
-    assert(key->next);
+    assert(food);
 
-    int at = -1;
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < food_numof; at++) {
-            if (!_verify_price(food[at].price)) {
-                return -EINVAL;
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < food_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            return -ENOENT;
-        }
-        if (!_verify_price(food[at].price)) {
-            return -EINVAL;
-        }
+    if (!_verify_price(food->price)) {
+        return -EINVAL;
     }
 
     return 0;
@@ -402,443 +104,27 @@ int _any_food_verify(const struct conf_handler *handler,
 
 int _any_food_apply(const struct conf_handler *handler,
                     conf_key_buf_t *key,
-                    const char *keys[], const food_t food[], unsigned food_numof)
+                    const food_t *food)
 {
-    assert(handler);
+    assert(handler); (void)handler;
     assert(key);
-    assert(*key->buf);
-    assert(key->next);
+    assert(food);
 
-    int at = -1;
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < food_numof; at++) {
-            DEBUG("test configuration: Applying %s to %s\n", food[at].price, keys[at]);
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < food_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            return -ENOENT;
-        }
-        DEBUG("test configuration: Applying %s to %s\n", food[at].price, keys[at]);
-    }
+    printf("test configuration: Applying %s to %s\n", food->price, key->buf);
 
     return 0;
-}
-
-static inline int _food_bread_set(const conf_handler_t *handler,
-                                  conf_key_buf_t *key, const void *val,
-                                  size_t *size)
-{
-    return _any_food_set(handler, key, val, size, food_bread_keys,
-                         _conf.food.food_bread, ARRAY_SIZE(_conf.food.food_bread));
-}
-
-static inline int _food_bread_get(const conf_handler_t *handler,
-                                  conf_key_buf_t *key, void *val,
-                                  size_t *size)
-{
-    return _any_food_get(handler, key, val, size, food_bread_keys,
-                         _conf.food.food_bread, ARRAY_SIZE(_conf.food.food_bread));
-}
-
-static inline int _food_bread_import(const conf_handler_t *handler,
-                                     conf_key_buf_t *key)
-{
-    return _any_food_import(handler, key, food_bread_keys,
-                            _conf.food.food_bread, ARRAY_SIZE(_conf.food.food_bread));
-}
-
-static inline int _food_bread_export(const conf_handler_t *handler,
-                                     conf_key_buf_t *key)
-{
-    return _any_food_export(handler, key, food_bread_keys,
-                            _conf.food.food_bread, ARRAY_SIZE(_conf.food.food_bread));
-}
-
-static inline int _food_bread_delete(const conf_handler_t *handler,
-                                     conf_key_buf_t *key)
-{
-    return _any_food_delete(handler, key, food_bread_keys,
-                            ARRAY_SIZE(_conf.food.food_bread));
-}
-
-static inline int _food_bread_verify(const conf_handler_t *handler,
-                                     conf_key_buf_t *key)
-{
-    return _any_food_verify(handler, key, food_bread_keys,
-                            _conf.food.food_bread, ARRAY_SIZE(_conf.food.food_bread));
-}
-
-static inline int _food_bread_apply(const conf_handler_t *handler,
-                                    conf_key_buf_t *key)
-{
-    return _any_food_apply(handler, key, food_bread_keys,
-                           _conf.food.food_bread, ARRAY_SIZE(_conf.food.food_bread));
-}
-
-
-static const conf_handler_ops_t _food_bread_handler_ops = {
-    .set = _food_bread_set,
-    .get = _food_bread_get,
-    .import = _food_bread_import,
-    .export = _food_bread_export,
-    .delete = _food_bread_delete,
-    .verify = _food_bread_verify,
-    .apply = _food_bread_apply,
-};
-
-static inline int _food_cake_set(const conf_handler_t *handler,
-                                 conf_key_buf_t *key, const void *val,
-                                 size_t *size)
-{
-    return _any_food_set(handler, key, val, size, food_cake_keys,
-                         _conf.food.food_cake, ARRAY_SIZE(_conf.food.food_cake));
-}
-
-static inline int _food_cake_get(const conf_handler_t *handler,
-                                 conf_key_buf_t *key, void *val,
-                                 size_t *size)
-{
-    return _any_food_get(handler, key, val, size, food_cake_keys,
-                         _conf.food.food_cake, ARRAY_SIZE(_conf.food.food_cake));
-}
-
-static inline int _food_cake_import(const conf_handler_t *handler,
-                                    conf_key_buf_t *key)
-{
-    return _any_food_import(handler, key, food_cake_keys,
-                            _conf.food.food_cake, ARRAY_SIZE(_conf.food.food_cake));
-}
-
-static inline int _food_cake_export(const conf_handler_t *handler,
-                                    conf_key_buf_t *key)
-{
-    return _any_food_export(handler, key, food_cake_keys,
-                            _conf.food.food_cake, ARRAY_SIZE(_conf.food.food_cake));
-}
-
-static inline int _food_cake_delete(const conf_handler_t *handler,
-                                    conf_key_buf_t *key)
-{
-    return _any_food_delete(handler, key, food_cake_keys,
-                            ARRAY_SIZE(_conf.food.food_cake));
-}
-
-static inline int _food_cake_verify(const conf_handler_t *handler,
-                                    conf_key_buf_t *key)
-{
-    return _any_food_verify(handler, key, food_cake_keys,
-                            _conf.food.food_cake, ARRAY_SIZE(_conf.food.food_cake));
-}
-
-static inline int _food_cake_apply(const conf_handler_t *handler,
-                                   conf_key_buf_t *key)
-{
-    return _any_food_apply(handler, key, food_cake_keys,
-                           _conf.food.food_cake, ARRAY_SIZE(_conf.food.food_cake));
-}
-
-static const conf_handler_ops_t _food_cake_handler_ops = {
-    .set = _food_cake_set,
-    .get = _food_cake_get,
-    .import = _food_cake_import,
-    .export = _food_cake_export,
-    .delete = _food_cake_delete,
-    .verify = _food_cake_verify,
-    .apply = _food_cake_apply,
-};
-
-static int _any_drinks_set(const conf_handler_t *handler,
-                           conf_key_buf_t *key, const void *val, size_t *size,
-                           const char *keys[], drink_t drinks[], unsigned drinks_numof)
-{
-    assert(handler);
-    assert((val && size && *size) || (!val && !size));
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    size_t sz = size ? *size : 0;
-    int at = -1;
-    if (!*key->next) {
-        if (val) {
-            if (sz < sizeof(drink_t) * drinks_numof) {
-                return -ENOBUFS;
-            }
-        }
-        sz = sizeof(drink_t) * drinks_numof;
-        at = 0;
-    }
-    else {
-        if (val) {
-            if (sz < sizeof(drink_t)) {
-                return -ENOBUFS;
-            }
-        }
-        sz = sizeof(drink_t);
-        for (unsigned i = 0; at == -1 && i < drinks_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            return -ENOENT;
-        }
-    }
-    if (val) {
-        *size -= sz;
-        memcpy(&drinks[at], val, sz);
-    }
-    else {
-        memset(&drinks[at], 0, sz);
-    }
-    return 0;
-}
-
-static int _any_drinks_get(const conf_handler_t *handler,
-                           conf_key_buf_t *key, void *val, size_t *size,
-                           const char *keys[], const drink_t drinks[], unsigned drinks_numof)
-{
-    assert(handler);
-    assert(val);
-    assert(size);
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    size_t sz;
-    int at = -1;
-    if (!*key->next) {
-        sz = sizeof(drink_t) * drinks_numof;
-        at = 0;
-    }
-    else {
-        sz = sizeof(drink_t);
-        for (unsigned i = 0; at == -1 && i < drinks_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1 || !*(drinks[at].price)) {
-            return -ENOENT;
-        }
-    }
-    if (*size < sz) {
-        return -ENOBUFS;
-    }
-    *size -= sz;
-    memcpy(val, &drinks[at], sz);
-    return 0;
-}
-
-int _any_drinks_import(const conf_handler_t *handler,
-                       conf_key_buf_t *key,
-                       const char *keys[], drink_t drinks[], unsigned drinks_numof)
-{
-    assert(handler);
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    if (!_backend) {
-        return -ENODATA;
-    }
-    assert(_backend->ops);
-    assert(_backend->ops->be_load);
-    size_t sz = sizeof(drink_t);
-    int ret = 0;
-    int at = -1;
-    int restore_len = strlen(key->buf);
-    const char *restore = configuration_key_prepend_root(key, CONFIGURATION_RIOT_ROOT);
-    if (!restore) {
-        return -ENOBUFS;
-    }
-    int key_len = strlen(key->buf);
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < drinks_numof; at++) {
-            if (key->buf_len - key_len <= (int)(1 + strlen(keys[at]))) {
-                DEBUG("test configuration: %s is too long to be appended for deletion\n", keys[at]);
-                continue;
-            }
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], keys[at]);
-            int err; (void)err;
-            if ((err = _backend->ops->be_load(_backend, key, &drinks[at], &sz))) {
-                DEBUG("test configuration: backend import key %s failed (%d)\n", key->buf, err);
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < drinks_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            ret = -ENOENT;
-        }
-        else {
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], key->next);
-            if ((ret = _backend->ops->be_load(_backend, key, &drinks[at], &sz))) {
-                DEBUG("test configuration: backend import key %s failed (%d)\n", key->buf, ret);
-            }
-        }
-    }
-    configuration_key_restore(key, restore, restore_len);
-    return ret;
-}
-
-int _any_drinks_export(const conf_handler_t *handler,
-                       conf_key_buf_t *key,
-                       const char *keys[], const drink_t drinks[], unsigned drinks_numof)
-{
-    assert(handler);
-    assert(key);
-    assert(*key->buf);
-    assert(key->next);
-
-    if (!_backend) {
-        return -ENODATA;
-    }
-    assert(_backend->ops);
-    assert(_backend->ops->be_store);
-    size_t sz = sizeof(drink_t);
-    int ret = 0;
-    int at = -1;
-    int restore_len = strlen(key->buf);
-    const char *restore = configuration_key_prepend_root(key, CONFIGURATION_RIOT_ROOT);
-    if (!restore) {
-        return -ENOBUFS;
-    }
-    int key_len = strlen(key->buf);
-    if (!*key->next) {
-        for(at = 0; (unsigned)at < drinks_numof; at++) {
-            if (key->buf_len - key_len <= (int)(1 + strlen(keys[at]))) {
-                DEBUG("test configuration: %s is too long to be appended for deletion\n", keys[at]);
-                continue;
-            }
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], keys[at]);
-            int err; (void)err;
-            if ((err = _backend->ops->be_store(_backend, key, &drinks[at], &sz, 0, sz))) {
-                DEBUG("test configuration: backend export key %s failed (%d)\n", key->buf, err);
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < drinks_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            ret = -ENOENT;
-        }
-        else {
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], key->next);
-            if ((ret = _backend->ops->be_store(_backend, key, &drinks[at], &sz, 0, sz))) {
-                DEBUG("test configuration: backend export key %s failed (%d)\n", key->buf, ret);
-            }
-        }
-    }
-    configuration_key_restore(key, restore, restore_len);
-    return ret;
-}
-
-int _any_drinks_delete(const conf_handler_t *handler,
-                       conf_key_buf_t *key,
-                       const char *keys[], unsigned drinks_numof)
-{
-    assert(handler);
-    assert(key);
-    assert(*key->buf);
-
-    if (!_backend) {
-        return -ENODATA;
-    }
-    assert(_backend->ops);
-    if (!_backend->ops->be_delete) {
-        return -ENOTSUP;
-    }
-    int ret = 0;
-    int at = -1;
-    int restore_len = strlen(key->buf);
-    const char *restore = configuration_key_prepend_root(key, CONFIGURATION_RIOT_ROOT);
-    if (!restore) {
-        return -ENOBUFS;
-    }
-    int key_len = strlen(key->buf);
-    if (!*key->next) {
-        for(at = 0; (unsigned)at <= drinks_numof; at++) {
-            if (key->buf_len - key_len < (int)(1 + strlen(keys[at]))) {
-                DEBUG("test configuration: %s is too long to be appended for deletion\n", keys[at]);
-                continue;
-            }
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], keys[at]);
-            int err; (void)err;
-            if ((err = _backend->ops->be_delete(_backend, key))) {
-                DEBUG("test configuration: backend delete key %s failed (%d)\n", key->buf, err);
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < drinks_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            ret = -ENOENT;
-        }
-        else {
-            key->buf[key_len] = '/';
-            strcpy(&key->buf[key_len + 1], key->next);
-            if ((ret = _backend->ops->be_delete(_backend, key))) {
-                DEBUG("test configuration: backend delete key %s failed (%d)\n", key->buf, ret);
-            }
-        }
-    }
-    configuration_key_restore(key, restore, restore_len);
-    return ret;
 }
 
 int _any_drinks_verify(const struct conf_handler *handler,
                        conf_key_buf_t *key,
-                       const char *keys[], const drink_t drinks[], unsigned drinks_numof)
+                       const drink_t *drink)
 {
-    assert(handler);
+    assert(handler); (void)handler;
     assert(key);
-    assert(*key->buf);
-    assert(key->next);
+    assert(drink);
 
-    int at = -1;
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < drinks_numof; at++) {
-            if (!_verify_price(drinks[at].price)) {
-                return -EINVAL;
-            }
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < drinks_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            return -ENOENT;
-        }
-        if (!_verify_price(drinks[at].price)) {
-            return -EINVAL;
-        }
+    if (!_verify_price(drink->price)) {
+        return -EINVAL;
     }
 
     return 0;
@@ -846,125 +132,604 @@ int _any_drinks_verify(const struct conf_handler *handler,
 
 int _any_drinks_apply(const struct conf_handler *handler,
                       conf_key_buf_t *key,
-                      const char *keys[], const drink_t drinks[], unsigned drinks_numof)
+                      const drink_t *drink)
 {
-    assert(handler);
+    assert(handler); (void)handler;
     assert(key);
-    assert(*key->buf);
-    assert(key->next);
+    assert(drink);
 
-    int at = -1;
-    if (!*key->next) {
-        for (at = 0; (unsigned)at < drinks_numof; at++) {
-            DEBUG("test configuration: Applying %s to %s\n", drinks[at].price, keys[at]);
-        }
-    }
-    else {
-        for (unsigned i = 0; at == -1 && i < drinks_numof; i++) {
-            if (!strcmp(keys[i], key->next)) {
-                at = i;
-            }
-        }
-        if (at == -1) {
-            return -ENOENT;
-        }
-        DEBUG("test configuration: Applying %s to %s\n", drinks[at].price, keys[at]);
-    }
+    printf("test configuration: Applying %s to %s\n", drink->price, key->buf);
 
     return 0;
 }
 
-static inline int _drinks_set(const conf_handler_t *handler,
-                              conf_key_buf_t *key, const void *val,
-                              size_t *size)
+static int _food_white_set(const conf_handler_t *handler,
+                           conf_key_buf_t *key, const void *val, size_t *size)
 {
-    return _any_drinks_set(handler, key, val, size, drinks_keys,
-                           _conf.drinks, ARRAY_SIZE(_conf.drinks));
+    return configuration_set_handler_default(handler, key, val, size);
 }
 
-static inline int _drinks_get(const conf_handler_t *handler,
-                              conf_key_buf_t *key, void *val,
-                              size_t *size)
+static int _food_white_get(const conf_handler_t *handler,
+                                 conf_key_buf_t *key, void *val, size_t *size)
 {
-    return _any_drinks_get(handler, key, val, size, food_cake_keys,
-                           _conf.drinks, ARRAY_SIZE(_conf.drinks));
+    return configuration_get_handler_default(handler, key, val, size);
 }
 
-static inline int _drinks_import(const conf_handler_t *handler,
-                                 conf_key_buf_t *key)
+static int _food_white_import(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
 {
-    return _any_drinks_import(handler, key, drinks_keys,
-                              _conf.drinks, ARRAY_SIZE(_conf.drinks));
+    return configuration_import_handler_default(handler, key);
 }
 
-static inline int _drinks_export(const conf_handler_t *handler,
-                                 conf_key_buf_t *key)
+static int _food_white_export(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
 {
-    return _any_drinks_export(handler, key, drinks_keys,
-                              _conf.drinks, ARRAY_SIZE(_conf.drinks));
+    return configuration_export_handler_default(handler, key);
 }
 
-static inline int _drinks_delete(const conf_handler_t *handler,
-                                 conf_key_buf_t *key)
+static int _food_white_delete(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
 {
-    return _any_drinks_delete(handler, key, drinks_keys,
-                              ARRAY_SIZE(_conf.drinks));
+    return configuration_delete_handler_default(handler, key);
 }
 
-static inline int _drinks_verify(const conf_handler_t *handler,
-                                 conf_key_buf_t *key)
+static int _food_white_verify(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
 {
-    return _any_drinks_verify(handler, key, drinks_keys,
-                              _conf.drinks, ARRAY_SIZE(_conf.drinks));
+    return _any_food_verify(handler, key, &_conf.food.bread.white);
 }
 
-static inline int _drinks_apply(const conf_handler_t *handler,
-                                conf_key_buf_t *key)
+static int _food_white_apply(const conf_handler_t *handler,
+                             conf_key_buf_t *key)
 {
-    return _any_drinks_apply(handler, key, drinks_keys,
-                             _conf.drinks, ARRAY_SIZE(_conf.drinks));
+    return _any_food_apply(handler, key, &_conf.food.bread.white);
 }
 
-static const conf_handler_ops_t _drinks_handler_ops = {
-    .set = _drinks_set,
-    .get = _drinks_get,
-    .import = _drinks_import,
-    .export = _drinks_export,
-    .delete = _drinks_delete,
-    .verify = _drinks_verify,
-    .apply = _drinks_apply,
+static const conf_handler_ops_t _bread_white_handler_ops = {
+    .set = _food_white_set,
+    .get = _food_white_get,
+    .import = _food_white_import,
+    .export = _food_white_export,
+    .delete = _food_white_delete,
 };
 
-static conf_handler_t _products_food_bread_handler
-    = CONF_HANDLER_INITIALIZER("bread", &_food_bread_handler_ops);
+static const conf_handler_data_ops_t _bread_white_handler_data_ops = {
+    .verify = _food_white_verify,
+    .apply = _food_white_apply,
+};
 
-static conf_handler_t _products_food_cake_handler
-    = CONF_HANDLER_INITIALIZER("cake", &_food_cake_handler_ops);
+static int _food_whole_grain_set(const conf_handler_t *handler,
+                                 conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
 
-static conf_handler_t _products_drinks_conf_handler
-    = CONF_HANDLER_INITIALIZER("drinks", &_drinks_handler_ops);
+static int _food_whole_grain_get(const conf_handler_t *handler,
+                                 conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+static int _food_whole_grain_import(const conf_handler_t *handler,
+                                    conf_key_buf_t *key)
+{
+    return configuration_import_handler_default(handler, key);
+}
+
+static int _food_whole_grain_export(const conf_handler_t *handler,
+                                    conf_key_buf_t *key)
+{
+    return configuration_export_handler_default(handler, key);
+}
+
+static int _food_whole_grain_delete(const conf_handler_t *handler,
+                                    conf_key_buf_t *key)
+{
+    return configuration_delete_handler_default(handler, key);
+}
+
+static int _food_whole_grain_verify(const conf_handler_t *handler,
+                                    conf_key_buf_t *key)
+{
+    return _any_food_verify(handler, key, &_conf.food.bread.whole_grain);
+}
+
+static int _food_whole_grain_apply(const conf_handler_t *handler,
+                                  conf_key_buf_t *key)
+{
+    return _any_food_apply(handler, key, &_conf.food.bread.whole_grain);
+}
+
+static const conf_handler_ops_t _bread_whole_grain_handler_ops = {
+    .set = _food_whole_grain_set,
+    .get = _food_whole_grain_get,
+    .import = _food_whole_grain_import,
+    .export = _food_whole_grain_export,
+    .delete = _food_whole_grain_delete,
+};
+
+static const conf_handler_data_ops_t _bread_whole_grain_handler_data_ops = {
+    .verify = _food_whole_grain_verify,
+    .apply = _food_whole_grain_apply,
+};
+
+static int _food_cheesecake_set(const conf_handler_t *handler,
+                                conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
+
+static int _food_cheesecake_get(const conf_handler_t *handler,
+                                conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+static int _food_cheesecake_import(const conf_handler_t *handler,
+                                   conf_key_buf_t *key)
+{
+    return configuration_import_handler_default(handler, key);
+}
+
+static int _food_cheesecake_export(const conf_handler_t *handler,
+                                   conf_key_buf_t *key)
+{
+    return configuration_export_handler_default(handler, key);
+}
+
+static int _food_cheesecake_delete(const conf_handler_t *handler,
+                                   conf_key_buf_t *key)
+{
+    return configuration_delete_handler_default(handler, key);
+}
+
+static int _food_cheesecake_verify(const conf_handler_t *handler,
+                                   conf_key_buf_t *key)
+{
+    return _any_food_verify(handler, key, &_conf.food.cake.cheesecake);
+}
+
+static int _food_cheesecake_apply(const conf_handler_t *handler,
+                                  conf_key_buf_t *key)
+{
+    return _any_food_apply(handler, key, &_conf.food.cake.cheesecake);
+}
+
+static const conf_handler_ops_t _cake_cheesecake_handler_ops = {
+    .set = _food_cheesecake_set,
+    .get = _food_cheesecake_get,
+    .import = _food_cheesecake_import,
+    .export = _food_cheesecake_export,
+    .delete = _food_cheesecake_delete,
+};
+
+static const conf_handler_data_ops_t _cake_cheesecake_handler_data_ops = {
+    .verify = _food_cheesecake_verify,
+    .apply = _food_cheesecake_apply,
+};
+
+static int _food_donut_set(const conf_handler_t *handler,
+                           conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
+
+static int _food_donut_get(const conf_handler_t *handler,
+                             conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+static int _food_donut_import(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
+{
+    return configuration_import_handler_default(handler, key);
+}
+
+static int _food_donut_export(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
+{
+    return configuration_export_handler_default(handler, key);
+}
+
+static int _food_donut_delete(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
+{
+    return configuration_delete_handler_default(handler, key);
+}
+
+static int _food_donut_verify(const conf_handler_t *handler,
+                                conf_key_buf_t *key)
+{
+    return _any_food_verify(handler, key, &_conf.food.cake.donut);
+}
+
+static int _food_donut_apply(const conf_handler_t *handler,
+                               conf_key_buf_t *key)
+{
+    return _any_food_apply(handler, key, &_conf.food.cake.donut);
+}
+
+static const conf_handler_ops_t _cake_donut_handler_ops = {
+    .set = _food_donut_set,
+    .get = _food_donut_get,
+    .import = _food_donut_import,
+    .export = _food_donut_export,
+    .delete = _food_donut_delete,
+};
+
+static const conf_handler_data_ops_t _cake_donut_handler_data_ops = {
+    .verify = _food_donut_verify,
+    .apply = _food_donut_apply,
+};
+
+static int _drink_coffee_set(const conf_handler_t *handler,
+                             conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
+
+static int _drink_coffee_get(const conf_handler_t *handler,
+                             conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+static int _drink_coffee_import(const conf_handler_t *handler,
+                                conf_key_buf_t *key)
+{
+    return configuration_import_handler_default(handler, key);
+}
+
+static int _drink_coffee_export(const conf_handler_t *handler,
+                                conf_key_buf_t *key)
+{
+    return configuration_export_handler_default(handler, key);
+}
+
+static int _drink_coffee_delete(const conf_handler_t *handler,
+                                conf_key_buf_t *key)
+{
+    return configuration_delete_handler_default(handler, key);
+}
+
+static int _drink_coffee_verify(const conf_handler_t *handler,
+                                conf_key_buf_t *key)
+{
+    return _any_drinks_verify(handler, key, &_conf.drinks.coffee);
+}
+
+static int _drink_coffee_apply(const conf_handler_t *handler,
+                               conf_key_buf_t *key)
+{
+    return _any_drinks_apply(handler, key, &_conf.drinks.coffee);
+}
+
+static const conf_handler_ops_t _drinks_coffee_handler_ops = {
+    .set = _drink_coffee_set,
+    .get = _drink_coffee_get,
+    .import = _drink_coffee_import,
+    .export = _drink_coffee_export,
+    .delete = _drink_coffee_delete,
+};
+
+static const conf_handler_data_ops_t _drinks_coffee_handler_data_ops = {
+    .verify = _drink_coffee_verify,
+    .apply = _drink_coffee_apply,
+};
+
+static int _drink_tea_set(const conf_handler_t *handler,
+                          conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
+
+static int _drink_tea_get(const conf_handler_t *handler,
+                          conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+static int _drink_tea_import(const conf_handler_t *handler,
+                             conf_key_buf_t *key)
+{
+    return configuration_import_handler_default(handler, key);
+}
+
+static int _drink_tea_export(const conf_handler_t *handler,
+                             conf_key_buf_t *key)
+{
+    return configuration_export_handler_default(handler, key);
+}
+
+static int _drink_tea_delete(const conf_handler_t *handler,
+                             conf_key_buf_t *key)
+{
+    return configuration_delete_handler_default(handler, key);
+}
+
+static int _drink_tea_verify(const conf_handler_t *handler,
+                             conf_key_buf_t *key)
+{
+    return _any_drinks_verify(handler, key, &_conf.drinks.tea);
+}
+
+static int _drink_tea_apply(const conf_handler_t *handler,
+                            conf_key_buf_t *key)
+{
+    return _any_drinks_apply(handler, key, &_conf.drinks.tea);
+}
+
+static const conf_handler_ops_t _drinks_tea_handler_ops = {
+    .set = _drink_tea_set,
+    .get = _drink_tea_get,
+    .import = _drink_tea_import,
+    .export = _drink_tea_export,
+    .delete = _drink_tea_delete,
+};
+
+static const conf_handler_data_ops_t _drinks_tea_handler_data_ops = {
+    .verify = _drink_tea_verify,
+    .apply = _drink_tea_apply,
+};
+
+static int _drink_cocoa_set(const conf_handler_t *handler,
+                            conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
+
+static int _drink_cocoa_get(const conf_handler_t *handler,
+                            conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+static int _drink_cocoa_import(const conf_handler_t *handler,
+                               conf_key_buf_t *key)
+{
+    return configuration_import_handler_default(handler, key);
+}
+
+static int _drink_cocoa_export(const conf_handler_t *handler,
+                               conf_key_buf_t *key)
+{
+    return configuration_export_handler_default(handler, key);
+}
+
+static int _drink_cocoa_delete(const conf_handler_t *handler,
+                               conf_key_buf_t *key)
+{
+    return configuration_delete_handler_default(handler, key);
+}
+
+static int _drink_cocoa_verify(const conf_handler_t *handler,
+                               conf_key_buf_t *key)
+{
+    return _any_drinks_verify(handler, key, &_conf.drinks.cocoa);
+}
+
+static int _drink_cocoa_apply(const conf_handler_t *handler,
+                              conf_key_buf_t *key)
+{
+    return _any_drinks_apply(handler, key, &_conf.drinks.cocoa);
+}
+
+static const conf_handler_ops_t _drinks_cocoa_handler_ops = {
+    .set = _drink_cocoa_set,
+    .get = _drink_cocoa_get,
+    .import = _drink_cocoa_import,
+    .export = _drink_cocoa_export,
+    .delete = _drink_cocoa_delete,
+};
+
+static const conf_handler_data_ops_t _drinks_cocoa_handler_data_ops = {
+    .verify = _drink_cocoa_verify,
+    .apply = _drink_cocoa_apply,
+};
+
+static int _orders_set(const conf_handler_t *handler,
+                       conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
+
+static int _orders_get(const conf_handler_t *handler,
+                       conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+static int _orders_import(const conf_handler_t *handler,
+                          conf_key_buf_t *key)
+{
+    return configuration_import_handler_default(handler, key);
+}
+
+static int _orders_export(const conf_handler_t *handler,
+                          conf_key_buf_t *key)
+{
+    return configuration_export_handler_default(handler, key);
+}
+
+static int _orders_delete(const conf_handler_t *handler,
+                          conf_key_buf_t *key)
+{
+    return configuration_delete_handler_default(handler, key);
+}
+
+static int _orders_verify(const conf_handler_t *handler,
+                          conf_key_buf_t *key)
+{
+    (void)handler; (void)key;
+    printf("test configuration: Verifying %s\n", key->buf);
+    return 0;
+}
+
+static int _orders_apply(const conf_handler_t *handler,
+                         conf_key_buf_t *key)
+{
+    (void)handler; (void)key;
+    printf("test configuration: Applying %s\n", key->buf);
+    return 0;
+}
+
+static const conf_handler_ops_t _orders_handler_ops = {
+    .set = _orders_set,
+    .get = _orders_get,
+    .import = _orders_import,
+    .export = _orders_export,
+    .delete = _orders_delete,
+};
+
+static const conf_handler_data_ops_t _orders_handler_data_ops = {
+    .verify = _orders_verify,
+    .apply = _orders_apply,
+};
+
+static int _orders_items_set(const conf_handler_t *handler,
+                             conf_key_buf_t *key, const void *val, size_t *size)
+{
+    return configuration_set_handler_default(handler, key, val, size);
+}
+
+static int _orders_items_get(const conf_handler_t *handler,
+                             conf_key_buf_t *key, void *val, size_t *size)
+{
+    return configuration_get_handler_default(handler, key, val, size);
+}
+
+
+static const conf_handler_ops_t _orders_items_handler_ops = {
+    .set = _orders_items_set,
+    .get = _orders_items_get,
+    .import = NULL,
+    .export = NULL,
+    .delete = NULL,
+};
+
+static conf_handler_node_t _products_food_conf_handler
+    = CONF_HANDLER_NODE_INITIALIZER("food");
+
+static conf_handler_node_t _products_bread_handler
+    = CONF_HANDLER_NODE_INITIALIZER("bread");
+
+static conf_handler_t _products_bread_white_handler
+    = CONF_HANDLER_INITIALIZER("white",
+                               &_bread_white_handler_ops,
+                               &_bread_white_handler_data_ops,
+                               sizeof(_conf.food.bread.white),
+                               &_conf.food.bread.white);
+
+static conf_handler_t _products_bread_whole_grain_handler
+    = CONF_HANDLER_INITIALIZER("whole_grain",
+                               &_bread_whole_grain_handler_ops,
+                               &_bread_whole_grain_handler_data_ops,
+                               sizeof(_conf.food.bread.whole_grain),
+                               &_conf.food.bread.whole_grain);
+
+static conf_handler_node_t _products_cake_handler
+    = CONF_HANDLER_NODE_INITIALIZER("cake");
+
+static conf_handler_t _products_cake_cheesecake_handler
+    = CONF_HANDLER_INITIALIZER("cheesecake",
+                               &_cake_cheesecake_handler_ops,
+                               &_cake_cheesecake_handler_data_ops,
+                               sizeof(_conf.food.cake.cheesecake),
+                               &_conf.food.cake.cheesecake);
+
+static conf_handler_t _products_cake_donut_handler
+    = CONF_HANDLER_INITIALIZER("donut",
+                               &_cake_donut_handler_ops,
+                               &_cake_donut_handler_data_ops,
+                               sizeof(_conf.food.cake.donut),
+                               &_conf.food.cake.donut);
+
+static conf_handler_node_t _products_drinks_conf_handler
+    = CONF_HANDLER_NODE_INITIALIZER("drinks");
+
+static conf_handler_t _products_drinks_coffee_conf_handler
+    = CONF_HANDLER_INITIALIZER("coffee",
+                               &_drinks_coffee_handler_ops,
+                               &_drinks_coffee_handler_data_ops,
+                               sizeof(_conf.drinks.coffee),
+                               &_conf.drinks.coffee);
+
+static conf_handler_t _products_drinks_tea_conf_handler
+    = CONF_HANDLER_INITIALIZER("tea",
+                               &_drinks_tea_handler_ops,
+                               &_drinks_tea_handler_data_ops,
+                               sizeof(_conf.drinks.tea),
+                               &_conf.drinks.tea);
+
+static conf_handler_t _products_drinks_cocoa_conf_handler
+    = CONF_HANDLER_INITIALIZER("cocoa",
+                               &_drinks_cocoa_handler_ops,
+                               &_drinks_cocoa_handler_data_ops,
+                               sizeof(_conf.drinks.cocoa),
+                               &_conf.drinks.cocoa);
+
+static conf_array_handler_t _products_orders_conf_handler
+    = CONF_ARRAY_HANDLER_INITIALIZER("orders",
+                                     &_orders_handler_ops,
+                                     &_orders_handler_data_ops,
+                                     sizeof(_conf.orders[0]),
+                                     ARRAY_SIZE(_conf.orders),
+                                     &_conf.orders);
+
+static conf_array_handler_t _products_orders_items_conf_handler
+    = CONF_ARRAY_HANDLER_INITIALIZER("items",
+                                     &_orders_items_handler_ops, NULL,
+                                     sizeof(_conf.orders[0].items[0]),
+                                     ARRAY_SIZE(_conf.orders[0].items),
+                                     &_conf.orders[0].items);
 
 static void _init_backend(void)
 {
 #if defined(TEST_CONFIGURATION_BACKEND_RAM)
-    _backend = configuration_backend_ram_get();
+    _products_orders_conf_handler.handler.src_backend = configuration_backend_ram_get();
+    _products_orders_items_conf_handler.handler.src_backend = configuration_backend_ram_get();
+    _products_drinks_cocoa_conf_handler.src_backend = configuration_backend_ram_get();
+    _products_drinks_tea_conf_handler.src_backend = configuration_backend_ram_get();
+    _products_drinks_coffee_conf_handler.src_backend = configuration_backend_ram_get();
+    _products_cake_donut_handler.src_backend = configuration_backend_ram_get();
+    _products_cake_cheesecake_handler.src_backend = configuration_backend_ram_get();
+    _products_bread_whole_grain_handler.src_backend = configuration_backend_ram_get();
+    _products_bread_white_handler.src_backend = configuration_backend_ram_get();
 #elif defined(TEST_CONFIGURATION_BACKEND_FLASHDB_MTD) || \
       defined(TEST_CONFIGURATION_BACKEND_FLASHDB_VFS)
-    _backend = configuration_backend_flashdb_get();
+    _products_orders_conf_handler.src_backend = configuration_backend_flashdb_get();
+    _products_drinks_cocoa_conf_handler.src_backend = configuration_backend_flashdb_get();
+    _products_drinks_tea_conf_handler.src_backend = configuration_backend_flashdb_get();
+    _products_drinks_coffee_conf_handler.src_backend = configuration_backend_flashdb_get();
+    _products_cake_donut_handler.src_backend = configuration_backend_flashdb_get();
+    _products_cake_cheesecake_handler.src_backend = configuration_backend_flashdb_get();
+    _products_bread_whole_grain_handler.src_backend = configuration_backend_flashdb_get();
+    _products_bread_white_handler.src_backend = configuration_backend_flashdb_get();
 #endif
 }
 
 static void _setup(void)
 {
     configuration_register(configuration_get_root(), &_products_food_conf_handler);
-    configuration_register(configuration_get_root(), &_products_drinks_conf_handler.node);
-    configuration_register(&_products_food_conf_handler, &_products_food_bread_handler.node);
-    configuration_register(&_products_food_conf_handler, &_products_food_cake_handler.node);
+    configuration_register(configuration_get_root(), &_products_drinks_conf_handler);
+    configuration_register(configuration_get_root(), &_products_orders_conf_handler.handler.node);
+    configuration_register(&_products_food_conf_handler, &_products_bread_handler);
+    configuration_register(&_products_food_conf_handler, &_products_cake_handler);
+    configuration_register(&_products_bread_handler, &_products_bread_white_handler.node);
+    configuration_register(&_products_bread_handler, &_products_bread_whole_grain_handler.node);
+    configuration_register(&_products_cake_handler, &_products_cake_cheesecake_handler.node);
+    configuration_register(&_products_cake_handler, &_products_cake_donut_handler.node);
+    configuration_register(&_products_drinks_conf_handler, &_products_drinks_coffee_conf_handler.node);
+    configuration_register(&_products_drinks_conf_handler, &_products_drinks_tea_conf_handler.node);
+    configuration_register(&_products_drinks_conf_handler, &_products_drinks_cocoa_conf_handler.node);
+    configuration_register(&_products_orders_conf_handler.handler.node,
+                           &_products_orders_items_conf_handler.handler.node);
 }
 
 static void test_configuration_get(void)
 {
-    struct configuration conf;
+    struct configuration conf = { 0 };
     size_t conf_size;
 
     conf_size = sizeof(conf.food);
@@ -984,52 +749,52 @@ static void test_configuration_get(void)
     TEST_ASSERT(!memcmp(&conf.food, &_conf.food, conf_size));
 
     memset(&conf, 0, sizeof(conf));
-    conf_size = sizeof(conf.food.food_bread);
+    conf_size = sizeof(conf.food.bread);
     strcpy(key_buf.buf, "/food/bread");
-    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.food_bread, &conf_size));
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.bread, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&conf.food.food_bread, &_conf.food.food_bread, conf_size));
+    TEST_ASSERT(!memcmp(&conf.food.bread, &_conf.food.bread, conf_size));
 
     memset(&conf, 0, sizeof(conf));
-    conf_size = sizeof(conf.food.food_bread[0]);
+    conf_size = sizeof(conf.food.bread.white);
     strcpy(key_buf.buf, "/food/bread/white");
-    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.food_bread[0], &conf_size));
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.bread.white, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&conf.food.food_bread[0], &_conf.food.food_bread[0], conf_size));
+    TEST_ASSERT(!memcmp(&conf.food.bread.white, &_conf.food.bread.white, conf_size));
 
     memset(&conf, 0, sizeof(conf));
-    conf_size = sizeof(conf.food.food_bread[1]);
-    strcpy(key_buf.buf, "/food/bread/whole grain");
-    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.food_bread[1], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole grain"));
+    conf_size = sizeof(conf.food.bread.whole_grain);
+    strcpy(key_buf.buf, "/food/bread/whole_grain");
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.bread.whole_grain, &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&conf.food.food_bread[1], &_conf.food.food_bread[1], conf_size));
+    TEST_ASSERT(!memcmp(&conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, conf_size));
 
     memset(&conf, 0, sizeof(conf));
-    conf_size = sizeof(conf.food.food_cake);
+    conf_size = sizeof(conf.food.cake);
     strcpy(key_buf.buf, "/food/cake");
-    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.food_cake, &conf_size));
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.cake, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&conf.food.food_cake, &_conf.food.food_cake, conf_size));
+    TEST_ASSERT(!memcmp(&conf.food.cake, &_conf.food.cake, conf_size));
 
     memset(&conf, 0, sizeof(conf));
-    conf_size = sizeof(conf.food.food_cake[0]);
+    conf_size = sizeof(conf.food.cake.cheesecake);
     strcpy(key_buf.buf, "/food/cake/cheesecake");
-    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.food_cake[0], &conf_size));
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.cake.cheesecake, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&conf.food.food_cake[0], &_conf.food.food_cake[0], conf_size));
+    TEST_ASSERT(!memcmp(&conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, conf_size));
 
     memset(&conf, 0, sizeof(conf));
-    conf_size = sizeof(conf.food.food_cake[1]);
+    conf_size = sizeof(conf.food.cake.donut);
     strcpy(key_buf.buf, "/food/cake/donut");
-    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.food_cake[1], &conf_size));
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.food.cake.donut, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&conf.food.food_cake[1], &_conf.food.food_cake[1], conf_size));
+    TEST_ASSERT(!memcmp(&conf.food.cake.donut, &_conf.food.cake.donut, conf_size));
 
     conf_size = sizeof(conf.drinks);
     strcpy(key_buf.buf, "/drinks");
@@ -1043,11 +808,11 @@ static void test_configuration_set(void)
 {
     struct configuration new_conf = {
         .food = {
-            .food_bread = {
+            .bread = {
                 {"2.50"},
                 {"2.70"}
             },
-            .food_cake = {
+            .cake = {
                 {"3.50"},
                 {"2.50"},
             }
@@ -1071,52 +836,52 @@ static void test_configuration_set(void)
     TEST_ASSERT(configuration_set(&key_buf, &new_conf.food, &conf_size));
 
     memset(&_conf, 0, sizeof(_conf));
-    conf_size = sizeof(new_conf.food.food_bread[0]);
+    conf_size = sizeof(new_conf.food.bread.white);
     strcpy(key_buf.buf, "/food/bread/white");
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.food_bread[0], &conf_size));
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread.white, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.food.food_bread[0], &_conf.food.food_bread[0], sizeof(_conf.food.food_bread[0])));
+    TEST_ASSERT(!memcmp(&new_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
     memset(&_conf, 0, sizeof(_conf));
-    conf_size = sizeof(new_conf.food.food_bread[1]);
-    strcpy(key_buf.buf, "/food/bread/whole grain");
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.food_bread[1], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole grain"));
+    conf_size = sizeof(new_conf.food.bread.whole_grain);
+    strcpy(key_buf.buf, "/food/bread/whole_grain");
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread.whole_grain, &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.food.food_bread[1], &_conf.food.food_bread[1], sizeof(_conf.food.food_bread[1])));
+    TEST_ASSERT(!memcmp(&new_conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, sizeof(_conf.food.bread.whole_grain)));
 
     memset(&_conf, 0, sizeof(_conf));
-    conf_size = sizeof(new_conf.food.food_bread);
+    conf_size = sizeof(new_conf.food.bread);
     strcpy(key_buf.buf, "/food/bread");
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.food_bread, &conf_size));
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.food.food_bread, &_conf.food.food_bread, sizeof(_conf.food.food_bread)));
+    TEST_ASSERT(!memcmp(&new_conf.food.bread, &_conf.food.bread, sizeof(_conf.food.bread)));
 
     memset(&_conf, 0, sizeof(_conf));
-    conf_size = sizeof(new_conf.food.food_cake[0]);
+    conf_size = sizeof(new_conf.food.cake.cheesecake);
     strcpy(key_buf.buf, "/food/cake/cheesecake");
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.food_cake[0], &conf_size));
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.cake.cheesecake, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.food.food_cake[0], &_conf.food.food_cake[0], sizeof(_conf.food.food_cake[0])));
+    TEST_ASSERT(!memcmp(&new_conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, sizeof(_conf.food.cake.cheesecake)));
 
     memset(&_conf, 0, sizeof(_conf));
-    conf_size = sizeof(new_conf.food.food_cake[1]);
+    conf_size = sizeof(new_conf.food.cake.donut);
     strcpy(key_buf.buf, "/food/cake/donut");
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.food_cake[1], &conf_size));
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.cake.donut, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.food.food_cake[1], &_conf.food.food_cake[1], sizeof(_conf.food.food_cake[1])));
+    TEST_ASSERT(!memcmp(&new_conf.food.cake.donut, &_conf.food.cake.donut, sizeof(_conf.food.cake.donut)));
 
     memset(&_conf, 0, sizeof(_conf));
-    conf_size = sizeof(new_conf.food.food_cake);
+    conf_size = sizeof(new_conf.food.cake);
     strcpy(key_buf.buf, "/food/cake");
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.food_cake, &conf_size));
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.cake, &conf_size));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.food.food_cake, &_conf.food.food_cake, sizeof(_conf.food.food_cake)));
+    TEST_ASSERT(!memcmp(&new_conf.food.cake, &_conf.food.cake, sizeof(_conf.food.cake)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food);
@@ -1158,37 +923,37 @@ static void test_configuration_import(void)
     strcpy(key_buf.buf, "/food/bread");
     TEST_ASSERT(!configuration_import(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
-    TEST_ASSERT(!memcmp(&persist_conf.food.food_bread, &_conf.food.food_bread, sizeof(_conf.food.food_bread)));
+    TEST_ASSERT(!memcmp(&persist_conf.food.bread, &_conf.food.bread, sizeof(_conf.food.bread)));
 
     memset(&_conf, 0, sizeof(_conf));
     strcpy(key_buf.buf, "/food/bread/white");
     TEST_ASSERT(!configuration_import(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
-    TEST_ASSERT(!memcmp(&persist_conf.food.food_bread[0], &_conf.food.food_bread[0], sizeof(_conf.food.food_bread[0])));
+    TEST_ASSERT(!memcmp(&persist_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food/bread/whole grain");
+    strcpy(key_buf.buf, "/food/bread/whole_grain");
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole grain"));
-    TEST_ASSERT(!memcmp(&persist_conf.food.food_bread[1], &_conf.food.food_bread[1], sizeof(_conf.food.food_bread[1])));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
+    TEST_ASSERT(!memcmp(&persist_conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, sizeof(_conf.food.bread.whole_grain)));
 
     memset(&_conf, 0, sizeof(_conf));
     strcpy(key_buf.buf, "/food/cake");
     TEST_ASSERT(!configuration_import(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
-    TEST_ASSERT(!memcmp(&persist_conf.food.food_cake, &_conf.food.food_cake, sizeof(_conf.food.food_cake)));
+    TEST_ASSERT(!memcmp(&persist_conf.food.cake, &_conf.food.cake, sizeof(_conf.food.cake)));
 
     memset(&_conf, 0, sizeof(_conf));
     strcpy(key_buf.buf, "/food/cake/cheesecake");
     TEST_ASSERT(!configuration_import(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
-    TEST_ASSERT(!memcmp(&persist_conf.food.food_cake[0], &_conf.food.food_cake[0], sizeof(_conf.food.food_cake[0])));
+    TEST_ASSERT(!memcmp(&persist_conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, sizeof(_conf.food.cake.cheesecake)));
 
     memset(&_conf, 0, sizeof(_conf));
     strcpy(key_buf.buf, "/food/cake/donut");
     TEST_ASSERT(!configuration_import(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
-    TEST_ASSERT(!memcmp(&persist_conf.food.food_cake[1], &_conf.food.food_cake[1], sizeof(_conf.food.food_cake[1])));
+    TEST_ASSERT(!memcmp(&persist_conf.food.cake.donut, &_conf.food.cake.donut, sizeof(_conf.food.cake.donut)));
 
     strcpy(key_buf.buf, "/drinks");
     TEST_ASSERT(!configuration_import(&key_buf));
@@ -1203,11 +968,11 @@ static void test_configuration_export(void)
 {
     struct configuration new_conf = {
         .food = {
-            .food_bread = {
+            .bread = {
                 {"2.50"},
                 {"2.70"}
             },
-            .food_cake = {
+            .cake = {
                 {"3.50"},
                 {"2.50"},
             }
@@ -1226,43 +991,43 @@ static void test_configuration_export(void)
     strcpy(key_buf.buf, "invalid");
     TEST_ASSERT(configuration_export(&key_buf));
     strcpy(key_buf.buf, "/food/bread/invalid");
-    TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(configuration_export(&key_buf));
     memset(&persist_conf, 0, sizeof(persist_conf));
 
     strcpy(key_buf.buf, "/food/bread/white");
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
-    TEST_ASSERT(!memcmp(&persist_conf.food.food_bread[0], &_conf.food.food_bread[0], sizeof(_conf.food.food_bread[0])));
+    TEST_ASSERT(!memcmp(&persist_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/food/bread/whole grain");
+    strcpy(key_buf.buf, "/food/bread/whole_grain");
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole grain"));
-    TEST_ASSERT(!memcmp(&new_conf.food.food_bread[1], &_conf.food.food_bread[1], sizeof(_conf.food.food_bread[1])));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
+    TEST_ASSERT(!memcmp(&new_conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, sizeof(_conf.food.bread.whole_grain)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
     strcpy(key_buf.buf, "/food/bread");
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
-    TEST_ASSERT(!memcmp(&new_conf.food.food_bread, &_conf.food.food_bread, sizeof(_conf.food.food_bread)));
+    TEST_ASSERT(!memcmp(&new_conf.food.bread, &_conf.food.bread, sizeof(_conf.food.bread)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
     strcpy(key_buf.buf, "/food/cake/cheesecake");
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
-    TEST_ASSERT(!memcmp(&new_conf.food.food_cake[0], &_conf.food.food_cake[0], sizeof(_conf.food.food_cake[0])));
+    TEST_ASSERT(!memcmp(&new_conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, sizeof(_conf.food.cake.cheesecake)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
     strcpy(key_buf.buf, "/food/cake/donut");
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
-    TEST_ASSERT(!memcmp(&new_conf.food.food_cake[1], &_conf.food.food_cake[1], sizeof(_conf.food.food_cake[1])));
+    TEST_ASSERT(!memcmp(&new_conf.food.cake.donut, &_conf.food.cake.donut, sizeof(_conf.food.cake.donut)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
     strcpy(key_buf.buf, "/food/cake");
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
-    TEST_ASSERT(!memcmp(&new_conf.food.food_cake, &_conf.food.food_cake, sizeof(_conf.food.food_cake)));
+    TEST_ASSERT(!memcmp(&new_conf.food.cake, &_conf.food.cake, sizeof(_conf.food.cake)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
     strcpy(key_buf.buf, "/food");
@@ -1284,11 +1049,11 @@ static void test_configuration_import_modify_export_import(void)
 {
     struct configuration new_conf = {
         .food = {
-            .food_bread = {
+            .bread = {
                 {"2.50"},
                 {"2.70"}
             },
-            .food_cake = {
+            .cake = {
                 {"3.50"},
                 {"2.50"},
             }
@@ -1361,11 +1126,11 @@ static void test_configuration_delete(void)
 {
     struct configuration new_conf = {
         .food = {
-            .food_bread = {
+            .bread = {
                 {"2.50"},
                 {"2.70"}
             },
-            .food_cake = {
+            .cake = {
                 {"3.50"},
                 {"2.50"},
             }
@@ -1379,16 +1144,15 @@ static void test_configuration_delete(void)
     struct configuration conf_backup = _conf;
     struct configuration persist_conf_backup = persist_conf;
     size_t conf_size;
-    int ret;
 
     strcpy(key_buf.buf, "invalid");
     TEST_ASSERT(configuration_delete(&key_buf));
 
     strcpy(key_buf.buf, "/food/bread/baguette");
-    TEST_ASSERT(!(ret = configuration_delete(&key_buf)));
+    TEST_ASSERT(configuration_delete(&key_buf));
 
     strcpy(key_buf.buf, "/food/bread");
-    TEST_ASSERT(!(ret = configuration_delete(&key_buf)));
+    TEST_ASSERT(!configuration_delete(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
 
     conf_size = sizeof(new_conf.food);
@@ -1411,30 +1175,25 @@ static void test_configuration_delete(void)
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
 
+    strcpy(key_buf.buf, "/food");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
 
-    if (_backend->ops->be_delete) {
-        strcpy(key_buf.buf, "/food");
-        TEST_ASSERT(!configuration_delete(&key_buf));
-        TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
-        TEST_ASSERT(!configuration_import(&key_buf));
-        TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    strcpy(key_buf.buf, "/food/bread/white");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
 
-        strcpy(key_buf.buf, "/food/bread/");
-        strcat(key_buf.buf, food_bread_keys[0]);
-        TEST_ASSERT(configuration_import(&key_buf));
-        TEST_ASSERT(!strncmp(key_buf.buf, "/food/bread/", 12) && !strcmp(key_buf.buf + 12, food_bread_keys[0]));
+    strcpy(key_buf.buf, "/drinks");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
 
-        strcpy(key_buf.buf, "/drinks");
-        TEST_ASSERT(!configuration_delete(&key_buf));
-        TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
-        TEST_ASSERT(!configuration_import(&key_buf));
-        TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
-
-        strcpy(key_buf.buf, "/drinks/");
-        strcat(key_buf.buf, drinks_keys[0]);
-        TEST_ASSERT(configuration_import(&key_buf));
-        TEST_ASSERT(!strncmp(key_buf.buf, "/drinks/", 8) && !strcmp(key_buf.buf + 8, drinks_keys[0]));
-    }
+    strcpy(key_buf.buf, "/drinks/coffee");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
 
     _conf = conf_backup;
     persist_conf = persist_conf_backup;
@@ -1444,19 +1203,19 @@ static void test_configuration_verify_apply(void)
 {
     struct configuration new_conf = {
         .food = {
-            .food_bread = {
-                {"sale"},
-                {"2.70"}
+            .bread = {
+                .white = {"sale"},
+                .whole_grain = {"2.70"}
             },
-            .food_cake = {
-                {"3.50"},
-                {"2.50"},
+            .cake = {
+                .cheesecake = {"3.50"},
+                .donut = {"2.50"},
             }
         },
         .drinks = {
-            {"free"},
-            {"1.50"},
-            {"2.00"},
+            .coffee = {"free"},
+            .tea = {"1.50"},
+            .cocoa = {"2.00"},
         }
     };
     size_t conf_size;
@@ -1467,13 +1226,12 @@ static void test_configuration_verify_apply(void)
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
 
-    conf_size = sizeof(new_conf.food.food_bread[0]);
-    strcpy(key_buf.buf, "/food/bread/");
-    strcat(key_buf.buf, food_bread_keys[0]);
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.food_bread[0], &conf_size));
-    TEST_ASSERT(!strncmp(key_buf.buf, "/food/bread/", 12) && !strcmp(key_buf.buf + 12, food_bread_keys[0]));
+    conf_size = sizeof(new_conf.food.bread.white);
+    strcpy(key_buf.buf, "/food/bread/white");
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread.white, &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.food.food_bread[0], &_conf.food.food_bread[0], sizeof(_conf.food.food_bread[0])));
+    TEST_ASSERT(!memcmp(&new_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
     strcpy(key_buf.buf, "/food/bread");
     TEST_ASSERT(configuration_verify(&key_buf, false));
@@ -1487,23 +1245,487 @@ static void test_configuration_verify_apply(void)
     TEST_ASSERT(!configuration_export(&key_buf));
     TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
 
-    conf_size = sizeof(new_conf.drinks[0]);
-    strcpy(key_buf.buf, "/drinks/");
-    strcat(key_buf.buf, drinks_keys[0]);
-    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.drinks[0], &conf_size));
-    TEST_ASSERT(!strncmp(key_buf.buf, "/drinks/", 8) && !strcmp(key_buf.buf + 8, drinks_keys[0]));
+    conf_size = sizeof(new_conf.drinks.coffee);
+    strcpy(key_buf.buf, "/drinks/coffee");
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.drinks.coffee, &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
     TEST_ASSERT(conf_size == 0);
-    TEST_ASSERT(!memcmp(&new_conf.drinks[0], &_conf.drinks[0], sizeof(_conf.drinks[0])));
+    TEST_ASSERT(!memcmp(&new_conf.drinks.coffee, &_conf.drinks.coffee, sizeof(_conf.drinks.coffee)));
 
     TEST_ASSERT(configuration_verify(&key_buf, false));
-    TEST_ASSERT(!strncmp(key_buf.buf, "/drinks/", 8) && !strcmp(key_buf.buf + 8, drinks_keys[0]));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
     TEST_ASSERT(!configuration_verify(&key_buf, true));
-    TEST_ASSERT(!strncmp(key_buf.buf, "/drinks/", 8) && !strcmp(key_buf.buf + 8, drinks_keys[0]));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
     TEST_ASSERT(!configuration_apply(&key_buf));
-    TEST_ASSERT(!strncmp(key_buf.buf, "/drinks/", 8) && !strcmp(key_buf.buf + 8, drinks_keys[0]));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
 
     _conf = conf_backup;
 }
+
+static void test_configuration_array_set(void)
+{
+
+    order_t orders[TEST_CONFIGURATION_MAX_ORDERS] = {
+        {
+            .items = {
+                { .item = "donut", },
+                { .item = "coffee", },
+            },
+        },
+        {
+            .items = {
+                { .item = "cheesecake", },
+                { .item = "coffee", },
+            },
+        },
+        {
+            .items = {
+                { .item = "coffee", },
+                { .item = "coffee", },
+            },
+        },
+    };
+
+    struct configuration conf_backup = _conf;
+
+    size_t conf_size = sizeof(orders);
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_set(&key_buf, orders, &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&_conf.orders, &orders, sizeof(orders)));
+
+    conf_size = sizeof(orders[0]);
+    strcpy(key_buf.buf, "/orders/3");
+    TEST_ASSERT(configuration_set(&key_buf, orders, &conf_size));
+
+    conf_size = sizeof(orders[0]);
+    strcpy(key_buf.buf, "/orders/0");
+    TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0"));
+    TEST_ASSERT(!memcmp(&_conf.orders[0], &((order_t){0}), sizeof(orders[0])));
+
+    conf_size = sizeof(orders[1]);
+    strcpy(key_buf.buf, "/orders/1");
+    TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/1"));
+    TEST_ASSERT(!memcmp(&_conf.orders[1], &((order_t){0}), sizeof(orders[1])));
+
+    conf_size = sizeof(orders[2]);
+    strcpy(key_buf.buf, "/orders/2");
+    TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2"));
+    TEST_ASSERT(!memcmp(&_conf.orders[0], &((order_t){0}), sizeof(orders[2])));
+
+
+    order_t order_item_0 = {
+        .items = { {"juice"}, {"tea"} },
+    };
+
+    conf_size = sizeof(order_item_0.items[0]);
+    strcpy(key_buf.buf, "/orders/0/items/0");
+    TEST_ASSERT(!configuration_set(&key_buf, &order_item_0.items[0], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/0"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&_conf.orders[0].items[0], &order_item_0.items[0], sizeof(order_item_0.items[0])));
+
+    conf_size = sizeof(order_item_0.items[1]);
+    strcpy(key_buf.buf, "/orders/0/items/1");
+    TEST_ASSERT(!configuration_set(&key_buf, &order_item_0.items[1], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/1"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&_conf.orders[0].items[1], &order_item_0.items[1], sizeof(order_item_0.items[1])));
+
+    order_t order_item_1 = {
+        .items = { {"fish"}, {"chips"} },
+    };
+
+    conf_size = sizeof(order_item_1);
+    strcpy(key_buf.buf, "/orders/2/items");
+    TEST_ASSERT(!configuration_set(&key_buf, &order_item_1.items, &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2/items"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&_conf.orders[2].items, &order_item_1.items, sizeof(order_item_1.items)));
+
+    conf_size = sizeof(order_item_1);
+    strcpy(key_buf.buf, "/orders/2/invalid");
+    TEST_ASSERT(configuration_set(&key_buf, &order_item_1.items, &conf_size));
+
+    conf_size = sizeof(order_item_1);
+    strcpy(key_buf.buf, "/orders/0/2/invalid");
+    TEST_ASSERT(configuration_set(&key_buf, &order_item_1.items, &conf_size));
+
+    conf_size = sizeof(order_item_1);
+    strcpy(key_buf.buf, "/orders/0/2");
+    TEST_ASSERT(configuration_set(&key_buf, &order_item_1.items, &conf_size));
+
+    _conf = conf_backup;
+}
+
+static void test_configuration_array_get(void)
+{
+    struct configuration conf = { 0 };
+    size_t conf_size;
+
+    conf_size = sizeof(conf.orders);
+    strcpy(key_buf.buf, "/orders/invalid");
+    TEST_ASSERT(configuration_get(&key_buf, &conf.orders, &conf_size));
+
+    conf_size = sizeof(conf.orders[0]);
+    strcpy(key_buf.buf, "/orders/3");
+    TEST_ASSERT(configuration_get(&key_buf, &conf.orders[0], &conf_size));
+
+    conf_size = sizeof(conf.orders);
+    strcpy(key_buf.buf, "/orders/items");
+    TEST_ASSERT(configuration_get(&key_buf, &conf.orders, &conf_size));
+
+    conf_size = sizeof(conf.orders[0].items[0]);
+    strcpy(key_buf.buf, "/orders/0/items/0");
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[0].items[0], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/0"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&conf.orders[0].items[0], &_conf.orders[0].items[0], conf_size));
+
+    conf_size = sizeof(conf.orders[0].items[1]);
+    strcpy(key_buf.buf, "/orders/0/items/1");
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[0].items[1], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/1"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&conf.orders[0].items[1], &_conf.orders[0].items[1], conf_size));
+
+    conf_size = sizeof(conf.orders[1].items[0]);
+    strcpy(key_buf.buf, "/orders/1/items/0");
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[1].items[0], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/1/items/0"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&conf.orders[1].items[0], &_conf.orders[1].items[0], conf_size));
+
+    conf_size = sizeof(conf.orders[1].items[1]);
+    strcpy(key_buf.buf, "/orders/1/items/1");
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[1].items[1], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/1/items/1"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&conf.orders[1].items[1], &_conf.orders[1].items[1], conf_size));
+
+    conf_size = sizeof(conf.orders[2].items[0]);
+    strcpy(key_buf.buf, "/orders/2/items/0");
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[2].items[0], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2/items/0"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&conf.orders[2].items[0], &_conf.orders[2].items[0], conf_size));
+
+    conf_size = sizeof(conf.orders[2].items[1]);
+    strcpy(key_buf.buf, "/orders/2/items/1");
+    TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[2].items[1], &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2/items/1"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&conf.orders[2].items[1], &_conf.orders[2].items[1], conf_size));
+}
+
+static void test_configuration_array_import(void)
+{
+    struct configuration conf_backup = _conf;
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders, &persist_conf.orders, sizeof(_conf.orders)));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/items");
+    TEST_ASSERT(configuration_import(&key_buf));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/0/items/2");
+    TEST_ASSERT(configuration_import(&key_buf));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/0");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders[0], &persist_conf.orders[0],
+                        sizeof(_conf.orders[0])));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/1");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders[1], &persist_conf.orders[1],
+                        sizeof(_conf.orders[1])));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/2");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders[2], &persist_conf.orders[2],
+                        sizeof(_conf.orders[2])));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/0/items");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    /* /orders/0/items has no import handler */
+    TEST_ASSERT(memcmp(&_conf.orders[0].items, &persist_conf.orders[0].items,
+                       sizeof(_conf.orders[0].items)));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/1/items");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    /* /orders/1/items has no import handler */
+    TEST_ASSERT(memcmp(&_conf.orders[1].items, &persist_conf.orders[1].items,
+                sizeof(_conf.orders[1].items)));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/2/items");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    /* /orders/2/items has no import handler */
+    TEST_ASSERT(memcmp(&_conf.orders[2].items, &persist_conf.orders[2].items,
+                       sizeof(_conf.orders[2].items)));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/0/items/0");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    /* /orders/0/items/0 has no import handler */
+    TEST_ASSERT(memcmp(&_conf.orders[0].items[0], &persist_conf.orders[0].items[0],
+                       sizeof(_conf.orders[0].items[0])));
+
+    memset(&_conf, 0, sizeof(_conf));
+    strcpy(key_buf.buf, "/orders/0/items/1");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    /* /orders/0/items/1 has no import handler */
+    TEST_ASSERT(memcmp(&_conf.orders[0].items[1], &persist_conf.orders[0].items[1],
+                       sizeof(_conf.orders[0].items[1])));
+
+    _conf = conf_backup;
+}
+
+static void test_configuration_array_export(void)
+{
+    struct configuration new_conf = {
+        .orders = {
+            {
+                .items = {
+                    { .item = "donut", },
+                    { .item = "coffee", },
+                },
+            },
+            {
+                .items = {
+                    { .item = "cheesecake", },
+                    { .item = "coffee", },
+                },
+            },
+            {
+                .items = {
+                    { .item = "coffee", },
+                    { .item = "coffee", },
+                },
+            },
+        },
+    };
+    struct configuration conf_backup = _conf;
+    struct configuration persist_conf_backup = persist_conf;
+
+    _conf = new_conf;
+
+    strcpy(key_buf.buf, "invalid");
+    TEST_ASSERT(configuration_export(&key_buf));
+    strcpy(key_buf.buf, "/orders/invalid");
+    TEST_ASSERT(configuration_export(&key_buf));
+    strcpy(key_buf.buf, "/orders/0/invalid");
+    TEST_ASSERT(configuration_export(&key_buf));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!memcmp(&persist_conf.orders, &_conf.orders, sizeof(_conf.orders)));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/0");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!memcmp(&persist_conf.orders[0], &_conf.orders[0], sizeof(_conf.orders[0])));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/1");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!memcmp(&persist_conf.orders[1], &_conf.orders[1], sizeof(_conf.orders[1])));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/2");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!memcmp(&persist_conf.orders[2], &_conf.orders[2], sizeof(_conf.orders[2])));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/1/items");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    /* /orders/1/items has no export handler */
+    TEST_ASSERT(memcmp(&persist_conf.orders[1].items, &_conf.orders[1].items,
+                       sizeof(_conf.orders[1].items)));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/0/items");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    /* /orders/1/items has no export handler */
+    TEST_ASSERT(memcmp(&persist_conf.orders[0].items, &_conf.orders[0].items,
+                       sizeof(_conf.orders[0].items)));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/1/items");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    /* /orders/1/items has no export handler */
+    TEST_ASSERT(memcmp(&persist_conf.orders[1].items, &_conf.orders[1].items,
+                       sizeof(_conf.orders[1].items)));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/2/items");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    /* /orders/1/items has no export handler */
+    TEST_ASSERT(memcmp(&persist_conf.orders[2].items, &_conf.orders[2].items,
+                       sizeof(_conf.orders[2].items)));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+    strcpy(key_buf.buf, "/orders/0/items/0");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    /* /orders/1/items has no export handler */
+    TEST_ASSERT(memcmp(&persist_conf.orders[0].items[0], &_conf.orders[0].items[0],
+                       sizeof(_conf.orders[0].items[0])));
+
+    memset(&persist_conf, 0, sizeof(persist_conf));
+
+    strcpy(key_buf.buf, "/orders/0/items/1");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    /* /orders/1/items has no export handler */
+    TEST_ASSERT(memcmp(&persist_conf.orders[0].items[1], &_conf.orders[0].items[1],
+                       sizeof(_conf.orders[0].items[1])));
+
+    _conf = conf_backup;
+    persist_conf = persist_conf_backup;
+}
+
+static void test_configuration_array_delete(void)
+{
+    struct configuration new_conf = {
+        .orders = {
+            {
+                .items = {
+                    { .item = "donut", },
+                    { .item = "coffee", },
+                },
+            },
+            {
+                .items = {
+                    { .item = "cheesecake", },
+                    { .item = "coffee", },
+                },
+            },
+            {
+                .items = {
+                    { .item = "coffee", },
+                    { .item = "coffee", },
+                },
+            },
+        },
+    };
+    struct configuration conf_backup = _conf;
+    struct configuration persist_conf_backup = persist_conf;
+
+    _conf = new_conf;
+
+    strcpy(key_buf.buf, "/orders/0/invalid");
+    TEST_ASSERT(configuration_delete(&key_buf));
+
+    strcpy(key_buf.buf, "/orders/0");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+    strcpy(key_buf.buf, "/orders/1");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+    strcpy(key_buf.buf, "/orders/2");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+
+    strcpy(key_buf.buf, "/orders/0");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
+    strcpy(key_buf.buf, "/orders/1");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
+    strcpy(key_buf.buf, "/orders/2");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
+
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_export(&key_buf));
+
+    strcpy(key_buf.buf, "/orders/0/items");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+    strcpy(key_buf.buf, "/orders/1/items");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+    strcpy(key_buf.buf, "/orders/2/items");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
+
+    strcpy(key_buf.buf, "/orders/0");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders[0], &new_conf.orders[0], sizeof(_conf.orders[0])));
+    strcpy(key_buf.buf, "/orders/1");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders[1], &new_conf.orders[1], sizeof(_conf.orders[1])));
+    strcpy(key_buf.buf, "/orders/2");
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders[2], &new_conf.orders[2], sizeof(_conf.orders[2])));
+
+    persist_conf = persist_conf_backup;
+    _conf = conf_backup;
+}
+
+static void test_configuration_array_import_modify_export_import(void)
+{
+    struct configuration new_conf = {
+        .orders = {
+            {
+                .items = {
+                    { .item = "donut", },
+                    { .item = "coffee", },
+                },
+            },
+            {
+                .items = {
+                    { .item = "cheesecake", },
+                    { .item = "coffee", },
+                },
+            },
+            {
+                .items = {
+                    { .item = "coffee", },
+                    { .item = "coffee", },
+                },
+            },
+        },
+    };
+    struct configuration conf_backup = _conf;
+    struct configuration persist_conf_backup = persist_conf;
+    size_t conf_size;
+
+    memset(&_conf, 0, sizeof(_conf));
+
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_import(&key_buf));
+
+    conf_size = sizeof(new_conf.orders);
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_set(&key_buf, &new_conf.orders, &conf_size));
+    TEST_ASSERT(!strcmp(key_buf.buf, "/orders"));
+    TEST_ASSERT(conf_size == 0);
+    TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
+
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_delete(&key_buf));
+
+    strcpy(key_buf.buf, "/orders");
+    TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
+
+    _conf = conf_backup;
+    persist_conf = persist_conf_backup;
+}
+
 
 Test* test_configuration(void)
 {
@@ -1511,12 +1733,22 @@ Test* test_configuration(void)
         new_TestFixture(test_configuration_get),
         new_TestFixture(test_configuration_set),
 #if defined(TEST_CONFIGURATION_BACKEND_RAM)
+        /* we only know what is stored on the pseudo backend */
         new_TestFixture(test_configuration_import),
         new_TestFixture(test_configuration_export),
 #endif
-        new_TestFixture(test_configuration_import_modify_export_import),
         new_TestFixture(test_configuration_delete),
+        new_TestFixture(test_configuration_import_modify_export_import),
         new_TestFixture(test_configuration_verify_apply),
+        new_TestFixture(test_configuration_array_set),
+        new_TestFixture(test_configuration_array_get),
+#if defined(TEST_CONFIGURATION_BACKEND_RAM)
+        /* we only know what is stored on the pseudo backend */
+        new_TestFixture(test_configuration_array_import),
+        new_TestFixture(test_configuration_array_export),
+#endif
+        new_TestFixture(test_configuration_array_delete),
+        new_TestFixture(test_configuration_array_import_modify_export_import),
     };
 
     EMB_UNIT_TESTCALLER(tests_configuration, NULL, NULL, fixtures);
