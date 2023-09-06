@@ -48,7 +48,7 @@ int configuration_set_handler_default(const conf_handler_t *handler,
     if (*key->next) {
         return -ENOENT;
     }
-    if (handler->handles_array && !isdigit((int)key->buf[strlen(key->buf) - 1])) {
+    if (handler->conf_flags.handles_array && !isdigit((int)key->buf[strlen(key->buf) - 1])) {
         if (val && sz < handler->size * container_of(handler, conf_array_handler_t, handler)->array_size) {
             return -ENOBUFS;
         }
@@ -124,13 +124,47 @@ int configuration_import_handler_default(const conf_handler_t *handler,
     }
     int key_len = strlen(key->buf);
     int err; (void)err;
-    if (!handler->handles_array || isdigit((int)key->buf[key_len - 1])) {
+    if (!handler->conf_flags.handles_array ||
+            isdigit((int)key->buf[key_len - 1]) ||
+                handler->conf_flags.export_as_a_whole) {
+        if (handler->conf_flags.handles_array &&
+                isdigit((int)key->buf[key_len - 1]) &&
+                    handler->conf_flags.export_as_a_whole) {
+            DEBUG("configuration: importing array items is not supported for key %s\n", key->buf);
+            goto restore_key;
+        }
+        void *dec_data = NULL;
+        size_t dec_size;
+        if (handler->node.ops_dat->decode) {
+            /* query decoding buffer */
+            handler->node.ops_dat->decode(handler, key, &dec_data, &dec_size);
+            assert(dec_data);
+            assert(dec_size);
+            data = dec_data; /* decode() has decoded the data and returns decoded representation */
+            sz = dec_size; /* decode() has decoded the data and returns the decoded data size */
+        }
         if ((err = handler->src_backend->ops->be_load(handler->src_backend, key, data, &sz))) {
             DEBUG("configuration: backend importing key %s failed (%d)\n", key->buf, err);
         }
+        else if (handler->node.ops_dat->decode) {
+            void *data_cpy = data;
+            dec_data = data;
+            dec_size = dec_size - sz;
+            if ((err = handler->node.ops_dat->decode(handler, key, &dec_data, &dec_size))) {
+                DEBUG("configuration: decoding for key %s failed (%d)\n", key->buf, err);
+            }
+            else {
+                assert(dec_size == handler->size);
+                /* The decoder should not directly decode to the data location because decoding could fail */
+                memcpy(data_cpy, dec_data, handler->size);
+            }
+        }
     }
     else {
-        assert(handler->handles_array);
+        /* handler->conf_flags.handles_array &&
+            !isdigit((int)key->buf[key_len - 1]) &&
+                !handler->conf_flags.export_as_a_whole */
+        assert(handler->conf_flags.handles_array);
         const conf_array_handler_t *array = container_of(handler, conf_array_handler_t, handler);
         unsigned at;
         for (at = 0; at < array->array_size; at++, data += handler->size) {
@@ -141,11 +175,37 @@ int configuration_import_handler_default(const conf_handler_t *handler,
             strcpy(&key->buf[key_len], "/");
             err = fmt_u32_dec(&key->buf[key_len + 1], at);
             key->buf[key_len + 1 + err] = '\0';
+            void *data_cpy = data;
+            void *dec_data = NULL;
+            size_t dec_size;
+            if (handler->node.ops_dat->decode) {
+                /* query decoding buffer */
+                handler->node.ops_dat->decode(handler, key, &dec_data, &dec_size);
+                assert(dec_data);
+                assert(dec_size);
+                data = dec_data; /* decode() has decoded the data and returns decoded representation */
+                sz = dec_size; /* decode() has decoded the data and returns the decoded data size */
+            }
             if ((err = handler->src_backend->ops->be_load(handler->src_backend, key, data, &sz))) {
                 DEBUG("configuration: backend importing key %s failed (%d)\n", key->buf, err);
             }
+            else if (handler->node.ops_dat->decode) {
+                dec_data = data;
+                dec_size = dec_size - sz;
+                if ((err = handler->node.ops_dat->decode(handler, key, &dec_data, &dec_size))) {
+                    DEBUG("configuration: decoding for key %s failed (%d)\n", key->buf, err);
+                }
+                else {
+                    assert(dec_size == handler->size);
+                    /* The decoder should not directly decode to the data location because decoding could fail */
+                    memcpy(data_cpy, dec_data, handler->size);
+                }
+            }
+            data = data_cpy;
+            sz = handler->size;
         }
     }
+restore_key:
     configuration_key_restore(key, restore, restore_len);
     return 0;
 }
@@ -177,13 +237,34 @@ int configuration_export_handler_default(const conf_handler_t *handler,
     }
     int key_len = strlen(key->buf);
     int err; (void)err;
-    if (!handler->handles_array || isdigit((int)key->buf[key_len - 1])) {
+    if (!handler->conf_flags.handles_array ||
+            isdigit((int)key->buf[key_len - 1]) ||
+                handler->conf_flags.export_as_a_whole) {
+        if (handler->conf_flags.handles_array &&
+                isdigit((int)key->buf[key_len - 1]) &&
+                    handler->conf_flags.export_as_a_whole) {
+            DEBUG("configuration: exporting array items is not supported for key %s\n", key->buf);
+            goto restore_key;
+        }
+        if (handler->node.ops_dat->encode) {
+            const void *enc_data = data;
+            size_t enc_size = sz;
+            if ((err = handler->node.ops_dat->encode(handler, key, &enc_data, &enc_size))) {
+                DEBUG("configuration: encoding for key %s failed (%d)\n", key->buf, err);
+                goto restore_key;
+            }
+            data = enc_data; /* encode() has encoded the data and returns encoded representation */
+            sz = enc_size; /* encode() has encoded the data and returns the encoded data size */
+        }
         if ((err = handler->src_backend->ops->be_store(handler->src_backend, key, data, &sz))) {
             DEBUG("configuration: backend exporting key %s failed (%d)\n", key->buf, err);
         }
     }
     else {
-        assert(handler->handles_array);
+        /* handler->conf_flags.handles_array &&
+            !isdigit((int)key->buf[key_len - 1]) &&
+                !handler->conf_flags.export_as_a_whole */
+        assert(handler->conf_flags.handles_array);
         const conf_array_handler_t *array = container_of(handler, conf_array_handler_t, handler);
         unsigned at;
         for (at = 0; at < array->array_size; at++, data += handler->size) {
@@ -194,11 +275,25 @@ int configuration_export_handler_default(const conf_handler_t *handler,
             strcpy(&key->buf[key_len], "/");
             err = fmt_u32_dec(&key->buf[key_len + 1], at);
             key->buf[key_len + 1 + err] = '\0';
+            const void *data_cpy = data;
+            if (handler->node.ops_dat->encode) {
+                const void *enc_data = data;
+                size_t enc_size;
+                if ((err = handler->node.ops_dat->encode(handler, key, &enc_data, &enc_size))) {
+                    DEBUG("configuration: encoding for key %s failed (%d)\n", key->buf, err);
+                    continue;
+                }
+                data = enc_data; /* encode() has encoded the data and returns encoded representation */
+                sz = enc_size;
+            }
             if ((err = handler->src_backend->ops->be_store(handler->src_backend, key, data, &sz))) {
                 DEBUG("configuration: backend exporting key %s failed (%d)\n", key->buf, err);
             }
+            data = data_cpy;
+            sz = handler->size;
         }
     }
+restore_key:
     configuration_key_restore(key, restore, restore_len);
     return 0;
 }
@@ -223,13 +318,24 @@ int configuration_delete_handler_default(const conf_handler_t *handler,
     }
     int key_len = strlen(key->buf);
     int err; (void)err;
-    if (!handler->handles_array || isdigit((int)key->buf[key_len - 1])) {
+    if (!handler->conf_flags.handles_array ||
+            isdigit((int)key->buf[key_len - 1]) ||
+                handler->conf_flags.export_as_a_whole) {
+        if (handler->conf_flags.handles_array &&
+                isdigit((int)key->buf[key_len - 1]) &&
+                    handler->conf_flags.export_as_a_whole) {
+            DEBUG("configuration: deleting array items is not supported for key %s\n", key->buf);
+            goto restore_key;
+        }
         if ((err = handler->src_backend->ops->be_delete(handler->src_backend, key))) {
             DEBUG("configuration: backend deleting key %s failed (%d)\n", key->buf, err);
         }
     }
     else {
-        assert(handler->handles_array);
+        /* handler->conf_flags.handles_array &&
+            !isdigit((int)key->buf[key_len - 1]) &&
+                !handler->conf_flags.export_as_a_whole */
+        assert(handler->conf_flags.handles_array);
         const conf_array_handler_t *array = container_of(handler, conf_array_handler_t, handler);
         unsigned at;
         for (at = 0; at < array->array_size; at++) {
@@ -245,6 +351,7 @@ int configuration_delete_handler_default(const conf_handler_t *handler,
             }
         }
     }
+restore_key:
     configuration_key_restore(key, restore, restore_len);
     return 0;
 }
