@@ -674,15 +674,17 @@ static conf_array_handler_t _products_orders_conf_handler
                                      &_orders_handler_ops,
                                      &_orders_handler_data_ops,
                                      sizeof(_conf.orders[0]),
+                                     &_conf.orders,
                                      ARRAY_SIZE(_conf.orders),
-                                     &_conf.orders);
+                                     0);
 
 static conf_array_handler_t _products_orders_items_conf_handler
     = CONF_ARRAY_HANDLER_INITIALIZER("items",
                                      &_orders_items_handler_ops, NULL,
                                      sizeof(_conf.orders[0].items[0]),
+                                     &_conf.orders[0].items,
                                      ARRAY_SIZE(_conf.orders[0].items),
-                                     &_conf.orders[0].items);
+                                     0);
 
 static void _init_backend(void)
 {
