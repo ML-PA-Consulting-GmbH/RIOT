@@ -113,6 +113,12 @@ int configuration_import_handler_default(const conf_handler_t *handler,
         return -ENOENT;
     }
     size_t sz = handler->size;
+    if (handler->conf_flags.handles_array &&
+            !isdigit((int)key->buf[strlen(key->buf) - 1]) &&
+                handler->conf_flags.export_as_a_whole) {
+        /* the only case where the import size is not equal to handler->size */
+        sz = handler->size * container_of(handler, conf_array_handler_t, handler)->array_size;
+    }
     uint8_t *data = handler->data;
     if (key->offset > 0) {
         data += key->offset;
@@ -154,9 +160,8 @@ int configuration_import_handler_default(const conf_handler_t *handler,
                 DEBUG("configuration: decoding for key %s failed (%d)\n", key->buf, err);
             }
             else {
-                assert(dec_size == handler->size);
                 /* The decoder should not directly decode to the data location because decoding could fail */
-                memcpy(data_cpy, dec_data, handler->size);
+                memcpy(data_cpy, dec_data, dec_size);
             }
         }
     }
@@ -196,9 +201,8 @@ int configuration_import_handler_default(const conf_handler_t *handler,
                     DEBUG("configuration: decoding for key %s failed (%d)\n", key->buf, err);
                 }
                 else {
-                    assert(dec_size == handler->size);
                     /* The decoder should not directly decode to the data location because decoding could fail */
-                    memcpy(data_cpy, dec_data, handler->size);
+                    memcpy(data_cpy, dec_data, dec_size);
                 }
             }
             data = data_cpy;
@@ -226,6 +230,12 @@ int configuration_export_handler_default(const conf_handler_t *handler,
         return -ENOENT;
     }
     size_t sz = handler->size;
+    if (handler->conf_flags.handles_array &&
+            !isdigit((int)key->buf[strlen(key->buf) - 1]) &&
+                handler->conf_flags.export_as_a_whole) {
+        /* the only case where the export size is not equal to handler->size */
+        sz = handler->size * container_of(handler, conf_array_handler_t, handler)->array_size;
+    }
     const uint8_t *data = handler->data;
     if (key->offset > 0) {
         data += key->offset;
