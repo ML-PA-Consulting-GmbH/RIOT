@@ -264,7 +264,7 @@ static conf_handler_node_t *_configuration_path_iterator_next(conf_iterator_t *i
             }
         }
         const conf_handler_node_t *subnodes = next->subnodes;
-        if (subnodes) {
+        if (subnodes && container_of(next, conf_handler_t, node)->conf_flags.export_as_a_whole == 0) {
             if (!next->ops || iter->max_depth) {
                 assert(iter->sp < ARRAY_SIZE(iter->stack));
                 iter->stack[iter->sp++] = subnodes;
@@ -429,7 +429,7 @@ static int _configuration_handler_export_internal(const conf_handler_node_t *roo
             }
             continue;
         }
-        if (handler->ops_dat->verify) {
+        if (handler->ops_dat && handler->ops_dat->verify) {
             if (handler->ops_dat->verify(container_of(handler, conf_handler_t, node), key)) {
                 continue;
             }
@@ -555,7 +555,7 @@ static int _configuration_handler_verify_internal(const conf_handler_node_t *roo
     int ret = 0;
     conf_handler_node_t *handler;
     while ((handler = _configuration_handler_iterator_next(&iter, key))) {
-        if (!handler->ops || !handler->ops_dat->verify) {
+        if (!handler->ops_dat || !handler->ops_dat->verify) {
             if (*key->next) {
                 return -ENOENT;
             }

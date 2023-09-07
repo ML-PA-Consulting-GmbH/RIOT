@@ -141,7 +141,7 @@ int configuration_import_handler_default(const conf_handler_t *handler,
         }
         void *dec_data = NULL;
         size_t dec_size;
-        if (handler->node.ops_dat->decode) {
+        if (handler->node.ops_dat && handler->node.ops_dat->decode) {
             /* query decoding buffer */
             handler->node.ops_dat->decode(handler, key, &dec_data, &dec_size);
             assert(dec_data);
@@ -152,7 +152,7 @@ int configuration_import_handler_default(const conf_handler_t *handler,
         if ((err = handler->src_backend->ops->be_load(handler->src_backend, key, data, &sz))) {
             DEBUG("configuration: backend importing key %s failed (%d)\n", key->buf, err);
         }
-        else if (handler->node.ops_dat->decode) {
+        else if (handler->node.ops_dat && handler->node.ops_dat->decode) {
             void *data_cpy = data;
             dec_data = data;
             dec_size = dec_size - sz;
@@ -183,7 +183,7 @@ int configuration_import_handler_default(const conf_handler_t *handler,
             void *data_cpy = data;
             void *dec_data = NULL;
             size_t dec_size;
-            if (handler->node.ops_dat->decode) {
+            if (handler->node.ops_dat && handler->node.ops_dat->decode) {
                 /* query decoding buffer */
                 handler->node.ops_dat->decode(handler, key, &dec_data, &dec_size);
                 assert(dec_data);
@@ -194,7 +194,7 @@ int configuration_import_handler_default(const conf_handler_t *handler,
             if ((err = handler->src_backend->ops->be_load(handler->src_backend, key, data, &sz))) {
                 DEBUG("configuration: backend importing key %s failed (%d)\n", key->buf, err);
             }
-            else if (handler->node.ops_dat->decode) {
+            else if (handler->node.ops_dat && handler->node.ops_dat->decode) {
                 dec_data = data;
                 dec_size = dec_size - sz;
                 if ((err = handler->node.ops_dat->decode(handler, key, &dec_data, &dec_size))) {
@@ -256,7 +256,7 @@ int configuration_export_handler_default(const conf_handler_t *handler,
             DEBUG("configuration: exporting array items is not supported for key %s\n", key->buf);
             goto restore_key;
         }
-        if (handler->node.ops_dat->encode) {
+        if (handler->node.ops_dat && handler->node.ops_dat->encode) {
             const void *enc_data = data;
             size_t enc_size = sz;
             if ((err = handler->node.ops_dat->encode(handler, key, &enc_data, &enc_size))) {
@@ -286,7 +286,7 @@ int configuration_export_handler_default(const conf_handler_t *handler,
             err = fmt_u32_dec(&key->buf[key_len + 1], at);
             key->buf[key_len + 1 + err] = '\0';
             const void *data_cpy = data;
-            if (handler->node.ops_dat->encode) {
+            if (handler->node.ops_dat && handler->node.ops_dat->encode) {
                 const void *enc_data = data;
                 size_t enc_size;
                 if ((err = handler->node.ops_dat->encode(handler, key, &enc_data, &enc_size))) {
