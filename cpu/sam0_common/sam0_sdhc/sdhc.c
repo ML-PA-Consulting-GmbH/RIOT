@@ -161,7 +161,7 @@ static void _reset_sdhc(sdhc_state_t *state, uint8_t type)
  * @param   reset       Reset type in case of errors
  *                      [SDHC_SRR_SWRSTALL | SDHC_SRR_SWRSTCMD | SDHC_SRR_SWRSTDAT]
  *
- * @return true if event occured or false on error
+ * @return true if event occurred or false on error
  */
 static bool _wait_for_event(sdhc_state_t *state,
                             uint16_t event, uint16_t error_mask,
