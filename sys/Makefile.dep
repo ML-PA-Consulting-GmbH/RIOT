@@ -642,6 +642,10 @@ ifneq (,$(filter suit_%,$(USEMODULE)))
   USEMODULE += suit
 endif
 
+ifneq (,$(filter sys_bus_rtc, $(USEMODULE)))
+  USEMODULE += periph_rtc_setter_callback
+endif
+
 ifneq (,$(filter tiny_strerror_as_strerror,$(USEMODULE)))
   USEMODULE += tiny_strerror
 endif
