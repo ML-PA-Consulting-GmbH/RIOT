@@ -23,4 +23,3 @@ RIOT-2023.04-mlpa-5 - Merge Notes
  - cherry-pick 613499e51e760b01a7add16e7632e74145683927 (fixup atwinc15x0 driver no busy loop)
  - merge fabian18/pr/fix_nib_iface_up_rs_sent_counter
  - cherry-pick 8d4c2e9eece08a3ac386fa171312afebfcdd75a1 from hendrikve/stdio_uart_add_flush_rx
- - cherry-pick 01d1ffab0df0c1219842f2a6272ddedc44a55999 add CONFIG_NANOCOAP_SOCK_ENABLE_DEBUG
