@@ -36,11 +36,7 @@
 #include "timex.h"
 #include "ztimer.h"
 
-#ifndef CONFIG_NANOCOAP_SOCK_ENABLE_DEBUG
-#define CONFIG_NANOCOAP_SOCK_ENABLE_DEBUG 0
-#endif
-
-#define ENABLE_DEBUG CONFIG_NANOCOAP_SOCK_ENABLE_DEBUG
+#define ENABLE_DEBUG 0
 #include "debug.h"
 
 /**
@@ -219,8 +215,7 @@ ssize_t nanocoap_sock_request_cb(nanocoap_sock_t *sock, coap_pkt_t *pkt,
             }
             --tries_left;
 
-            DEBUG("nanocoap: send message %u (%s) with %u bytes (%u tries left)\n",
-                  id, confirmable ? "CON" : "NON",
+            DEBUG("nanocoap: send %u bytes (%u tries left)\n",
                   (unsigned)iolist_size(&head), tries_left);
 
             res = _sock_sendv(sock, &head);
