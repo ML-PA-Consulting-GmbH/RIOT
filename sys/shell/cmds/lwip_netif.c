@@ -38,6 +38,8 @@ static void _netif_list_ipv6(struct netif *netif, int addr_index, uint8_t state)
         printf("link");
     } else if (ip6_addr_issitelocal(netif_ip6_addr(netif, addr_index))) {
         printf("site");
+    } else if (ip6_addr_isuniquelocal(netif_ip6_addr(netif, addr_index))) {
+        printf("unique local");
     } else {
         printf("unknown");
     }
