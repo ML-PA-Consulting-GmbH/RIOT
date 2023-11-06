@@ -1,0 +1,35 @@
+From ceecc99b95e526276b73f2412ce2eee6095e8148 Mon Sep 17 00:00:00 2001
+From: "mariem.charrada" <mariem.charrada@ml-pa.com>
+Date: Fri, 3 Nov 2023 11:38:55 +0100
+Subject: [PATCH 3/3] add support for router multicast addresses
+
+---
+ src/core/ipv6/ip6.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/core/ipv6/ip6.c b/src/core/ipv6/ip6.c
+index 060d5f3..07271fe 100644
+--- a/src/core/ipv6/ip6.c
++++ b/src/core/ipv6/ip6.c
+@@ -596,7 +596,8 @@ ip6_input(struct pbuf *p, struct netif *inp)
+   if (ip6_addr_ismulticast(ip6_current_dest_addr())) {
+     /* Always joined to multicast if-local and link-local all-nodes group. */
+     if (ip6_addr_isallnodes_iflocal(ip6_current_dest_addr()) ||
+-        ip6_addr_isallnodes_linklocal(ip6_current_dest_addr())) {
++        ip6_addr_isallnodes_linklocal(ip6_current_dest_addr()) ||
++        ip6_addr_isallrouters_linklocal(ip6_current_dest_addr())) {
+       netif = inp;
+     }
+ #if LWIP_IPV6_MLD
+@@ -1047,7 +1048,7 @@ options_done:
+   LWIP_DEBUGF(IP6_DEBUG, ("ip6_input: p->len %"U16_F" p->tot_len %"U16_F"\n", p->len, p->tot_len));
+ 
+   ip_data.current_ip_header_tot_len = hlen_tot;
+-  
++
+ #if LWIP_RAW
+   /* p points to IPv6 header again for raw_input. */
+   pbuf_add_header_force(p, hlen_tot);
+-- 
+2.34.1
+

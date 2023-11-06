@@ -1,0 +1,63 @@
+From 554ad15099f1101032e0ef6a4848af4d8c0f70ef Mon Sep 17 00:00:00 2001
+From: "mariem.charrada" <mariem.charrada@ml-pa.com>
+Date: Fri, 3 Nov 2023 11:36:16 +0100
+Subject: [PATCH 2/3] adapt previous patch
+
+---
+ src/core/ipv6/nd6.c | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/core/ipv6/nd6.c b/src/core/ipv6/nd6.c
+index d47d0d7..f2dffc8 100644
+--- a/src/core/ipv6/nd6.c
++++ b/src/core/ipv6/nd6.c
+@@ -572,7 +572,7 @@ nd6_input(struct pbuf *p, struct netif *inp)
+     } else {
+       nd6_send_ra(inp, NULL);
+     }
+-    LWIP_DEBUGF(ND6_DEBUG, ("nd6(%c%c): send solicited ra, target addr %s\n",
++    LWIP_DEBUGF(IP6_DEBUG, ("nd6(%c%c): send solicited ra, target addr %s\n",
+                 inp->name[0], inp->name[1], ip6addr_ntoa(ip6_current_src_addr())));
+     break;
+     }
+@@ -1201,21 +1201,21 @@ nd6_tmr(void)
+           } else {	/* Initial timer is expired, send ra, decrease the inital count, reset the timer */
+             nd6_send_ra(netif, NULL);
+             netif->ra_initial_count--;
+-            netif->ra_timer = LWIP_ND6_INITIAL_RA_INTERVAL;
+-            LWIP_DEBUGF(ND6_DEBUG, ("nd6(%c%c): send inital ra, left %d, interval %d\n",
++            netif->ra_timer = NDP_MAX_INIT_RA_INTERVAL;
++            LWIP_DEBUGF(IP6_DEBUG, ("nd6(%c%c): send inital ra, left %d, interval %d\n",
+                         netif->name[0], netif->name[1], netif->ra_initial_count, netif->ra_timer));
+           }
+         } else { 	/* Initial ra have been sent, set is_inital to false and reset the timer to normal ra interval */
+           netif->ra_is_initial = 0;
+-          netif->ra_timer = LWIP_ND6_NORMAL_RA_INTERVAL;
++          netif->ra_timer = NDP_MIN_MS_DELAY_BETWEEN_RAS;
+         }
+       } else {
+         if (netif->ra_timer > 0) {
+           netif->ra_timer--;
+         } else {	/* Normal ra timer is expired, send ra, reset the timer */
+           nd6_send_ra(netif, NULL);
+-          netif->ra_timer = LWIP_ND6_NORMAL_RA_INTERVAL;
+-          LWIP_DEBUGF(ND6_DEBUG, ("nd6(%c%c): send normal ra, interval %d\n",
++          netif->ra_timer = NDP_MIN_MS_DELAY_BETWEEN_RAS;
++          LWIP_DEBUGF(IP6_DEBUG, ("nd6(%c%c): send normal ra, interval %d\n",
+                       netif->name[0], netif->name[1], netif->ra_timer));
+         }
+       }
+@@ -2603,8 +2603,8 @@ nd6_restart_netif(struct netif *netif)
+ #endif /* LWIP_IPV6_SEND_ROUTER_SOLICIT */
+ #if LWIP_IPV6_SEND_ROUTER_ADVERTISE
+   netif->ra_is_initial = 1;
+-  netif->ra_initial_count = LWIP_ND6_MAX_INITIAL_RA;
+-  netif->ra_timer = LWIP_ND6_INITIAL_RA_INTERVAL;
++  netif->ra_initial_count = NDP_MAX_INIT_RA_NUMOF;
++  netif->ra_timer = NDP_MAX_INIT_RA_INTERVAL;
+ #endif /* LWIP_IPV6_SEND_ROUTER_ADVERTISE */
+ }
+ 
+-- 
+2.34.1
+

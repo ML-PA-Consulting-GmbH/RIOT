@@ -1,0 +1,279 @@
+From ea0a6d6dfb12d082699061cb85cc57e9271bbb2b Mon Sep 17 00:00:00 2001
+From: "mariem.charrada" <mariem.charrada@ml-pa.com>
+Date: Fri, 3 Nov 2023 11:07:25 +0100
+Subject: [PATCH 1/3] add support for sending RA by yanhc
+
+---
+ src/core/ipv6/icmp6.c    |   3 +
+ src/core/ipv6/nd6.c      | 173 ++++++++++++++++++++++++++++++++++++++-
+ src/include/lwip/netif.h |  10 ++-
+ 3 files changed, 181 insertions(+), 5 deletions(-)
+
+diff --git a/src/core/ipv6/icmp6.c b/src/core/ipv6/icmp6.c
+index 4fd1021..791e71d 100644
+--- a/src/core/ipv6/icmp6.c
++++ b/src/core/ipv6/icmp6.c
+@@ -123,6 +123,9 @@ icmp6_input(struct pbuf *p, struct netif *inp)
+   case ICMP6_TYPE_RS:
+ #if LWIP_IPV6_FORWARD
+     /* @todo implement router functionality */
++  #if LWIP_IPV6_SEND_ROUTER_ADVERTISE
++    nd6_input(p, inp);
++  #endif
+ #endif
+     break;
+ #if LWIP_IPV6_MLD
+diff --git a/src/core/ipv6/nd6.c b/src/core/ipv6/nd6.c
+index 81992fa..d47d0d7 100644
+--- a/src/core/ipv6/nd6.c
++++ b/src/core/ipv6/nd6.c
+@@ -128,6 +128,9 @@ static void nd6_send_neighbor_cache_probe(struct nd6_neighbor_cache_entry *entry
+ static err_t nd6_send_rs(struct netif *netif);
+ #endif /* LWIP_IPV6_SEND_ROUTER_SOLICIT */
+ 
++#if LWIP_IPV6_SEND_ROUTER_ADVERTISE
++static err_t nd6_send_ra(struct netif *netif, ip6_addr_t *target_addr);
++#endif /* LWIP_IPV6_SEND_ROUTER_ADVERTISE */
+ #if LWIP_ND6_QUEUEING
+ static void nd6_free_q(struct nd6_q_entry *q);
+ #else /* LWIP_ND6_QUEUEING */
+@@ -551,6 +554,29 @@ nd6_input(struct pbuf *p, struct netif *inp)
+ 
+     break; /* ICMP6_TYPE_NS */
+   }
++#if LWIP_IPV6_SEND_ROUTER_ADVERTISE
++  case ICMP6_TYPE_RS: /* Router Solicitation. */
++  {
++    /* Check that RS header fits in packet. */
++    if (p->len < sizeof(struct rs_header)) {
++      /* @todo debug message */
++      pbuf_free(p);
++      ND6_STATS_INC(nd6.lenerr);
++      ND6_STATS_INC(nd6.drop);
++      return;
++    }
++
++    /* Just skip the link layer address option for simple. */
++    if (!ip6_addr_isany(ip6_current_src_addr())) {
++      nd6_send_ra(inp, ip6_current_src_addr());
++    } else {
++      nd6_send_ra(inp, NULL);
++    }
++    LWIP_DEBUGF(ND6_DEBUG, ("nd6(%c%c): send solicited ra, target addr %s\n",
++                inp->name[0], inp->name[1], ip6addr_ntoa(ip6_current_src_addr())));
++    break;
++    }
++#endif /* LWIP_IPV6_SEND_ROUTER_ADVERTISE */
+   case ICMP6_TYPE_RA: /* Router Advertisement. */
+   {
+     struct ra_header *ra_hdr;
+@@ -1157,11 +1183,50 @@ nd6_tmr(void)
+   }
+ #endif /* LWIP_IPV6_SEND_ROUTER_SOLICIT */
+ 
++#if LWIP_IPV6_SEND_ROUTER_ADVERTISE
++/**
++ *  after every LWIP_ND6_INITIAL_RA_INTERVAL seconds,
++ * then, each ra will be sent after every LWIP_ND6_NORMAL_RA_INTERVAL seconds.
++ * The procedure of ra sending is in nd6_tmr which is called every 1 seconds.
++ * RFC4861 suggests random ra interval to reduce the probability
++ * of synchronization with ra from other routers on the same link.
++ * In our case, there is only one router on one link, so random is unnecessary.
++ */
++  for (netif = netif_list; netif != NULL; netif = netif->next) {
++    if ((netif->flags & NETIF_FLAG_UP) && (!ip6_addr_isinvalid(netif_ip6_addr_state(netif, 0)))) {
++      if (netif->ra_is_initial) {
++        if (netif->ra_initial_count > 0) {
++          if (netif->ra_timer > 0) {
++            netif->ra_timer--;
++          } else {	/* Initial timer is expired, send ra, decrease the inital count, reset the timer */
++            nd6_send_ra(netif, NULL);
++            netif->ra_initial_count--;
++            netif->ra_timer = LWIP_ND6_INITIAL_RA_INTERVAL;
++            LWIP_DEBUGF(ND6_DEBUG, ("nd6(%c%c): send inital ra, left %d, interval %d\n",
++                        netif->name[0], netif->name[1], netif->ra_initial_count, netif->ra_timer));
++          }
++        } else { 	/* Initial ra have been sent, set is_inital to false and reset the timer to normal ra interval */
++          netif->ra_is_initial = 0;
++          netif->ra_timer = LWIP_ND6_NORMAL_RA_INTERVAL;
++        }
++      } else {
++        if (netif->ra_timer > 0) {
++          netif->ra_timer--;
++        } else {	/* Normal ra timer is expired, send ra, reset the timer */
++          nd6_send_ra(netif, NULL);
++          netif->ra_timer = LWIP_ND6_NORMAL_RA_INTERVAL;
++          LWIP_DEBUGF(ND6_DEBUG, ("nd6(%c%c): send normal ra, interval %d\n",
++                      netif->name[0], netif->name[1], netif->ra_timer));
++        }
++      }
++    }
++  }
++#endif /* LWIP_IPV6_SEND_ROUTER_ADVERTISE */
+ }
+ 
+ /** Send a neighbor solicitation message for a specific neighbor cache entry
+  *
+- * @param entry the neightbor cache entry for wich to send the message
++ * @param entry the neighbor cache entry for which to send the message
+  * @param flags one of ND6_SEND_FLAG_*
+  */
+ static void
+@@ -1402,6 +1467,101 @@ nd6_send_rs(struct netif *netif)
+ }
+ #endif /* LWIP_IPV6_SEND_ROUTER_SOLICIT */
+ 
++#if LWIP_IPV6_SEND_ROUTER_ADVERTISE
++/**
++  * Send a router advertisement message
++  *
++  * @param netif the netif on which to send the message
++  * @param target_addr when ra is sent solicited this is the source address of rs
++  * while should be NULL when is sent periodically
++*/
++static err_t
++nd6_send_ra(struct netif *netif, ip6_addr_t *target_addr)
++{
++  struct ra_header *ra_hdr;
++  struct prefix_option *prefix_opt;
++  struct pbuf *p;
++  const ip6_addr_t *src_addr;
++  err_t err;
++  u32_t ra_prefix[2];
++  u16_t prefix_opt_len;
++
++  /* Get prefix of the first global address which should be in slot 1 */
++  if (ip6_addr_isvalid(netif_ip6_addr_state(netif, 1))) {
++    ra_prefix[0] = netif_ip6_addr(netif, 1)->addr[0];
++    ra_prefix[1] = netif_ip6_addr(netif, 1)->addr[1];
++  } else {
++    return ERR_IF;
++  }
++
++  /* The source address must be link-local address */
++  if (ip6_addr_isvalid(netif_ip6_addr_state(netif, 0))) {
++    src_addr = netif_ip6_addr(netif, 0);
++  } else {
++    return ERR_IF;
++  }
++
++  /* The dest address should be the source of rs or the all routers target address. */
++  if (target_addr == NULL) {
++    ip6_addr_set_allnodes_linklocal(&multicast_address);
++  }
++
++  /* Allocate a packet, we only send prefix option. */
++  prefix_opt_len = sizeof(struct prefix_option);
++  p = pbuf_alloc(PBUF_IP, sizeof(struct ra_header) + prefix_opt_len, PBUF_RAM);
++  if (p == NULL) {
++    ND6_STATS_INC(nd6.memerr);
++    return ERR_BUF;
++  }
++
++  /* Set fields. */
++  ra_hdr = (struct ra_header *)p->payload;
++
++  ra_hdr->type = ICMP6_TYPE_RA;
++  ra_hdr->code = 0;
++  ra_hdr->chksum = 0;
++  ra_hdr->current_hop_limit = 0;	/* 0 means unspecified */
++  ra_hdr->flags = 0;				      /* M and O flag, 0 means not managed by DHCPv6 or Other */
++  ra_hdr->router_lifetime = 0;		/* 0 means will not appear on the default router list */
++  ra_hdr->reachable_time = 0;		  /* 0 means unspecified, used by nbr unreachability detection */
++  ra_hdr->retrans_timer = 0;  		/* 0 means unspecified, used by address resolution and nbr unreach detect */
++
++  prefix_opt = (struct prefix_option *)((u8_t *)p->payload + sizeof(struct ra_header));
++
++  prefix_opt->type = ND6_OPTION_TYPE_PREFIX_INFO;
++  prefix_opt->length = 4;			/* in units of 8 byte, so 32 byte */
++  prefix_opt->prefix_length = 64;	/* prefix length */
++  prefix_opt->flags = ND6_PREFIX_FLAG_ON_LINK | ND6_PREFIX_FLAG_AUTONOMOUS;	/* on-link and autonomous */
++  prefix_opt->valid_lifetime = lwip_htonl(604800);
++  prefix_opt->preferred_lifetime = lwip_htonl(86400);
++  prefix_opt->reserved2[0] = 0;
++  prefix_opt->reserved2[1] = 0;
++  prefix_opt->reserved2[2] = 0;
++
++  prefix_opt->site_prefix_length = 0;			/* rfc4861 does not have this field */
++  prefix_opt->prefix.addr[0] = ra_prefix[0];
++  prefix_opt->prefix.addr[1] = ra_prefix[1];
++  prefix_opt->prefix.addr[2] = 0;
++  prefix_opt->prefix.addr[3] = 0;
++
++#if CHECKSUM_GEN_ICMP6
++  IF__NETIF_CHECKSUM_ENABLED(netif, NETIF_CHECKSUM_GEN_ICMP6) {
++    ra_hdr->chksum = ip6_chksum_pseudo(p, IP6_NEXTH_ICMP6, p->len, src_addr,
++    (target_addr == NULL) ? &multicast_address : target_addr);
++  }
++#endif /* CHECKSUM_GEN_ICMP6 */
++
++  /* Send the packet out. */
++  ND6_STATS_INC(nd6.xmit);
++
++  err = ip6_output_if(p, src_addr, (target_addr == NULL) ? &multicast_address : target_addr,
++        LWIP_ICMP6_HL, 0, IP6_NEXTH_ICMP6, netif);
++  pbuf_free(p);
++
++  return err;
++}
++#endif /* LWIP_IPV6_SEND_ROUTER_ADVERTISE */
++
+ /**
+  * Search for a neighbor cache entry
+  *
+@@ -1847,9 +2007,9 @@ nd6_new_router(const ip6_addr_t *router_addr, struct netif *netif)
+   for (router_index = LWIP_ND6_NUM_ROUTERS - 1; router_index >= 0; router_index--) {
+     /* check if router already exists (this is a special case for 2 netifs on the same subnet
+        - e.g. wifi and cable) */
+-    if(default_router_list[router_index].neighbor_entry == &(neighbor_cache[neighbor_index])){ 
+-      return router_index; 
+-    } 
++    if (default_router_list[router_index].neighbor_entry == &(neighbor_cache[neighbor_index])) {
++      return router_index;
++    }
+     if (default_router_list[router_index].neighbor_entry == NULL) {
+       /* remember lowest free index to create a new entry */
+       free_router_index = router_index;
+@@ -2441,6 +2601,11 @@ nd6_restart_netif(struct netif *netif)
+   /* Send Router Solicitation messages (see RFC 4861, ch. 6.3.7). */
+   netif->rs_count = LWIP_ND6_MAX_MULTICAST_SOLICIT;
+ #endif /* LWIP_IPV6_SEND_ROUTER_SOLICIT */
++#if LWIP_IPV6_SEND_ROUTER_ADVERTISE
++  netif->ra_is_initial = 1;
++  netif->ra_initial_count = LWIP_ND6_MAX_INITIAL_RA;
++  netif->ra_timer = LWIP_ND6_INITIAL_RA_INTERVAL;
++#endif /* LWIP_IPV6_SEND_ROUTER_ADVERTISE */
+ }
+ 
+ #endif /* LWIP_IPV6 */
+diff --git a/src/include/lwip/netif.h b/src/include/lwip/netif.h
+index 9a16ded..18055c5 100644
+--- a/src/include/lwip/netif.h
++++ b/src/include/lwip/netif.h
+@@ -345,7 +345,7 @@ struct netif {
+   u8_t flags;
+   /** descriptive abbreviation */
+   char name[2];
+-  /** number of this interface. Used for @ref if_api and @ref netifapi_netif, 
++  /** number of this interface. Used for @ref if_api and @ref netifapi_netif,
+    * as well as for IPv6 zones */
+   u8_t num;
+ #if LWIP_IPV6_AUTOCONFIG
+@@ -356,6 +356,14 @@ struct netif {
+   /** Number of Router Solicitation messages that remain to be sent. */
+   u8_t rs_count;
+ #endif /* LWIP_IPV6_SEND_ROUTER_SOLICIT */
++#if LWIP_IPV6_SEND_ROUTER_ADVERTISE
++  /* Flag to indicates whether we are in the initial phase of Router Advertisement sending */
++  u8_t ra_is_initial;
++  /** Number of Router Advertisement messages that remain to be sent in the initial phase. */
++  u8_t ra_initial_count;
++  /* Timer to decide when to send a Router Advertisement */
++  u32_t ra_timer;
++#endif /* LWIP_IPV6_SEND_ROUTER_ADVERTISE */
+ #if MIB2_STATS
+   /** link type (from "snmp_ifType" enum from snmp_mib2.h) */
+   u8_t link_type;
+-- 
+2.34.1
+
