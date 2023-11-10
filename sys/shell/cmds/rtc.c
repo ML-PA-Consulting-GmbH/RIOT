@@ -127,11 +127,12 @@ static int _rtc_settime(char **argv)
 {
     struct tm now;
 
-    _parse_time(argv, &now);
-
-    if (rtc_set_time(&now) < 0) {
-        puts("rtc: error setting time");
-        return 1;
+    if (_parse_time(argv, &now) == 0) {
+        if (RTC_SET_TIME(&now) == -1) {
+            puts("rtc: error setting time");
+            return 1;
+        }
+        return 0;
     }
 
     return 0;
