@@ -229,10 +229,11 @@ if (IS_ACTIVE(CONFIG_USE_LOOPBACK_MODE)) {
 #if defined(MODULE_MCP2515)
         filter[0].target_mailbox = 0;   /* messages with CAN ID 0x001 will be received in mailbox 0 */
 #endif
-        filter[1].can_mask = 0x7FF;
-        filter[1].can_id = 0x002;
+        filter[1].can_mask = 0x9FFFFFFF;
+        filter[1].can_id = 0x8C11FFFF;
 #if defined(MODULE_MCP2515)
-        filter[1].target_mailbox = 1;   /* messages with CAN ID 0x002 will be received in mailbox 1 */
+        filter[1].target_mailbox = 1;   /* messages with CAN ID 0x0C11FFFF
+                                            will be received in mailbox 1 */
 #endif
         filter[2].can_mask = 0x7FF;
         filter[2].can_id = 0x003;
