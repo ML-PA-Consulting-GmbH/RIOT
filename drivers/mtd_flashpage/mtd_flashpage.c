@@ -26,6 +26,7 @@
 #include <assert.h>
 
 #include "architecture.h"
+#include "board.h"
 #include "cpu.h"
 #include "cpu_conf.h"
 #include "macros/utils.h"
@@ -158,10 +159,7 @@ const mtd_desc_t mtd_flashpage_driver = {
 };
 
 #if CONFIG_SLOT_AUX_LEN
-mtd_flashpage_t mtd_flash_aux_slot = MTD_FLASHPAGE_AUX_INIT_VAL(CONFIG_SLOT_AUX_OFFSET,
-                                                                CONFIG_SLOT_AUX_LEN);
-mtd_dev_t *mtd_aux = &mtd_flash_aux_slot.base;
-
+MTD_FLASHPAGE_AUX_DEV(CONFIG_SLOT_AUX_OFFSET, CONFIG_SLOT_AUX_LEN);
 static_assert(CONFIG_SLOT_AUX_OFFSET % FLASHPAGE_SIZE == 0, "AUX slot must align with page");
 static_assert(CONFIG_SLOT_AUX_LEN % FLASHPAGE_SIZE == 0, "AUX slot must align with page");
 #endif

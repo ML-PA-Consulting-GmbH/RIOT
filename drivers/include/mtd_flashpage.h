@@ -30,8 +30,7 @@
 #include "periph/flashpage.h"
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 /**
@@ -46,6 +45,17 @@ extern "C"
         .write_size = 1                             \
     },                                              \
 }
+
+/**
+ * @brief   Macro helper to allocate an MTD flashpage object as another MTD with ID @p m
+ *
+ * @param[in]       _pages_per_sector           Number of pages per sector
+ * @param[in]       n                           MTD flashpage instance counter
+ * @param[in]       m                           MTD instance counter
+ */
+#define MTD_FLASHPAGE_DEV(_pages_per_sector, n, m)                                              \
+    mtd_flashpage_t mtd_flashpage_dev ## n = MTD_FLASHPAGE_INIT_VAL(_pages_per_sector);         \
+    XFA_CONST(mtd_dev_xfa, m) mtd_dev_t CONCAT(*mtd, m) = (mtd_dev_t *)&mtd_flashpage_dev ## n
 
 /**
  * @brief   Macro helper to initialize a mtd_t with a portion of the flash
@@ -63,6 +73,16 @@ extern "C"
     },                                              \
     .offset = start / FLASHPAGE_SIZE,               \
 }
+
+/**
+ * @brief   Allocate the auxiliary flash slot as a flashpage MTD
+ *
+ * @param[in] start     Start address of the flash section
+ * @param[in] len       Size of the flash section in bytes
+ */
+#define MTD_FLASHPAGE_AUX_DEV(start, len)                                               \
+    mtd_flashpage_t mtd_flash_aux_slot = MTD_FLASHPAGE_AUX_INIT_VAL(start, len);        \
+    XFA_CONST(mtd_dev_xfa, m) mtd_dev_t *mtd_aux = &mtd_flash_aux_slot.base;
 
 /**
  * @brief   Flashpage MTD device operations table
