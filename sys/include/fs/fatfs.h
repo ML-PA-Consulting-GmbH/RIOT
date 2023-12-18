@@ -69,8 +69,9 @@ extern "C" {
  * Most FatFs file operations need an absolute path. This defines the size of
  * the needed buffer to circumvent stack allocation within vfs-wrappers
  */
+#ifndef FATFS_MAX_ABS_PATH_SIZE
 #define FATFS_MAX_ABS_PATH_SIZE (FATFS_MAX_VOL_STR_LEN + VFS_NAME_MAX + 1)
-
+#endif
 /**
  * @brief FatFs instance descriptor
  */
