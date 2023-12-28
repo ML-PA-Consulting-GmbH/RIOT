@@ -46,7 +46,7 @@ const char *configuration_backend_flashdb_mtd_choose_partition(void)
 __attribute__((weak))
 mtd_dev_t *configuration_backend_flashdb_vfs_choose_dev(void)
 {
-    return MTD_0;
+    return mtd_default_get_dev(0);
 }
 
 __attribute__((weak))
