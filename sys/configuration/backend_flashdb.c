@@ -120,7 +120,7 @@ static int _be_fdb_load(const struct conf_backend *be,
     (void)be;
     struct fdb_blob blob;
     size_t sz;
-    if ((sz = fdb_kv_get_blob(&_kvdb, key->buf, fdb_blob_make(&blob, val, *size))) <= 0) {
+    if ((sz = fdb_kv_get_blob(&_kvdb, configuration_key_buf(key), fdb_blob_make(&blob, val, *size))) <= 0) {
         return -EIO;
     }
     if (!blob.saved.len) {
@@ -139,7 +139,7 @@ static int _be_fdb_store(const struct conf_backend *be,
     (void)be;
     struct fdb_blob blob;
     fdb_err_t err;
-    if ((err = fdb_kv_set_blob(&_kvdb, key->buf, fdb_blob_make(&blob, val, *size))) != FDB_NO_ERR) {
+    if ((err = fdb_kv_set_blob(&_kvdb, configuration_key_buf(key), fdb_blob_make(&blob, val, *size))) != FDB_NO_ERR) {
         return -EIO;
     }
     if (!blob.saved.len) {
@@ -153,7 +153,7 @@ static int _be_fdb_delete(const struct conf_backend *be, conf_key_buf_t *key)
     (void)be;
     fdb_err_t err;
     /* not an error if key does not exist */
-    if ((err = fdb_kv_del(&_kvdb, key->buf)) != FDB_NO_ERR && err != FDB_KV_NAME_ERR) {
+    if ((err = fdb_kv_del(&_kvdb, configuration_key_buf(key))) != FDB_NO_ERR && err != FDB_KV_NAME_ERR) {
         return -EIO;
     }
     return 0;
