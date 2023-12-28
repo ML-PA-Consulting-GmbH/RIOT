@@ -13,8 +13,10 @@
  *              which must keep persistent configuration parameters
  *
  * Configuration values are accessed in a key - value manner, where a key is
- * basically a path to the correct configuration handler subtree.
- * Each node in the configuration tree carries a segment of the path key.
+ * basically a unique integer identifier.
+ * Each node in the configuration tree carries a unique SID.
+ * Each item in an array has a unique SID, too.
+ * A configuration handler reserves a lower and an upper SID for its subtree.
  * The root node in a subtree of handlers handles the whole subtree, while
  * each node below handles an attribute of the configuration item.
  * The handler operations must be implemented
@@ -26,8 +28,8 @@
  * Subhandlers can also be initialized with a different backend to store specific attributes
  * of one configuration object on another backend.
  * A backend must at least implement the load(), and store() functions.
- * An array is not stored as a whole but each item is exported with its own key because
- * the array size can change between applications.
+ * If not specified otherwise, an array is not stored as a whole but each item is
+ * exported with its own key because the array size can change between applications.
  *
  * The configuration API is thread save if the configuration subtree has been locked.
  * You would usually lock the subtree, perform some set() or get() operations and check
@@ -39,13 +41,6 @@
  * verify() before. You can specify that you want to reimport a configuration value
  * on failing verification. Besides that you can do a get() before you set() a value
  * and restore it when verification fails.
- *
- * A key consists of a static and a dynamic part. The static part identifies the handler
- * node. The dynamic part is often called "next" in the API and the handler is supposed
- * to handle it. The dynamic part is, what is left of the key path after the handler
- * has been found. An implementation can choose to not handle any dynamic part, by
- * having one dedicated node for every subitem in a configuration object, or
- * to handle subitems with the top level handler and the dynamic key part.
  *
  * @{
  *
@@ -59,6 +54,7 @@
 #define CONFIGURATION_H
 
 #include <stddef.h>
+#include <stdint.h>
 
 #include "list.h"
 #include "mutex.h"
@@ -94,17 +90,23 @@ extern "C" {
  */
 #define CONFIGURATION_DEPTH_MAX             CONFIG_CONFIGURATION_DEPTH_MAX
 
+#if IS_USED(MODULE_CONFIGURATION_STRINGS) || defined(DOXYGEN)
 /**
- * @brief   The configuration root path for this RIOT release version
- *
- * The prepended root does not count for @ref CONFIGURATION_DEPTH_MAX
+ * @brief   When configuration_strings is used as a module,
+ *          a member to store a configuration path segment is added
+ * @internal
  */
-#define CONFIGURATION_RIOT_ROOT             "/RIOT/2307/c"
+#define _CONF_SUBTREE       const char *subtree;
+#define _CONF_KEYBUF(len)   char buf[len];
+#else
+#define _CONF_SUBTREE
+#define _CONF_KEYBUF(len)
+#endif
 
 /**
- * @brief   Length of RIOT configuration root path
+ * @brief   Unique identifier for a configuration item
  */
-#define CONFIGURATION_RIOT_ROOT_LEN         (ARRAY_SIZE((char[]){CONFIGURATION_RIOT_ROOT}) - 1)
+typedef uint64_t conf_sid_t;
 
 /**
  * @brief   Key buffer type with a static maximum key length
@@ -113,25 +115,52 @@ extern "C" {
  */
 #define CONF_KEY_T(len)                                 \
 struct {                                                \
-    char *next;                                         \
-    int offset;                                         \
+    unsigned offset;                                    \
     unsigned char buf_len;                              \
-    char buf[len];                                      \
+    conf_sid_t sid;                                     \
+    conf_sid_t sid_normal;                              \
+    _CONF_KEYBUF(len)                                   \
 }
 
+/**
+ * @brief   Key buffer initializer with 3 arguments
+ * @internal
+ */
+#define _CONF_KEY_INITIALIZER_3(sid, len, cstring)      \
+{                                                       \
+    0,                                                  \
+    len,                                                \
+    sid,                                                \
+    0,                                                  \
+    cstring,                                            \
+}
+
+/**
+ * @brief   Key buffer initializer with 1 argument
+ * @internal
+ */
+#define CONF_KEY_INITIALIZER_1(sid, ...)                \
+{                                                       \
+    0,                                                  \
+    0,                                                  \
+    sid,                                                \
+    0,                                                  \
+}
+
+#if IS_USED(MODULE_CONFIGURATION_STRINGS) || defined(DOXYGEN)
 /**
  * @brief   Key buffer initializer with a static maximum key length
  *
  * @param   len             Buffer length to store a key
- * @param   cstring         Constant string value to initialize the key buffer with
+ * @param   sid             SID of the configuration item
+ * @param   ...             Constant string value to initialize the key buffer with
  */
-#define CONF_KEY_INITIALIZER(len, cstring)              \
-{                                                       \
-    "",                                                 \
-    0,                                                  \
-    len,                                                \
-    cstring,                                            \
-}
+#define CONF_KEY_INITIALIZER(sid, len, ...)         \
+    _CONF_KEY_INITIALIZER_3(sid, len, ##__VA_ARGS__)
+#else
+#define CONF_KEY_INITIALIZER(sid, ...)             \
+    CONF_KEY_INITIALIZER_1(sid)
+#endif
 
 /**
  * @brief   Abstraction type of a configuration key buffer
@@ -323,26 +352,120 @@ typedef struct conf_handler_data_ops {
 } conf_handler_data_ops_t;
 
 /**
+ * @brief   Configuration handler array identifier with a subtree string
+ *          and SID range and SID stride
+ */
+#define CONF_HANDLER_ARRAY_ID_T(...)                        \
+struct {                                                    \
+    _CONF_SUBTREE                                           \
+    conf_sid_t sid_lower;                                   \
+    conf_sid_t sid_upper;                                   \
+    uint32_t sid_stride;                                    \
+}
+
+/**
+ * @brief   A subrange of identifiers for a configuration array which handles a variable number of (compound) item
+ */
+typedef CONF_HANDLER_ARRAY_ID_T() conf_handler_array_id_t;
+
+/**
+ * @brief   Configuration handler node identification with a subtree string
+ *          and SID range
+ */
+#define CONF_HANDLER_NODE_ID_T(...)                         \
+struct {                                                    \
+    _CONF_SUBTREE                                           \
+    conf_sid_t sid_lower;                                   \
+    conf_sid_t sid_upper;                                   \
+}
+
+/**
+ * @brief   A subrange of identifiers for a configuration node which handles a compound item
+ */
+typedef CONF_HANDLER_NODE_ID_T() conf_handler_node_id_t;
+
+/**
+ * @brief   Configuration handler identification with a subtree string and SID
+ */
+#define CONF_HANDLER_ID_T(...)                              \
+struct {                                                    \
+    _CONF_SUBTREE                                           \
+    conf_sid_t sid_lower;                                   \
+}
+
+/**
+ * @brief   An identifier for a configuration handler which has no subitems
+ */
+typedef CONF_HANDLER_ID_T() conf_handler_id_t;
+
+/**
+ * @brief   Internal initialization macro for a configuration handler node with an SID subrange
+ *          and path segment component
+ * @internal
+ */
+#define _CONF_HANDLER_NODE_ID_INITIALIZER_3(sid_lower, sid_upper, subtree)  \
+{                                                                           \
+    subtree,                                                                \
+    sid_lower,                                                              \
+    sid_upper,                                                              \
+}
+
+/**
+ * @brief   Internal initialization macro for a configuration handler node with an SID subrange
+ * @internal
+ */
+#define _CONF_HANDLER_NODE_ID_INITIALIZER_2(sid_lower, sid_upper)           \
+{                                                                           \
+    sid_lower,                                                              \
+    sid_upper,                                                              \
+}
+
+#if IS_USED(MODULE_CONFIGURATION_STRINGS)
+/**
+ * @brief   Macro to instantiate a configuration handler node identification
+ */
+#define CONF_HANDLER_NODE_ID(name, sid_lower, sid_upper, ...)               \
+const CONF_HANDLER_NODE_ID_T() name =                                       \
+    _CONF_HANDLER_NODE_ID_INITIALIZER_3(sid_lower, sid_upper, ##__VA_ARGS__)
+#else
+#define CONF_HANDLER_NODE_ID(name, sid_lower, sid_upper, ...)               \
+const CONF_HANDLER_NODE_ID_T() name =                                       \
+    _CONF_HANDLER_NODE_ID_INITIALIZER_2(sid_lower, sid_upper)
+#endif
+
+/**
  * @brief   An intermediate node in the configuration tree
  */
 typedef struct conf_handler_node {
-    list_node_t node;                       /**< Every node is in a list, managed by its parent */
-    struct conf_handler_node *subnodes;     /**< Every node has a list of subnodes */
-    const char *subtree;                    /**< A segment in a key to a configuration item */
-    const conf_handler_ops_t *ops;          /**< Handler operations */
-    const conf_handler_data_ops_t *ops_dat; /**< Handler data operations */
-    unsigned level;                         /**< Level in the configuration tree (root = 0) */
+    list_node_t node;                               /**< Every node is in a list, managed by its parent */
+    struct conf_handler_node *subnodes;             /**< Every node has a list of subnodes */
+    union {
+        const conf_handler_array_id_t *array_id;    /**< Pointer to handler array identification */
+        const conf_handler_node_id_t *node_id;      /**< Pointer to handler node identification */
+        const conf_handler_id_t *handler_id;        /**< Pointer to handler identification */
+    };
+    const conf_handler_ops_t *ops;                  /**< Handler operations */
+    const conf_handler_data_ops_t *ops_dat;         /**< Handler data operations */
+    unsigned level;                                 /**< Level in the configuration tree (root = 0) */
 } conf_handler_node_t;
 
 /**
  * @brief   Static initializer for an intermediate handler node
  *
- * @param   path        Configuration path segment, e.g. "bar" in "foo/bar/bazz"
+ * @param   id      Configuration node ID with path segment, e.g. "bar" in "foo/bar/bazz" and SID range
+ *                  @ref CONF_HANDLER_NODE_ID()
  */
-#define CONF_HANDLER_NODE_INITIALIZER(path)             \
-{                                                       \
-    .subtree = path,                                    \
+#define CONF_HANDLER_NODE_INITIALIZER(id)           \
+{                                                   \
+    .node_id = (const conf_handler_node_id_t *)id,  \
 }
+
+/**
+ * @brief   Macro to instantiate a configuration handler node
+ */
+#define CONF_HANDLER_NODE(name, id)                 \
+conf_handler_node_t name =                          \
+    CONF_HANDLER_NODE_INITIALIZER(id)
 
 /**
  * @brief   Configuration of handler behavior
@@ -352,6 +475,39 @@ typedef struct {
     uint32_t export_as_a_whole  :1;     /**< If the handler handles an array, this specifies whether the array
                                              should be exported a whole or item by item with an index in the key */
 } conf_handler_flags_t;
+
+/**
+ * @brief   Internal initialization macro for a configuration handler with an SID
+ *          and path segment
+ * @internal
+ */
+#define _CONF_HANDLER_ID_INITIALIZER_2(sid, subtree)                        \
+{                                                                           \
+    subtree,                                                                \
+    sid,                                                                    \
+}
+
+/**
+ * @brief   Internal initialization macro for a configuration handler with an SID
+ * @internal
+ */
+#define _CONF_HANDLER_ID_INITIALIZER_1(sid)                                 \
+{                                                                           \
+    sid,                                                                    \
+}
+
+#if IS_USED(MODULE_CONFIGURATION_STRINGS)
+/**
+ * @brief   Macro to instantiate a configuration handler identification
+ */
+#define CONF_HANDLER_ID(name, sid, ...)                                     \
+const CONF_HANDLER_ID_T() name =                                            \
+    _CONF_HANDLER_ID_INITIALIZER_2(sid, ##__VA_ARGS__)
+#else
+#define CONF_HANDLER_ID(name, sid, ...)                                     \
+const CONF_HANDLER_ID_T() name =                                            \
+    _CONF_HANDLER_ID_INITIALIZER_1(sid)
+#endif
 
 /**
  * @brief   A node with handler operations in the configuration tree
@@ -378,15 +534,15 @@ typedef struct conf_array_handler {
 /**
  * @brief   Static initializer for a configuration handler node
  *
- * @param   path        Configuration path segment
+ * @param   id          Configuration handler ID
  * @param   operations  Pointer to handler operations
  * @param   item_size   Size of the configuration object
  * @param   location    Location of the configuration data
  */
-#define CONF_HANDLER_INITIALIZER(path, operations, data_operations, item_size, location)    \
+#define CONF_HANDLER_INITIALIZER(id, operations, data_operations, item_size, location)      \
 {                                                                                           \
     .node = {                                                                               \
-        .subtree = path,                                                                    \
+        .handler_id = (const conf_handler_id_t *)id,                                        \
         .ops = operations,                                                                  \
         .ops_dat = data_operations,                                                         \
     },                                                                                      \
@@ -396,9 +552,54 @@ typedef struct conf_array_handler {
 }
 
 /**
+ * @brief   Macro to instantiate a configuration handler
+ */
+#define CONF_HANDLER(name, id, operations, data_operations, item_size, location)            \
+conf_handler_t name =                                                                       \
+    CONF_HANDLER_INITIALIZER(id, operations, data_operations, item_size, location)
+
+/**
+ * @brief   Internal initialization macro for a configuration handler array with an SID range
+ *          and path segment
+ * @internal
+ */
+#define _CONF_HANDLER_ARRAY_ID_INITIALIZER_4(sid_lower, sid_upper, sid_stride, subtree)     \
+{                                                                                           \
+    subtree,                                                                                \
+    sid_lower,                                                                              \
+    sid_upper,                                                                              \
+    sid_stride,                                                                             \
+}
+
+/**
+ * @brief   Internal initialization macro for a configuration handler array with an SID range
+ *          and path segment
+ * @internal
+ */
+#define _CONF_HANDLER_ARRAY_ID_INITIALIZER_3(sid_lower, sid_upper, sid_stride)              \
+{                                                                                           \
+    sid_lower,                                                                              \
+    sid_upper,                                                                              \
+    sid_stride,                                                                             \
+}
+
+#if IS_USED(MODULE_CONFIGURATION_STRINGS)
+/**
+ * @brief   Macro to instantiate a configuration handler array identification
+ */
+#define CONF_HANDLER_ARRAY_ID(name, sid_lower, sid_upper, sid_stride, ...)                      \
+const CONF_HANDLER_ARRAY_ID_T() name =                                                          \
+    _CONF_HANDLER_ARRAY_ID_INITIALIZER_4(sid_lower, sid_upper, sid_stride, ##__VA_ARGS__)
+#else
+#define CONF_HANDLER_ARRAY_ID(name, sid_lower, sid_upper, sid_stride, ...)                      \
+const CONF_HANDLER_ARRAY_ID_T() name =                                                          \
+    _CONF_HANDLER_ARRAY_ID_INITIALIZER_3(sid_lower, sid_upper, sid_stride)
+#endif
+
+/**
  * @brief   Static initializer for a configuration handler node
  *
- * @param   path        Configuration path segment
+ * @param   id          Configuration node ID
  * @param   operations  Pointer to handler operations
  * @param   size        Size of a single item in the array
  * @param   location    Location of the configuration data
@@ -406,12 +607,12 @@ typedef struct conf_array_handler {
  * @param   is_a_whole  If true, the array is exported as a whole,
  *                      otherwise each item is exported with an index in the kex
  */
-#define CONF_ARRAY_HANDLER_INITIALIZER(path, operations, data_operations, item_size, location,          \
+#define CONF_ARRAY_HANDLER_INITIALIZER(id, operations, data_operations, item_size, location,            \
                                        numof, is_a_whole)                                               \
 {                                                                                                       \
     .handler = {                                                                                        \
         .node = {                                                                                       \
-            .subtree = path,                                                                            \
+            .array_id = (const conf_handler_array_id_t *)id,                                            \
             .ops = operations,                                                                          \
             .ops_dat = data_operations,                                                                 \
         },                                                                                              \
@@ -425,6 +626,15 @@ typedef struct conf_array_handler {
     },                                                                                                  \
     .array_size = numof,                                                                                \
 }
+
+/**
+ * @brief   Macro to instantiate a configuration array handler
+ */
+#define CONF_ARRAY_HANDLER(name, id, operations, data_operations, item_size, location,                  \
+                           numof, is_a_whole)                                                           \
+conf_array_handler_t name =                                                                             \
+    CONF_ARRAY_HANDLER_INITIALIZER(id, operations, data_operations, item_size, location,                \
+                                   numof, is_a_whole)
 
 /**
  * @brief   Handler prototype to load configuration data from a persistent storage backend
@@ -486,6 +696,24 @@ typedef struct conf_backend_ops {
 typedef struct conf_backend {
     const conf_backend_ops_t *ops;              /**< Backend operations */
 } conf_backend_t;
+
+/**
+ * @brief   Get access to the key sting buffer or NULL
+ *          if the module configuration_strings is not used
+ *
+ * @param[in]           key             Configuration key buffer
+ *
+ * @return  Pointer to the key string buffer or NULL
+ */
+static inline char *configuration_key_buf(conf_key_t *key)
+{
+#if IS_USED(MODULE_CONFIGURATION_STRINGS)
+    return ((conf_key_buf_t *)key)->buf;
+#else
+    (void)key;
+    return NULL;
+#endif
+}
 
 /**
  * @brief   Get the root node of the configuration tree
@@ -621,32 +849,6 @@ int configuration_apply(conf_key_t *key);
 int configuration_set_backend(conf_key_t *key,
                               const conf_backend_t *src_backend,
                               const conf_backend_t *dst_backend);
-
-/**
- * @brief   Prepend a root path to a configuration key to distinguish between
- *          stored configurations for different firmware versions
- *
- * This must be called by a RIOT handler implementation to prepend
- * @ref CONFIGURATION_RIOT_ROOT to the configuration key in
- * @ref conf_handler_ops_t::import,
- * @ref conf_handler_ops_t::export,
- * @ref conf_handler_ops_t::delete.
- *
- * @param[in,out]       key         Key to identify the subtree
- * @param[in]           root        Root path to prepend before @p key
- *
- * @return  Position of original key value in buffer or NULL on error
- */
-char *configuration_key_prepend_root(conf_key_buf_t *key, const char *root);
-
-/**
- * @brief   This is called to restore the original input key which must be done by a handler
- *
- * @param[in,out]       key         Key to identify the subtree
- * @param[in]           restore     Key string to restore
- * @param[in]           restore_len Length of the key to restore
- */
-void configuration_key_restore(conf_key_buf_t *key_buf, const char *key, size_t key_len);
 
 /**
  * @brief   Default set-handler to be used for a simple configuration item

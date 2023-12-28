@@ -4,6 +4,8 @@ DEFAULT_MODULE += auto_init_configuration_backend_flashdb
 USEMODULE += fmt
 
 ifneq (,$(filter configuration_backend_flashdb%,$(USEMODULE)))
+  # this backend needs strings
+  USEMODULE += configuration_strings
   USEMODULE += configuration_backend_flashdb
   USEMODULE += flashdb_kvdb
   ifneq (,$(filter configuration_backend_flashdb_vfs,$(USEMODULE)))
