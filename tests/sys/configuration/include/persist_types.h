@@ -19,6 +19,11 @@
 #ifndef PERSIST_TYPES_H
 #define PERSIST_TYPES_H
 
+#include <stdint.h>
+
+#include "container.h"
+#include "configuration.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -53,6 +58,100 @@ typedef struct order {
 
 
 #define TEST_CONFIGURATION_MAX_ORDERS   3
+
+/* TODO: automatic generation from .sid file */
+
+#ifndef CONFIG_TEST_FOOD_LOWER_SID
+#define CONFIG_TEST_FOOD_LOWER_SID                          (0x7FFFFFFFFFFFFFE0)
+#endif
+#   ifndef CONFIG_TEST_FOOD_BREAD_LOWER_SID
+#   define CONFIG_TEST_FOOD_BREAD_LOWER_SID                 (CONFIG_TEST_FOOD_LOWER_SID + 1)
+#   endif
+#       ifndef CONFIG_TEST_FOOD_BREAD_WHITE_SID
+#       define CONFIG_TEST_FOOD_BREAD_WHITE_SID             (CONFIG_TEST_FOOD_BREAD_LOWER_SID + 1)
+#       endif
+#       ifndef CONFIG_TEST_FOOD_BREAD_WHOLE_GRAIN_SID
+#       define CONFIG_TEST_FOOD_BREAD_WHOLE_GRAIN_SID       (CONFIG_TEST_FOOD_BREAD_LOWER_SID + 2)
+#       endif
+#   ifndef CONFIG_TEST_FOOD_BREAD_UPPER_SID
+#   define CONFIG_TEST_FOOD_BREAD_UPPER_SID                 (CONFIG_TEST_FOOD_BREAD_LOWER_SID + 2)
+#   endif
+#   ifndef CONFIG_TEST_FOOD_CAKE_LOWER_SID
+#   define CONFIG_TEST_FOOD_CAKE_LOWER_SID                  (CONFIG_TEST_FOOD_BREAD_UPPER_SID  + 1)
+#   endif
+#       ifndef CONFIG_TEST_FOOD_CAKE_CHEESECAKE_SID
+#       define CONFIG_TEST_FOOD_CAKE_CHEESECAKE_SID         (CONFIG_TEST_FOOD_CAKE_LOWER_SID + 1)
+#       endif
+#       ifndef CONFIG_TEST_FOOD_CAKE_DONUT_SID
+#       define CONFIG_TEST_FOOD_CAKE_DONUT_SID              (CONFIG_TEST_FOOD_CAKE_LOWER_SID + 2)
+#       endif
+#   ifndef CONFIG_TEST_FOOD_CAKE_UPPER_SID
+#   define CONFIG_TEST_FOOD_CAKE_UPPER_SID                  (CONFIG_TEST_FOOD_CAKE_LOWER_SID + 2)
+#   endif
+#ifndef CONFIG_TEST_FOOD_UPPER_SID
+#define CONFIG_TEST_FOOD_UPPER_SID                          (0x7FFFFFFFFFFFFFE9)
+#endif
+#ifndef CONFIG_TEST_DRINKS_LOWER_SID
+#define CONFIG_TEST_DRINKS_LOWER_SID                        (0x7FFFFFFFFFFFFFEA)
+#endif
+#   ifndef CONFIG_TEST_DRINKS_COFFEE_SID
+#   define CONFIG_TEST_DRINKS_COFFEE_SID                    (CONFIG_TEST_DRINKS_LOWER_SID + 1)
+#   endif
+#   ifndef CONFIG_TEST_DRINKS_TEA_SID
+#   define CONFIG_TEST_DRINKS_TEA_SID                       (CONFIG_TEST_DRINKS_LOWER_SID + 2)
+#   endif
+#   ifndef CONFIG_TEST_DRINKS_COCOA_SID
+#   define CONFIG_TEST_DRINKS_COCOA_SID                     (CONFIG_TEST_DRINKS_LOWER_SID + 3)
+#   endif
+#ifndef CONFIG_TEST_DRINKS_UPPER_SID
+#define CONFIG_TEST_DRINKS_UPPER_SID                        (0x7FFFFFFFFFFFFFF2)
+#endif
+#ifndef CONFIG_TEST_ORDERS_LOWER_SID
+#define CONFIG_TEST_ORDERS_LOWER_SID                        (0x7FFFFFFFFFFFFFF3)                                                        /* /orders */
+#endif
+#   define CONFIG_TEST_ORDERS_INDEX_LOWER_SID               (1)                                                                         /* /orders[0] */
+#   ifndef CONFIG_TEST_ORDERS_INDEX_STRIDE
+#   define CONFIG_TEST_ORDERS_INDEX_STRIDE                  (4)                                                                         /* /orders[i] */
+#   endif
+#       ifndef CONFIG_TEST_ORDERS_ITEMS_LOWER_SID
+#       define CONFIG_TEST_ORDERS_ITEMS_LOWER_SID           (CONFIG_TEST_ORDERS_LOWER_SID + CONFIG_TEST_ORDERS_INDEX_LOWER_SID + 1)     /* /orders[0]/items */
+#       endif
+#           define CONFIG_TEST_ORDERS_ITEMS_INDEX_LOWER_SID (1)                                                                         /* /orders[0]/items[0] */
+#           ifndef CONFIG_TEST_ORDERS_ITEMS_INDEX_STRIDE
+#           define CONFIG_TEST_ORDERS_ITEMS_INDEX_STRIDE    (1)                                                                         /* /orders[0]/items[i] */
+#           endif
+#       ifndef CONFIG_TEST_ORDERS_ITEMS_UPPER_SID
+#       define CONFIG_TEST_ORDERS_ITEMS_UPPER_SID           (CONFIG_TEST_ORDERS_ITEMS_LOWER_SID + (CONFIG_TEST_ORDERS_ITEMS_INDEX_STRIDE * 2))
+#       endif
+#ifndef CONFIG_TEST_ORDERS_UPPER_SID
+#define CONFIG_TEST_ORDERS_UPPER_SID                        (CONFIG_TEST_ORDERS_LOWER_SID + (CONFIG_TEST_ORDERS_INDEX_STRIDE * TEST_CONFIGURATION_MAX_ORDERS))
+#endif
+
+/* ISO C restricts enumerator values to range of ‘int’ */
+
+#define TEST_FOOD_LOWER_SID                                 ((conf_sid_t)CONFIG_TEST_FOOD_LOWER_SID)
+#   define TEST_FOOD_BREAD_LOWER_SID                        ((conf_sid_t)CONFIG_TEST_FOOD_BREAD_LOWER_SID)
+#       define TEST_FOOD_BREAD_WHITE_SID                    ((conf_sid_t)CONFIG_TEST_FOOD_BREAD_WHITE_SID)
+#       define TEST_FOOD_BREAD_WHOLE_GRAIN_SID              ((conf_sid_t)CONFIG_TEST_FOOD_BREAD_WHOLE_GRAIN_SID)
+#   define TEST_FOOD_BREAD_UPPER_SID                        ((conf_sid_t)CONFIG_TEST_FOOD_BREAD_UPPER_SID)
+#   define TEST_FOOD_CAKE_LOWER_SID                         ((conf_sid_t)CONFIG_TEST_FOOD_CAKE_LOWER_SID)
+#       define TEST_FOOD_CAKE_CHEESECAKE_SID                ((conf_sid_t)CONFIG_TEST_FOOD_CAKE_CHEESECAKE_SID)
+#       define TEST_FOOD_CAKE_DONUT_SID                     ((conf_sid_t)CONFIG_TEST_FOOD_CAKE_DONUT_SID)
+#   define TEST_FOOD_CAKE_UPPER_SID                         ((conf_sid_t)CONFIG_TEST_FOOD_CAKE_UPPER_SID)
+#define TEST_FOOD_UPPER_SID                                 ((conf_sid_t)CONFIG_TEST_FOOD_UPPER_SID)
+#define TEST_DRINKS_LOWER_SID                               ((conf_sid_t)CONFIG_TEST_DRINKS_LOWER_SID)
+#   define TEST_DRINKS_COFFEE_SID                           ((conf_sid_t)CONFIG_TEST_DRINKS_COFFEE_SID)
+#   define TEST_DRINKS_TEA_SID                              ((conf_sid_t)CONFIG_TEST_DRINKS_TEA_SID)
+#   define TEST_DRINKS_COCOA_SID                            ((conf_sid_t)CONFIG_TEST_DRINKS_COCOA_SID)
+#define TEST_DRINKS_UPPER_SID                               ((conf_sid_t)CONFIG_TEST_DRINKS_UPPER_SID)
+#define TEST_ORDERS_LOWER_SID                               ((conf_sid_t)CONFIG_TEST_ORDERS_LOWER_SID)
+#   define TEST_ORDERS_INDEX_LOWER_SID                      ((conf_sid_t)CONFIG_TEST_ORDERS_INDEX_LOWER_SID)
+#   define TEST_ORDERS_INDEX_STRIDE                         ((uint32_t)CONFIG_TEST_ORDERS_INDEX_STRIDE)
+#       define TEST_ORDERS_ITEMS_LOWER_SID                  ((conf_sid_t)CONFIG_TEST_ORDERS_ITEMS_LOWER_SID)
+#           define TEST_ORDERS_ITEMS_INDEX_LOWER_SID        ((conf_sid_t)CONFIG_TEST_ORDERS_ITEMS_INDEX_LOWER_SID)
+#           define TEST_ORDERS_ITEMS_INDEX_STRIDE           ((uint32_t)CONFIG_TEST_ORDERS_ITEMS_INDEX_STRIDE)
+#       define TEST_ORDERS_ITEMS_UPPER_SID                  ((conf_sid_t)CONFIG_TEST_ORDERS_ITEMS_UPPER_SID)
+#define TEST_ORDERS_UPPER_SID                               ((conf_sid_t)CONFIG_TEST_ORDERS_UPPER_SID)
 
 /**
  * @brief   Full configuration compound item

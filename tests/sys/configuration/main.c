@@ -18,21 +18,23 @@
  */
 
 #include <assert.h>
-#include <ctype.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "compiler_hints.h"
 #include "configuration.h"
 #include "container.h"
 #include "embUnit.h"
 
 #include "configuration_backend_ram.h"
 #include "configuration_backend_flashdb.h"
+#include "irq.h"
 #include "persist_types.h"
 
 #define ENABLE_DEBUG    0
@@ -45,7 +47,7 @@ static struct configuration persist_conf; /* dummy */
 #endif
 
 static CONF_KEY_T(40) key_buf
-    = CONF_KEY_INITIALIZER(40, "");
+    = CONF_KEY_INITIALIZER(UINT64_MAX, 40, "");
 
 struct configuration _conf = {
     .food = {
@@ -110,7 +112,9 @@ int _any_food_apply(const struct conf_handler *handler,
     assert(key);
     assert(food);
 
-    printf("test configuration: Applying %s to %s\n", food->price, key->buf);
+    printf("test configuration: Applying %s to %s\n",
+           food->price,
+           configuration_key_buf(key) ? configuration_key_buf(key) : "");
 
     return 0;
 }
@@ -138,7 +142,9 @@ int _any_drinks_apply(const struct conf_handler *handler,
     assert(key);
     assert(drink);
 
-    printf("test configuration: Applying %s to %s\n", drink->price, key->buf);
+    printf("test configuration: Applying %s to %s\n",
+           drink->price,
+           configuration_key_buf(key) ? configuration_key_buf(key) : "");
 
     return 0;
 }
@@ -562,7 +568,8 @@ static int _orders_verify(const conf_handler_t *handler,
                           conf_key_buf_t *key)
 {
     (void)handler; (void)key;
-    printf("test configuration: Verifying %s\n", key->buf);
+    printf("test configuration: Verifying %s\n",
+           configuration_key_buf(key) ? configuration_key_buf(key) : "");
     return 0;
 }
 
@@ -570,7 +577,8 @@ static int _orders_apply(const conf_handler_t *handler,
                          conf_key_buf_t *key)
 {
     (void)handler; (void)key;
-    printf("test configuration: Applying %s\n", key->buf);
+    printf("test configuration: Applying %s\n",
+           configuration_key_buf(key) ? configuration_key_buf(key) : "");
     return 0;
 }
 
@@ -608,83 +616,135 @@ static const conf_handler_ops_t _orders_items_handler_ops = {
     .delete = NULL,
 };
 
-static conf_handler_node_t _products_food_conf_handler
-    = CONF_HANDLER_NODE_INITIALIZER("food");
+static CONF_HANDLER_NODE_ID(_products_food_conf_handler_id,
+                            TEST_FOOD_LOWER_SID, TEST_FOOD_UPPER_SID,
+                            "food");
 
-static conf_handler_node_t _products_bread_handler
-    = CONF_HANDLER_NODE_INITIALIZER("bread");
+static CONF_HANDLER_NODE(_products_food_conf_handler,
+                         &_products_food_conf_handler_id);
 
-static conf_handler_t _products_bread_white_handler
-    = CONF_HANDLER_INITIALIZER("white",
-                               &_bread_white_handler_ops,
-                               &_bread_white_handler_data_ops,
-                               sizeof(_conf.food.bread.white),
-                               &_conf.food.bread.white);
+static CONF_HANDLER_NODE_ID(_products_bread_handler_node_id,
+                            TEST_FOOD_BREAD_LOWER_SID, TEST_FOOD_BREAD_UPPER_SID,
+                            "bread");
 
-static conf_handler_t _products_bread_whole_grain_handler
-    = CONF_HANDLER_INITIALIZER("whole_grain",
-                               &_bread_whole_grain_handler_ops,
-                               &_bread_whole_grain_handler_data_ops,
-                               sizeof(_conf.food.bread.whole_grain),
-                               &_conf.food.bread.whole_grain);
+static CONF_HANDLER_NODE(_products_bread_handler,
+                         &_products_bread_handler_node_id);
 
-static conf_handler_node_t _products_cake_handler
-    = CONF_HANDLER_NODE_INITIALIZER("cake");
+static CONF_HANDLER_ID(_products_bread_white_handler_node_id,
+                       TEST_FOOD_BREAD_WHITE_SID,
+                       "white");
 
-static conf_handler_t _products_cake_cheesecake_handler
-    = CONF_HANDLER_INITIALIZER("cheesecake",
-                               &_cake_cheesecake_handler_ops,
-                               &_cake_cheesecake_handler_data_ops,
-                               sizeof(_conf.food.cake.cheesecake),
-                               &_conf.food.cake.cheesecake);
+static CONF_HANDLER(_products_bread_white_handler,
+                    &_products_bread_white_handler_node_id,
+                    &_bread_white_handler_ops,
+                    &_bread_white_handler_data_ops,
+                    sizeof(_conf.food.bread.white),
+                    &_conf.food.bread.white);
 
-static conf_handler_t _products_cake_donut_handler
-    = CONF_HANDLER_INITIALIZER("donut",
-                               &_cake_donut_handler_ops,
-                               &_cake_donut_handler_data_ops,
-                               sizeof(_conf.food.cake.donut),
-                               &_conf.food.cake.donut);
+static CONF_HANDLER_ID(_products_bread_whole_grain_handler_node_id,
+                       TEST_FOOD_BREAD_WHOLE_GRAIN_SID,
+                       "whole_grain");
 
-static conf_handler_node_t _products_drinks_conf_handler
-    = CONF_HANDLER_NODE_INITIALIZER("drinks");
+static CONF_HANDLER(_products_bread_whole_grain_handler,
+                    &_products_bread_whole_grain_handler_node_id,
+                    &_bread_whole_grain_handler_ops,
+                    &_bread_whole_grain_handler_data_ops,
+                    sizeof(_conf.food.bread.whole_grain),
+                    &_conf.food.bread.whole_grain);
 
-static conf_handler_t _products_drinks_coffee_conf_handler
-    = CONF_HANDLER_INITIALIZER("coffee",
-                               &_drinks_coffee_handler_ops,
-                               &_drinks_coffee_handler_data_ops,
-                               sizeof(_conf.drinks.coffee),
-                               &_conf.drinks.coffee);
+static CONF_HANDLER_NODE_ID(_products_cake_handler_node_id,
+                            TEST_FOOD_CAKE_LOWER_SID, TEST_FOOD_CAKE_UPPER_SID,
+                            "cake");
 
-static conf_handler_t _products_drinks_tea_conf_handler
-    = CONF_HANDLER_INITIALIZER("tea",
-                               &_drinks_tea_handler_ops,
-                               &_drinks_tea_handler_data_ops,
-                               sizeof(_conf.drinks.tea),
-                               &_conf.drinks.tea);
+static CONF_HANDLER_NODE(_products_cake_handler,
+                         &_products_cake_handler_node_id);
 
-static conf_handler_t _products_drinks_cocoa_conf_handler
-    = CONF_HANDLER_INITIALIZER("cocoa",
-                               &_drinks_cocoa_handler_ops,
-                               &_drinks_cocoa_handler_data_ops,
-                               sizeof(_conf.drinks.cocoa),
-                               &_conf.drinks.cocoa);
+static CONF_HANDLER_ID(_products_cake_cheesecake_handler_node_id,
+                       TEST_FOOD_CAKE_CHEESECAKE_SID,
+                       "cheesecake");
 
-static conf_array_handler_t _products_orders_conf_handler
-    = CONF_ARRAY_HANDLER_INITIALIZER("orders",
-                                     &_orders_handler_ops,
-                                     &_orders_handler_data_ops,
-                                     sizeof(_conf.orders[0]),
-                                     &_conf.orders,
-                                     ARRAY_SIZE(_conf.orders),
-                                     0);
+static CONF_HANDLER(_products_cake_cheesecake_handler,
+                    &_products_cake_cheesecake_handler_node_id,
+                    &_cake_cheesecake_handler_ops,
+                    &_cake_cheesecake_handler_data_ops,
+                    sizeof(_conf.food.cake.cheesecake),
+                    &_conf.food.cake.cheesecake);
 
-static conf_array_handler_t _products_orders_items_conf_handler
-    = CONF_ARRAY_HANDLER_INITIALIZER("items",
-                                     &_orders_items_handler_ops, NULL,
-                                     sizeof(_conf.orders[0].items[0]),
-                                     &_conf.orders[0].items,
-                                     ARRAY_SIZE(_conf.orders[0].items),
-                                     0);
+static CONF_HANDLER_ID(_products_cake_donut_handler_node_id,
+                       TEST_FOOD_CAKE_DONUT_SID,
+                       "donut");
+
+static CONF_HANDLER(_products_cake_donut_handler,
+                    &_products_cake_donut_handler_node_id,
+                    &_cake_donut_handler_ops,
+                    &_cake_donut_handler_data_ops,
+                    sizeof(_conf.food.cake.donut),
+                    &_conf.food.cake.donut);
+
+static CONF_HANDLER_NODE_ID(_products_drinks_conf_handler_node_id,
+                            TEST_DRINKS_LOWER_SID, TEST_DRINKS_UPPER_SID,
+                            "drinks");
+
+static CONF_HANDLER_NODE(_products_drinks_conf_handler,
+                         &_products_drinks_conf_handler_node_id);
+
+static CONF_HANDLER_ID(_products_drinks_coffee_conf_handler_node_id,
+                       TEST_DRINKS_COFFEE_SID,
+                       "coffee");
+
+static CONF_HANDLER(_products_drinks_coffee_conf_handler,
+                    &_products_drinks_coffee_conf_handler_node_id,
+                    &_drinks_coffee_handler_ops,
+                    &_drinks_coffee_handler_data_ops,
+                    sizeof(_conf.drinks.coffee),
+                    &_conf.drinks.coffee);
+
+static CONF_HANDLER_ID(_products_drinks_tea_conf_handler_node_id,
+                       TEST_DRINKS_TEA_SID,
+                       "tea");
+
+static CONF_HANDLER(_products_drinks_tea_conf_handler,
+                    &_products_drinks_tea_conf_handler_node_id,
+                    &_drinks_tea_handler_ops,
+                    &_drinks_tea_handler_data_ops,
+                    sizeof(_conf.drinks.tea),
+                    &_conf.drinks.tea);
+
+static CONF_HANDLER_ID(_products_drinks_cocoa_conf_handler_node_id,
+                       TEST_DRINKS_COCOA_SID,
+                       "cocoa");
+
+static CONF_HANDLER(_products_drinks_cocoa_conf_handler,
+                    &_products_drinks_cocoa_conf_handler_node_id,
+                    &_drinks_cocoa_handler_ops,
+                    &_drinks_cocoa_handler_data_ops,
+                    sizeof(_conf.drinks.cocoa),
+                    &_conf.drinks.cocoa);
+
+static CONF_HANDLER_ARRAY_ID(_products_orders_conf_handler_id,
+                             TEST_ORDERS_LOWER_SID, TEST_ORDERS_UPPER_SID, TEST_ORDERS_INDEX_STRIDE,
+                             "orders");
+
+static CONF_ARRAY_HANDLER(_products_orders_conf_handler,
+                          &_products_orders_conf_handler_id,
+                          &_orders_handler_ops,
+                          &_orders_handler_data_ops,
+                          sizeof(_conf.orders[0]),
+                          &_conf.orders,
+                          ARRAY_SIZE(_conf.orders),
+                          0);
+
+static CONF_HANDLER_ARRAY_ID(_products_orders_items_conf_handler_id,
+                            TEST_ORDERS_ITEMS_LOWER_SID, TEST_ORDERS_ITEMS_UPPER_SID, TEST_ORDERS_ITEMS_INDEX_STRIDE,
+                            "items");
+
+static CONF_ARRAY_HANDLER(_products_orders_items_conf_handler,
+                          &_products_orders_items_conf_handler_id,
+                          &_orders_items_handler_ops, NULL,
+                          sizeof(_conf.orders[0].items[0]),
+                          &_conf.orders[0].items,
+                          ARRAY_SIZE(_conf.orders[0].items),
+                          0);
 
 static void _init_backend(void)
 {
@@ -700,7 +760,7 @@ static void _init_backend(void)
     _products_bread_white_handler.src_backend = configuration_backend_ram_get();
 #elif defined(TEST_CONFIGURATION_BACKEND_FLASHDB_MTD) || \
       defined(TEST_CONFIGURATION_BACKEND_FLASHDB_VFS)
-    _products_orders_conf_handler.src_backend = configuration_backend_flashdb_get();
+    _products_orders_conf_handler.handler.src_backend = configuration_backend_flashdb_get();
     _products_drinks_cocoa_conf_handler.src_backend = configuration_backend_flashdb_get();
     _products_drinks_tea_conf_handler.src_backend = configuration_backend_flashdb_get();
     _products_drinks_coffee_conf_handler.src_backend = configuration_backend_flashdb_get();
@@ -735,73 +795,69 @@ static void test_configuration_get(void)
     size_t conf_size;
 
     conf_size = sizeof(conf.food);
-    strcpy(key_buf.buf, "invalid");
-    TEST_ASSERT(configuration_get(&key_buf, &conf.food, &conf_size));
-
-    conf_size = sizeof(conf.food);
-    strcpy(key_buf.buf, "/food/bread/invalid");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_get(&key_buf, &conf.food, &conf_size));
 
     memset(&conf, 0, sizeof(conf));
     conf_size = sizeof(conf.food);
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.food, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.food, &_conf.food, conf_size));
 
     memset(&conf, 0, sizeof(conf));
     conf_size = sizeof(conf.food.bread);
-    strcpy(key_buf.buf, "/food/bread");
+    key_buf.sid = TEST_FOOD_BREAD_LOWER_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.food.bread, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.food.bread, &_conf.food.bread, conf_size));
 
     memset(&conf, 0, sizeof(conf));
     conf_size = sizeof(conf.food.bread.white);
-    strcpy(key_buf.buf, "/food/bread/white");
+    key_buf.sid = TEST_FOOD_BREAD_WHITE_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.food.bread.white, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/white"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.food.bread.white, &_conf.food.bread.white, conf_size));
 
     memset(&conf, 0, sizeof(conf));
     conf_size = sizeof(conf.food.bread.whole_grain);
-    strcpy(key_buf.buf, "/food/bread/whole_grain");
+    key_buf.sid = TEST_FOOD_BREAD_WHOLE_GRAIN_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.food.bread.whole_grain, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/whole_grain"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, conf_size));
 
     memset(&conf, 0, sizeof(conf));
     conf_size = sizeof(conf.food.cake);
-    strcpy(key_buf.buf, "/food/cake");
+    key_buf.sid = TEST_FOOD_CAKE_LOWER_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.food.cake, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.food.cake, &_conf.food.cake, conf_size));
 
     memset(&conf, 0, sizeof(conf));
     conf_size = sizeof(conf.food.cake.cheesecake);
-    strcpy(key_buf.buf, "/food/cake/cheesecake");
+    key_buf.sid = TEST_FOOD_CAKE_CHEESECAKE_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.food.cake.cheesecake, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/cheesecake"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, conf_size));
 
     memset(&conf, 0, sizeof(conf));
     conf_size = sizeof(conf.food.cake.donut);
-    strcpy(key_buf.buf, "/food/cake/donut");
+    key_buf.sid = TEST_FOOD_CAKE_DONUT_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.food.cake.donut, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/donut"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.food.cake.donut, &_conf.food.cake.donut, conf_size));
 
     conf_size = sizeof(conf.drinks);
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_get(&key_buf, &conf.drinks, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.drinks, &_conf.drinks, conf_size));
 }
@@ -830,74 +886,70 @@ static void test_configuration_set(void)
     struct configuration conf_backup = _conf;
 
     conf_size = sizeof(new_conf.food);
-    strcpy(key_buf.buf, "invalid");
-    TEST_ASSERT(configuration_set(&key_buf, &new_conf.food, &conf_size));
-
-    conf_size = sizeof(new_conf.food);
-    strcpy(key_buf.buf, "/food/bread/invalid");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_set(&key_buf, &new_conf.food, &conf_size));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food.bread.white);
-    strcpy(key_buf.buf, "/food/bread/white");
+    key_buf.sid = TEST_FOOD_BREAD_WHITE_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread.white, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/white"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food.bread.whole_grain);
-    strcpy(key_buf.buf, "/food/bread/whole_grain");
+    key_buf.sid = TEST_FOOD_BREAD_WHOLE_GRAIN_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread.whole_grain, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/whole_grain"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, sizeof(_conf.food.bread.whole_grain)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food.bread);
-    strcpy(key_buf.buf, "/food/bread");
+    key_buf.sid = TEST_FOOD_BREAD_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food.bread, &_conf.food.bread, sizeof(_conf.food.bread)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food.cake.cheesecake);
-    strcpy(key_buf.buf, "/food/cake/cheesecake");
+    key_buf.sid = TEST_FOOD_CAKE_CHEESECAKE_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.cake.cheesecake, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/cheesecake"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, sizeof(_conf.food.cake.cheesecake)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food.cake.donut);
-    strcpy(key_buf.buf, "/food/cake/donut");
+    key_buf.sid = TEST_FOOD_CAKE_DONUT_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.cake.donut, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/donut"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food.cake.donut, &_conf.food.cake.donut, sizeof(_conf.food.cake.donut)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food.cake);
-    strcpy(key_buf.buf, "/food/cake");
+    key_buf.sid = TEST_FOOD_CAKE_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.cake, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food.cake, &_conf.food.cake, sizeof(_conf.food.cake)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.food);
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food, &_conf.food, sizeof(_conf.food)));
 
     memset(&_conf, 0, sizeof(_conf));
     conf_size = sizeof(new_conf.drinks);
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.drinks, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.drinks, &_conf.drinks, sizeof(_conf.drinks)));
 
@@ -909,57 +961,54 @@ static void test_configuration_import(void)
 {
     struct configuration conf_backup = _conf;
 
-    strcpy(key_buf.buf, "invalid");
-    TEST_ASSERT(configuration_import(&key_buf));
-
-    strcpy(key_buf.buf, "/food/bread/invalid");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_import(&key_buf));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(!memcmp(&persist_conf.food, &_conf.food, sizeof(_conf.food)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food/bread");
+    key_buf.sid = TEST_FOOD_BREAD_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
     TEST_ASSERT(!memcmp(&persist_conf.food.bread, &_conf.food.bread, sizeof(_conf.food.bread)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food/bread/white");
+    key_buf.sid = TEST_FOOD_BREAD_WHITE_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/white"));
     TEST_ASSERT(!memcmp(&persist_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food/bread/whole_grain");
+    key_buf.sid = TEST_FOOD_BREAD_WHOLE_GRAIN_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/whole_grain"));
     TEST_ASSERT(!memcmp(&persist_conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, sizeof(_conf.food.bread.whole_grain)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food/cake");
+    key_buf.sid = TEST_FOOD_CAKE_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake"));
     TEST_ASSERT(!memcmp(&persist_conf.food.cake, &_conf.food.cake, sizeof(_conf.food.cake)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food/cake/cheesecake");
+    key_buf.sid = TEST_FOOD_CAKE_CHEESECAKE_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/cheesecake"));
     TEST_ASSERT(!memcmp(&persist_conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, sizeof(_conf.food.cake.cheesecake)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/food/cake/donut");
+    key_buf.sid = TEST_FOOD_CAKE_DONUT_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/donut"));
     TEST_ASSERT(!memcmp(&persist_conf.food.cake.donut, &_conf.food.cake.donut, sizeof(_conf.food.cake.donut)));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(!memcmp(&persist_conf.drinks, &_conf.drinks, sizeof(_conf.drinks)));
 
     _conf = conf_backup;
@@ -990,57 +1039,55 @@ static void test_configuration_export(void)
 
     _conf = new_conf;
 
-    strcpy(key_buf.buf, "invalid");
-    TEST_ASSERT(configuration_export(&key_buf));
-    strcpy(key_buf.buf, "/food/bread/invalid");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_export(&key_buf));
     memset(&persist_conf, 0, sizeof(persist_conf));
 
-    strcpy(key_buf.buf, "/food/bread/white");
+    key_buf.sid = TEST_FOOD_BREAD_WHITE_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/white"));
     TEST_ASSERT(!memcmp(&persist_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/food/bread/whole_grain");
+    key_buf.sid = TEST_FOOD_BREAD_WHOLE_GRAIN_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/whole_grain"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/whole_grain"));
     TEST_ASSERT(!memcmp(&new_conf.food.bread.whole_grain, &_conf.food.bread.whole_grain, sizeof(_conf.food.bread.whole_grain)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/food/bread");
+    key_buf.sid = TEST_FOOD_BREAD_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
     TEST_ASSERT(!memcmp(&new_conf.food.bread, &_conf.food.bread, sizeof(_conf.food.bread)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/food/cake/cheesecake");
+    key_buf.sid = TEST_FOOD_CAKE_CHEESECAKE_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/cheesecake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/cheesecake"));
     TEST_ASSERT(!memcmp(&new_conf.food.cake.cheesecake, &_conf.food.cake.cheesecake, sizeof(_conf.food.cake.cheesecake)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/food/cake/donut");
+    key_buf.sid = TEST_FOOD_CAKE_DONUT_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake/donut"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake/donut"));
     TEST_ASSERT(!memcmp(&new_conf.food.cake.donut, &_conf.food.cake.donut, sizeof(_conf.food.cake.donut)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/food/cake");
+    key_buf.sid = TEST_FOOD_CAKE_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/cake"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/cake"));
     TEST_ASSERT(!memcmp(&new_conf.food.cake, &_conf.food.cake, sizeof(_conf.food.cake)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(!memcmp(&new_conf.food, &_conf.food, sizeof(_conf.food)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(!memcmp(&new_conf.drinks, &_conf.drinks, sizeof(_conf.drinks)));
 
     _conf = conf_backup;
@@ -1072,52 +1119,52 @@ static void test_configuration_import_modify_export_import(void)
 
     memset(&_conf, 0, sizeof(_conf));
 
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
 
     conf_size = sizeof(new_conf.food);
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(conf_size == 0);
 
     conf_size = sizeof(new_conf.drinks);
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.drinks, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(conf_size == 0);
 
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     configuration_delete(&key_buf);
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     configuration_delete(&key_buf);
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
 
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
 
     memset(&_conf, 0, sizeof(_conf));
 
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(!memcmp(&_conf.food, &new_conf.food, sizeof(_conf.food)));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(!memcmp(&_conf.drinks, &new_conf.drinks, sizeof(new_conf.drinks)));
 
     _conf = conf_backup;
@@ -1147,55 +1194,52 @@ static void test_configuration_delete(void)
     struct configuration persist_conf_backup = persist_conf;
     size_t conf_size;
 
-    strcpy(key_buf.buf, "invalid");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_delete(&key_buf));
 
-    strcpy(key_buf.buf, "/food/bread/baguette");
-    TEST_ASSERT(configuration_delete(&key_buf));
-
-    strcpy(key_buf.buf, "/food/bread");
+    key_buf.sid = TEST_FOOD_BREAD_LOWER_SID;
     TEST_ASSERT(!configuration_delete(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
 
     conf_size = sizeof(new_conf.food);
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(conf_size == 0);
 
     conf_size = sizeof(new_conf.drinks);
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.drinks, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(conf_size == 0);
 
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
 
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_delete(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
 
-    strcpy(key_buf.buf, "/food/bread/white");
+    key_buf.sid = TEST_FOOD_BREAD_WHITE_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/white"));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_delete(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
 
-    strcpy(key_buf.buf, "/drinks/coffee");
+    key_buf.sid = TEST_DRINKS_COFFEE_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks/coffee"));
 
     _conf = conf_backup;
     persist_conf = persist_conf_backup;
@@ -1224,42 +1268,42 @@ static void test_configuration_verify_apply(void)
 
     struct configuration conf_backup = _conf;
 
-    strcpy(key_buf.buf, "/food");
+    key_buf.sid = TEST_FOOD_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food"));
 
     conf_size = sizeof(new_conf.food.bread.white);
-    strcpy(key_buf.buf, "/food/bread/white");
+    key_buf.sid = TEST_FOOD_BREAD_WHITE_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.food.bread.white, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread/white"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread/white"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.food.bread.white, &_conf.food.bread.white, sizeof(_conf.food.bread.white)));
 
-    strcpy(key_buf.buf, "/food/bread");
+    key_buf.sid = TEST_FOOD_BREAD_LOWER_SID;
     TEST_ASSERT(configuration_verify(&key_buf, false));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
     TEST_ASSERT(!configuration_verify(&key_buf, true));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
     TEST_ASSERT(!configuration_apply(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/food/bread"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/food/bread"));
 
-    strcpy(key_buf.buf, "/drinks");
+    key_buf.sid = TEST_DRINKS_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks"));
 
     conf_size = sizeof(new_conf.drinks.coffee);
-    strcpy(key_buf.buf, "/drinks/coffee");
+    key_buf.sid = TEST_DRINKS_COFFEE_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.drinks.coffee, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks/coffee"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&new_conf.drinks.coffee, &_conf.drinks.coffee, sizeof(_conf.drinks.coffee)));
 
     TEST_ASSERT(configuration_verify(&key_buf, false));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks/coffee"));
     TEST_ASSERT(!configuration_verify(&key_buf, true));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks/coffee"));
     TEST_ASSERT(!configuration_apply(&key_buf));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/drinks/coffee"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/drinks/coffee"));
 
     _conf = conf_backup;
 }
@@ -1291,32 +1335,32 @@ static void test_configuration_array_set(void)
     struct configuration conf_backup = _conf;
 
     size_t conf_size = sizeof(orders);
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, orders, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&_conf.orders, &orders, sizeof(orders)));
 
     conf_size = sizeof(orders[0]);
-    strcpy(key_buf.buf, "/orders/3");
+    key_buf.sid = CONFIG_TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (3 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(configuration_set(&key_buf, orders, &conf_size));
 
     conf_size = sizeof(orders[0]);
-    strcpy(key_buf.buf, "/orders/0");
+    key_buf.sid = CONFIG_TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0"));
     TEST_ASSERT(!memcmp(&_conf.orders[0], &((order_t){0}), sizeof(orders[0])));
 
     conf_size = sizeof(orders[1]);
-    strcpy(key_buf.buf, "/orders/1");
+    key_buf.sid = CONFIG_TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/1"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1"));
     TEST_ASSERT(!memcmp(&_conf.orders[1], &((order_t){0}), sizeof(orders[1])));
 
     conf_size = sizeof(orders[2]);
-    strcpy(key_buf.buf, "/orders/2");
+    key_buf.sid = CONFIG_TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2"));
     TEST_ASSERT(!memcmp(&_conf.orders[0], &((order_t){0}), sizeof(orders[2])));
 
 
@@ -1325,16 +1369,18 @@ static void test_configuration_array_set(void)
     };
 
     conf_size = sizeof(order_item_0.items[0]);
-    strcpy(key_buf.buf, "/orders/0/items/0");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (0 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_set(&key_buf, &order_item_0.items[0], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/0"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/0"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&_conf.orders[0].items[0], &order_item_0.items[0], sizeof(order_item_0.items[0])));
 
     conf_size = sizeof(order_item_0.items[1]);
-    strcpy(key_buf.buf, "/orders/0/items/1");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (1 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_set(&key_buf, &order_item_0.items[1], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/1"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/1"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&_conf.orders[0].items[1], &order_item_0.items[1], sizeof(order_item_0.items[1])));
 
@@ -1343,22 +1389,14 @@ static void test_configuration_array_set(void)
     };
 
     conf_size = sizeof(order_item_1);
-    strcpy(key_buf.buf, "/orders/2/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_set(&key_buf, &order_item_1.items, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2/items"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2/items"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&_conf.orders[2].items, &order_item_1.items, sizeof(order_item_1.items)));
 
     conf_size = sizeof(order_item_1);
-    strcpy(key_buf.buf, "/orders/2/invalid");
-    TEST_ASSERT(configuration_set(&key_buf, &order_item_1.items, &conf_size));
-
-    conf_size = sizeof(order_item_1);
-    strcpy(key_buf.buf, "/orders/0/2/invalid");
-    TEST_ASSERT(configuration_set(&key_buf, &order_item_1.items, &conf_size));
-
-    conf_size = sizeof(order_item_1);
-    strcpy(key_buf.buf, "/orders/0/2");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_set(&key_buf, &order_item_1.items, &conf_size));
 
     _conf = conf_backup;
@@ -1369,127 +1407,136 @@ static void test_configuration_array_get(void)
     struct configuration conf = { 0 };
     size_t conf_size;
 
-    conf_size = sizeof(conf.orders);
-    strcpy(key_buf.buf, "/orders/invalid");
-    TEST_ASSERT(configuration_get(&key_buf, &conf.orders, &conf_size));
-
     conf_size = sizeof(conf.orders[0]);
-    strcpy(key_buf.buf, "/orders/3");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (3 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(configuration_get(&key_buf, &conf.orders[0], &conf_size));
 
     conf_size = sizeof(conf.orders);
-    strcpy(key_buf.buf, "/orders/items");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_get(&key_buf, &conf.orders, &conf_size));
 
     conf_size = sizeof(conf.orders[0].items[0]);
-    strcpy(key_buf.buf, "/orders/0/items/0");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (0 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[0].items[0], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/0"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/0"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.orders[0].items[0], &_conf.orders[0].items[0], conf_size));
 
     conf_size = sizeof(conf.orders[0].items[1]);
-    strcpy(key_buf.buf, "/orders/0/items/1");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (1 * TEST_ORDERS_ITEMS_INDEX_STRIDE) +
+                                                                                    (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[0].items[1], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/0/items/1"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/1"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.orders[0].items[1], &_conf.orders[0].items[1], conf_size));
 
     conf_size = sizeof(conf.orders[1].items[0]);
-    strcpy(key_buf.buf, "/orders/1/items/0");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (0 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[1].items[0], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/1/items/0"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1/items/0"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.orders[1].items[0], &_conf.orders[1].items[0], conf_size));
 
     conf_size = sizeof(conf.orders[1].items[1]);
-    strcpy(key_buf.buf, "/orders/1/items/1");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (1 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[1].items[1], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/1/items/1"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1/items/1"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.orders[1].items[1], &_conf.orders[1].items[1], conf_size));
 
     conf_size = sizeof(conf.orders[2].items[0]);
-    strcpy(key_buf.buf, "/orders/2/items/0");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (0 * TEST_ORDERS_ITEMS_INDEX_STRIDE) +
+                                                                                  + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[2].items[0], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2/items/0"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2/items/0"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.orders[2].items[0], &_conf.orders[2].items[0], conf_size));
 
     conf_size = sizeof(conf.orders[2].items[1]);
-    strcpy(key_buf.buf, "/orders/2/items/1");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (1 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_get(&key_buf, &conf.orders[2].items[1], &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders/2/items/1"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2/items/1"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&conf.orders[2].items[1], &_conf.orders[2].items[1], conf_size));
 }
 
+MAYBE_UNUSED
 static void test_configuration_array_import(void)
 {
     struct configuration conf_backup = _conf;
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
     TEST_ASSERT(!memcmp(&_conf.orders, &persist_conf.orders, sizeof(_conf.orders)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/items");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_import(&key_buf));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/0/items/2");
-    TEST_ASSERT(configuration_import(&key_buf));
-
-    memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/0");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0"));
     TEST_ASSERT(!memcmp(&_conf.orders[0], &persist_conf.orders[0],
                         sizeof(_conf.orders[0])));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/1");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1"));
     TEST_ASSERT(!memcmp(&_conf.orders[1], &persist_conf.orders[1],
                         sizeof(_conf.orders[1])));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/2");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2"));
     TEST_ASSERT(!memcmp(&_conf.orders[2], &persist_conf.orders[2],
                         sizeof(_conf.orders[2])));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/0/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items"));
     /* /orders/0/items has no import handler */
     TEST_ASSERT(memcmp(&_conf.orders[0].items, &persist_conf.orders[0].items,
                        sizeof(_conf.orders[0].items)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/1/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1/items"));
     /* /orders/1/items has no import handler */
     TEST_ASSERT(memcmp(&_conf.orders[1].items, &persist_conf.orders[1].items,
                 sizeof(_conf.orders[1].items)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/2/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2/items"));
     /* /orders/2/items has no import handler */
     TEST_ASSERT(memcmp(&_conf.orders[2].items, &persist_conf.orders[2].items,
                        sizeof(_conf.orders[2].items)));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/0/items/0");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (0 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/0"));
     /* /orders/0/items/0 has no import handler */
     TEST_ASSERT(memcmp(&_conf.orders[0].items[0], &persist_conf.orders[0].items[0],
                        sizeof(_conf.orders[0].items[0])));
 
     memset(&_conf, 0, sizeof(_conf));
-    strcpy(key_buf.buf, "/orders/0/items/1");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (1 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/1"));
     /* /orders/0/items/1 has no import handler */
     TEST_ASSERT(memcmp(&_conf.orders[0].items[1], &persist_conf.orders[0].items[1],
                        sizeof(_conf.orders[0].items[1])));
@@ -1497,6 +1544,7 @@ static void test_configuration_array_import(void)
     _conf = conf_backup;
 }
 
+MAYBE_UNUSED
 static void test_configuration_array_export(void)
 {
     struct configuration new_conf = {
@@ -1526,72 +1574,79 @@ static void test_configuration_array_export(void)
 
     _conf = new_conf;
 
-    strcpy(key_buf.buf, "invalid");
-    TEST_ASSERT(configuration_export(&key_buf));
-    strcpy(key_buf.buf, "/orders/invalid");
-    TEST_ASSERT(configuration_export(&key_buf));
-    strcpy(key_buf.buf, "/orders/0/invalid");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_export(&key_buf));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
     TEST_ASSERT(!memcmp(&persist_conf.orders, &_conf.orders, sizeof(_conf.orders)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/0");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0"));
     TEST_ASSERT(!memcmp(&persist_conf.orders[0], &_conf.orders[0], sizeof(_conf.orders[0])));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/1");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1"));
     TEST_ASSERT(!memcmp(&persist_conf.orders[1], &_conf.orders[1], sizeof(_conf.orders[1])));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/2");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2"));
     TEST_ASSERT(!memcmp(&persist_conf.orders[2], &_conf.orders[2], sizeof(_conf.orders[2])));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/1/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1/items"));
     /* /orders/1/items has no export handler */
     TEST_ASSERT(memcmp(&persist_conf.orders[1].items, &_conf.orders[1].items,
                        sizeof(_conf.orders[1].items)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/0/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items"));
     /* /orders/1/items has no export handler */
     TEST_ASSERT(memcmp(&persist_conf.orders[0].items, &_conf.orders[0].items,
                        sizeof(_conf.orders[0].items)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/1/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1/items"));
     /* /orders/1/items has no export handler */
     TEST_ASSERT(memcmp(&persist_conf.orders[1].items, &_conf.orders[1].items,
                        sizeof(_conf.orders[1].items)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/2/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2/items"));
     /* /orders/1/items has no export handler */
     TEST_ASSERT(memcmp(&persist_conf.orders[2].items, &_conf.orders[2].items,
                        sizeof(_conf.orders[2].items)));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-    strcpy(key_buf.buf, "/orders/0/items/0");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (0 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/0"));
     /* /orders/1/items has no export handler */
     TEST_ASSERT(memcmp(&persist_conf.orders[0].items[0], &_conf.orders[0].items[0],
                        sizeof(_conf.orders[0].items[0])));
 
     memset(&persist_conf, 0, sizeof(persist_conf));
-
-    strcpy(key_buf.buf, "/orders/0/items/1");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + TEST_ORDERS_ITEMS_INDEX_LOWER_SID + (1 * TEST_ORDERS_ITEMS_INDEX_STRIDE)
+                                                                                  + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items/1"));
     /* /orders/1/items has no export handler */
     TEST_ASSERT(memcmp(&persist_conf.orders[0].items[1], &_conf.orders[0].items[1],
                        sizeof(_conf.orders[0].items[1])));
@@ -1629,47 +1684,61 @@ static void test_configuration_array_delete(void)
 
     _conf = new_conf;
 
-    strcpy(key_buf.buf, "/orders/0/invalid");
+    key_buf.sid = UINT64_MAX;
     TEST_ASSERT(configuration_delete(&key_buf));
 
-    strcpy(key_buf.buf, "/orders/0");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_delete(&key_buf));
-    strcpy(key_buf.buf, "/orders/1");
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0"));
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_delete(&key_buf));
-    strcpy(key_buf.buf, "/orders/2");
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1"));
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_delete(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2"));
 
-    strcpy(key_buf.buf, "/orders/0");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0"));
     TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
-    strcpy(key_buf.buf, "/orders/1");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1"));
     TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
-    strcpy(key_buf.buf, "/orders/2");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2"));
     TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
 
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
 
-    strcpy(key_buf.buf, "/orders/0/items");
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_delete(&key_buf));
-    strcpy(key_buf.buf, "/orders/1/items");
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0/items"));
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_delete(&key_buf));
-    strcpy(key_buf.buf, "/orders/2/items");
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1/items"));
+    key_buf.sid = TEST_ORDERS_ITEMS_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_delete(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2/items"));
 
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, NULL, NULL));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
 
-    strcpy(key_buf.buf, "/orders/0");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/0"));
     TEST_ASSERT(!memcmp(&_conf.orders[0], &new_conf.orders[0], sizeof(_conf.orders[0])));
-    strcpy(key_buf.buf, "/orders/1");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/1"));
     TEST_ASSERT(!memcmp(&_conf.orders[1], &new_conf.orders[1], sizeof(_conf.orders[1])));
-    strcpy(key_buf.buf, "/orders/2");
+    key_buf.sid = TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE);
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders/2"));
     TEST_ASSERT(!memcmp(&_conf.orders[2], &new_conf.orders[2], sizeof(_conf.orders[2])));
 
     persist_conf = persist_conf_backup;
@@ -1706,22 +1775,26 @@ static void test_configuration_array_import_modify_export_import(void)
 
     memset(&_conf, 0, sizeof(_conf));
 
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
 
     conf_size = sizeof(new_conf.orders);
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_set(&key_buf, &new_conf.orders, &conf_size));
-    TEST_ASSERT(!strcmp(key_buf.buf, "/orders"));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
     TEST_ASSERT(conf_size == 0);
     TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
 
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_delete(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
 
-    strcpy(key_buf.buf, "/orders");
+    key_buf.sid = TEST_ORDERS_LOWER_SID;
     TEST_ASSERT(!configuration_export(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
     TEST_ASSERT(!configuration_import(&key_buf));
+    TEST_ASSERT(!configuration_key_buf(&key_buf) || !strcmp(configuration_key_buf(&key_buf), "/orders"));
     TEST_ASSERT(!memcmp(&_conf.orders, &new_conf.orders, sizeof(_conf.orders)));
 
     _conf = conf_backup;

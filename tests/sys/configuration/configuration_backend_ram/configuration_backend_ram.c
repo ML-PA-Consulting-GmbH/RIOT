@@ -19,7 +19,6 @@
  */
 
 #include <errno.h>
-#include <stdio.h>
 #include <string.h>
 
 #include "configuration.h"
@@ -52,25 +51,26 @@ struct configuration persist_conf = {
 
 struct kv {
     const char *key;
+    conf_sid_t sid;
     void *value;
     bool deleted;
 };
 
 /* A real backend would not have to store the keys statically */
 static struct kv _kv[] = {
-    {CONFIGURATION_RIOT_ROOT"/food/bread/white", &persist_conf.food.bread.white, false},
-    {CONFIGURATION_RIOT_ROOT"/food/bread/whole_grain", &persist_conf.food.bread.whole_grain, false},
+    {"/food/bread/white", TEST_FOOD_BREAD_WHITE_SID, &persist_conf.food.bread.white, false},
+    {"/food/bread/whole_grain", TEST_FOOD_BREAD_WHOLE_GRAIN_SID, &persist_conf.food.bread.whole_grain, false},
 
-    {CONFIGURATION_RIOT_ROOT"/food/cake/cheesecake", &persist_conf.food.cake.cheesecake, false},
-    {CONFIGURATION_RIOT_ROOT"/food/cake/donut", &persist_conf.food.cake.donut, false},
+    {"/food/cake/cheesecake", TEST_FOOD_CAKE_CHEESECAKE_SID, &persist_conf.food.cake.cheesecake, false},
+    {"/food/cake/donut", TEST_FOOD_CAKE_DONUT_SID, &persist_conf.food.cake.donut, false},
 
-    {CONFIGURATION_RIOT_ROOT"/drinks/coffee", &persist_conf.drinks.coffee, false},
-    {CONFIGURATION_RIOT_ROOT"/drinks/tea", &persist_conf.drinks.tea, false},
-    {CONFIGURATION_RIOT_ROOT"/drinks/cocoa", &persist_conf.drinks.cocoa, false},
+    {"/drinks/coffee", TEST_DRINKS_COFFEE_SID, &persist_conf.drinks.coffee, false},
+    {"/drinks/tea", TEST_DRINKS_TEA_SID, &persist_conf.drinks.tea, false},
+    {"/drinks/cocoa", TEST_DRINKS_COCOA_SID, &persist_conf.drinks.cocoa, false},
 
-    {CONFIGURATION_RIOT_ROOT"/orders/0", &persist_conf.orders[0], false},
-    {CONFIGURATION_RIOT_ROOT"/orders/1", &persist_conf.orders[1], false},
-    {CONFIGURATION_RIOT_ROOT"/orders/2", &persist_conf.orders[2], false},
+    {"/orders/0", TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (0 * TEST_ORDERS_INDEX_STRIDE), &persist_conf.orders[0], false},
+    {"/orders/1", TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (1 * TEST_ORDERS_INDEX_STRIDE), &persist_conf.orders[1], false},
+    {"/orders/2", TEST_ORDERS_LOWER_SID + TEST_ORDERS_INDEX_LOWER_SID + (2 * TEST_ORDERS_INDEX_STRIDE), &persist_conf.orders[2], false},
 };
 
 static int _be_ram_load(const struct conf_backend *be,
@@ -78,7 +78,8 @@ static int _be_ram_load(const struct conf_backend *be,
 {
     (void)be;
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
-        if (!strcmp(key->buf, _kv[i].key) && !_kv[i].deleted) {
+        if ((!strcmp(configuration_key_buf(key) ? configuration_key_buf(key) : "", _kv[i].key) ||
+            _kv[i].sid == key->sid) && !_kv[i].deleted) {
             memcpy(val, _kv[i].value, *size);
             return 0;
         }
@@ -91,7 +92,8 @@ static int _be_ram_store(const struct conf_backend *be,
 {
     (void)be;
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
-        if (!strcmp(key->buf, _kv[i].key)) {
+        if (!strcmp(configuration_key_buf(key) ? configuration_key_buf(key) : "", _kv[i].key) ||
+            _kv[i].sid == key->sid) {
             memcpy(_kv[i].value, val, *size);
             _kv[i].deleted = false;
             return 0;
@@ -105,7 +107,8 @@ static int _be_ram_delete(const struct conf_backend *be,
 {
     (void)be;
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
-        if (!strcmp(key->buf, _kv[i].key)) {
+        if (!strcmp(configuration_key_buf(key) ? configuration_key_buf(key) : "", _kv[i].key) ||
+            _kv[i].sid == key->sid) {
             _kv[i].deleted = true;
             return 0;
         }
