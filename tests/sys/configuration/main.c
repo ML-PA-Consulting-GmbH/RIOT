@@ -46,8 +46,7 @@ extern struct configuration persist_conf;
 static struct configuration persist_conf; /* dummy */
 #endif
 
-static CONF_KEY_T(40) key_buf
-    = CONF_KEY_INITIALIZER(UINT64_MAX, 40, "");
+static CONF_KEY(key_buf, UINT64_MAX, 40);
 
 struct configuration _conf = {
     .food = {
