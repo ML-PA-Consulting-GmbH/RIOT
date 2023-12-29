@@ -123,23 +123,23 @@ struct {                                                \
 }
 
 /**
- * @brief   Key buffer initializer with 3 arguments
+ * @brief   Key buffer initializer with 2 arguments
  * @internal
  */
-#define _CONF_KEY_INITIALIZER_3(sid, len, cstring)      \
+#define _CONF_KEY_INITIALIZER_2(sid, len)               \
 {                                                       \
     0,                                                  \
     len,                                                \
     sid,                                                \
     0,                                                  \
-    cstring,                                            \
+    "",                                                 \
 }
 
 /**
  * @brief   Key buffer initializer with 1 argument
  * @internal
  */
-#define CONF_KEY_INITIALIZER_1(sid, ...)                \
+#define _CONF_KEY_INITIALIZER_1(sid, ...)               \
 {                                                       \
     0,                                                  \
     0,                                                  \
@@ -151,15 +151,17 @@ struct {                                                \
 /**
  * @brief   Key buffer initializer with a static maximum key length
  *
- * @param   len             Buffer length to store a key
+ * @param   name            Name of the key buffer variable
  * @param   sid             SID of the configuration item
- * @param   ...             Constant string value to initialize the key buffer with
+ * @param   len             Buffer length to store a key
  */
-#define CONF_KEY_INITIALIZER(sid, len, ...)         \
-    _CONF_KEY_INITIALIZER_3(sid, len, ##__VA_ARGS__)
+#define CONF_KEY(name, sid, len)                        \
+CONF_KEY_T(len) name =                                  \
+    _CONF_KEY_INITIALIZER_2(sid, len)
 #else
-#define CONF_KEY_INITIALIZER(sid, ...)             \
-    CONF_KEY_INITIALIZER_1(sid)
+#define CONF_KEY(name ,sid, ...)                        \
+CONF_KEY_T(0) name =                                    \
+    _CONF_KEY_INITIALIZER_1(sid)
 #endif
 
 /**
