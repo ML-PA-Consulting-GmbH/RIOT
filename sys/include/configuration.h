@@ -93,10 +93,15 @@ extern "C" {
 #if IS_USED(MODULE_CONFIGURATION_STRINGS) || defined(DOXYGEN)
 /**
  * @brief   When configuration_strings is used as a module,
- *          a member to store a configuration path segment is added
+ *          a member to store a configuration path segment is added to a node
  * @internal
  */
 #define _CONF_SUBTREE       const char *subtree;
+/**
+ * @brief   When configuration_strings is used as a module,
+ *          a member to store the configuration path is added to a key buffer
+ * @internal
+ */
 #define _CONF_KEYBUF(len)   char buf[len];
 #else
 #define _CONF_SUBTREE
@@ -281,7 +286,7 @@ typedef int (*conf_data_verify_handler) (const struct conf_handler *handler,
  *
  * This is called by @ref configuration_apply() for the handler.
  * @ref conf_handler_ops_t::set only stores the configuration value to the internal location, and
- * @ref conf_data_apply_handler::apply applies the value to the subject.
+ * @ref conf_handler_data_ops_t::apply applies the value to the subject.
  *
  * @param[in]           handler     Reference to the handler
  * @param[in]           key         Configuration key which belongs to the configuration handler
@@ -346,6 +351,9 @@ typedef struct conf_handler_ops {
                                                  from persistent storage */
 } conf_handler_ops_t;
 
+/**
+ * @brief   Configuration handler data operations
+ */
 typedef struct conf_handler_data_ops {
     conf_data_verify_handler verify;        /**< Verify the currently set configuration */
     conf_data_apply_handler apply;          /**< Apply the currently set configuration */
@@ -422,9 +430,14 @@ typedef CONF_HANDLER_ID_T() conf_handler_id_t;
     sid_upper,                                                              \
 }
 
-#if IS_USED(MODULE_CONFIGURATION_STRINGS)
+#if IS_USED(MODULE_CONFIGURATION_STRINGS) || defined(DOXYGEN)
 /**
  * @brief   Macro to instantiate a configuration handler node identification
+ *
+ * @param   name        Name of the configuration handler node identifier variable
+ * @param   sid_lower   Lower SID of the configuration handler node
+ * @param   sid_upper   Upper SID of the configuration handler node (inclusive)
+ * @param   ...         Subtree string
  */
 #define CONF_HANDLER_NODE_ID(name, sid_lower, sid_upper, ...)               \
 const CONF_HANDLER_NODE_ID_T() name =                                       \
@@ -455,7 +468,7 @@ typedef struct conf_handler_node {
  * @brief   Static initializer for an intermediate handler node
  *
  * @param   id      Configuration node ID with path segment, e.g. "bar" in "foo/bar/bazz" and SID range
- *                  @ref CONF_HANDLER_NODE_ID()
+ *                  CONF_HANDLER_NODE_ID()
  */
 #define CONF_HANDLER_NODE_INITIALIZER(id)           \
 {                                                   \
@@ -464,6 +477,9 @@ typedef struct conf_handler_node {
 
 /**
  * @brief   Macro to instantiate a configuration handler node
+ *
+ * @param   name    Name of the configuration handler node variable
+ * @param   id      Configuration node identifier object
  */
 #define CONF_HANDLER_NODE(name, id)                 \
 conf_handler_node_t name =                          \
@@ -498,9 +514,12 @@ typedef struct {
     sid,                                                                    \
 }
 
-#if IS_USED(MODULE_CONFIGURATION_STRINGS)
+#if IS_USED(MODULE_CONFIGURATION_STRINGS) || defined(DOXYGEN)
 /**
  * @brief   Macro to instantiate a configuration handler identification
+ *
+ * @param   name        Name of the configuration handler variable
+ * @param   sid         SID of the configuration handler
  */
 #define CONF_HANDLER_ID(name, sid, ...)                                     \
 const CONF_HANDLER_ID_T() name =                                            \
@@ -538,6 +557,7 @@ typedef struct conf_array_handler {
  *
  * @param   id          Configuration handler ID
  * @param   operations  Pointer to handler operations
+ * @param   data_operations Pointer to handler data operations
  * @param   item_size   Size of the configuration object
  * @param   location    Location of the configuration data
  */
@@ -555,6 +575,13 @@ typedef struct conf_array_handler {
 
 /**
  * @brief   Macro to instantiate a configuration handler
+ *
+ * @param   name        Name of the configuration handler variable
+ * @param   id          Configuration handler identifier object
+ * @param   operations  Pointer to handler operations
+ * @param   data_operations Pointer to handler data operations
+ * @param   item_size   Size of the configuration object
+ * @param   location    Location of the configuration data
  */
 #define CONF_HANDLER(name, id, operations, data_operations, item_size, location)            \
 conf_handler_t name =                                                                       \
@@ -585,9 +612,15 @@ conf_handler_t name =                                                           
     sid_stride,                                                                             \
 }
 
-#if IS_USED(MODULE_CONFIGURATION_STRINGS)
+#if IS_USED(MODULE_CONFIGURATION_STRINGS) || defined(DOXYGEN)
 /**
  * @brief   Macro to instantiate a configuration handler array identification
+ *
+ * @param   name        Name of the configuration array handler identifier variable
+ * @param   sid_lower   Lower SID of the configuration handler array
+ * @param   sid_upper   Upper SID of the configuration handler array (inclusive)
+ * @param   sid_stride  SID Stride from one to the next array entry
+ * @param   ...         Subtree string
  */
 #define CONF_HANDLER_ARRAY_ID(name, sid_lower, sid_upper, sid_stride, ...)                      \
 const CONF_HANDLER_ARRAY_ID_T() name =                                                          \
@@ -603,7 +636,8 @@ const CONF_HANDLER_ARRAY_ID_T() name =                                          
  *
  * @param   id          Configuration node ID
  * @param   operations  Pointer to handler operations
- * @param   size        Size of a single item in the array
+ * @param   data_operations  Pointer to handler data operations
+ * @param   item_size   Size of a single item in the array
  * @param   location    Location of the configuration data
  * @param   numof       Number of items in the array
  * @param   is_a_whole  If true, the array is exported as a whole,
@@ -631,6 +665,16 @@ const CONF_HANDLER_ARRAY_ID_T() name =                                          
 
 /**
  * @brief   Macro to instantiate a configuration array handler
+ *
+ * @param   name        Name of the configuration array handler variable
+ * @param   id          Configuration array handler identifier object
+ * @param   operations  Pointer to handler operations
+ * @param   data_operations  Pointer to handler data operations
+ * @param   item_size   Size of a single item in the array
+ * @param   location    Location of the configuration data
+ * @param   numof       Number of items in the array
+ * @param   is_a_whole  If true, the array is exported as a whole,
+ *                      otherwise each item is exported with an index in the kex
  */
 #define CONF_ARRAY_HANDLER(name, id, operations, data_operations, item_size, location,                  \
                            numof, is_a_whole)                                                           \
@@ -700,7 +744,7 @@ typedef struct conf_backend {
 } conf_backend_t;
 
 /**
- * @brief   Get access to the key sting buffer or NULL
+ * @brief   Get access to the key string buffer or NULL
  *          if the module configuration_strings is not used
  *
  * @param[in]           key             Configuration key buffer
