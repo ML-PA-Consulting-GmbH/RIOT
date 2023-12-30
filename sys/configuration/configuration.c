@@ -180,26 +180,22 @@ static int _configuration_append_segment(const conf_handler_node_t *next, char *
     (void)next; (void)buf; (void)size;
 #if IS_USED(MODULE_CONFIGURATION_STRINGS)
     if (*next->node_id->subtree) {
-        if (size - strlen(buf) < 1 + strlen(next->node_id->subtree) + 1) {
-            return -ENOBUFS;
-        }
-        char *slash = buf;
         for (int l = 0; l < (int)next->level - 1; l++) {
-            if (*slash++ != '/') {
+            if (*buf++ != '/') {
                 return -EINVAL;
             }
-            buf = slash;
-            if ((slash = strchr(slash, '/'))) {
+            char *slash;
+            if ((slash = strchr(buf, '/'))) {
                 if (isdigit((int)slash[1])) {
-                    slash = strchr(++slash, '/');
+                    if ((slash = strchr(++slash, '/'))) {
+                        buf = slash;
+                    }
                 }
             }
         }
-        if (!slash) {
-            buf = strchr(buf, '\0');
-        }
-        else {
-            *(buf = slash) = '\0';
+        *buf = '\0';
+        if (size - strlen(buf) < 1 + strlen(next->node_id->subtree) + 1) {
+            return -ENOBUFS;
         }
         strcat(buf, "/");
         strcat(buf, next->node_id->subtree);
@@ -351,12 +347,12 @@ static conf_handler_node_t *_configuration_path_sid_iterator_next(conf_path_iter
 {
     if (iter->sp > 0) {
         conf_path_iterator_item_t next = iter->stack[--iter->sp];
-        if (_configuration_append_segment(next.node, configuration_key_buf(key), key->buf_len)) {
-            return NULL;
-        }
         if (next.node->node_id->sid_lower > key->sid_normal) {
             key->sid += next.node->node_id->sid_lower - key->sid_normal;
             key->sid_normal = next.node->node_id->sid_lower;
+        }
+        if (key->sid != *sid_start && _configuration_append_segment(next.node, configuration_key_buf(key), key->buf_len)) {
+            return NULL;
         }
         if (next.node->ops && container_of(next.node, conf_handler_t, node)->conf_flags.handles_array
                            && container_of(next.node, conf_handler_t, node)->conf_flags.export_as_a_whole == 0) {
@@ -373,12 +369,12 @@ static conf_handler_node_t *_configuration_path_sid_iterator_next(conf_path_iter
                     key->sid = next.node->node_id->sid_lower + 1 + next.index * next.node->array_id->sid_stride;
                 }
                 else {
-                    key->sid += (next.node->array_id->sid_stride - (key->sid_normal - next.node->array_id->sid_lower + 1));
+                    key->sid += (next.node->array_id->sid_stride - (key->sid_normal - (next.node->array_id->sid_lower + 1)));
                 }
                 key->sid_normal = next.node->node_id->sid_lower + 1;
                 key->offset = next.index * container_of(next.node, conf_handler_t, node)->size;
             }
-            if (_configuration_append_index(next.index, configuration_key_buf(key), key->buf_len)) {
+            if (key->sid != *sid_start && _configuration_append_index(next.index, configuration_key_buf(key), key->buf_len)) {
                 return NULL;
             }
             if (!skip) {
@@ -405,11 +401,15 @@ static conf_handler_node_t *_configuration_path_sid_iterator_next(conf_path_iter
         }
         const conf_handler_node_t *subnodes = next.node->subnodes;
         if (subnodes) {
+            bool array_as_a_whole = next.node->ops && container_of(next.node, conf_handler_t, node)->conf_flags.handles_array
+                                                   && container_of(next.node, conf_handler_t, node)->conf_flags.export_as_a_whole;
             if (!next.node->ops || iter->max_depth) {
-                assert(iter->sp < ARRAY_SIZE(iter->stack));
-                iter->stack[iter->sp++] = (conf_path_iterator_item_t) {
-                    subnodes, 0
-                };
+                if (!array_as_a_whole) {
+                    assert(iter->sp < ARRAY_SIZE(iter->stack));
+                    iter->stack[iter->sp++] = (conf_path_iterator_item_t) {
+                        subnodes, 0
+                    };
+                }
             }
         }
         _debug_print(key->sid, key->offset, configuration_key_buf(key));
