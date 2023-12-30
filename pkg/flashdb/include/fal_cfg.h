@@ -26,6 +26,7 @@
 #define FAL_CFG_H
 
 #include "board.h"
+#include "mtd_default.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,7 +54,7 @@ extern struct fal_flash_dev mtd_flash0;
 /**
  * @brief   Default MTD to use for flashdb
  */
-#define FAL_MTD                                     MTD_0
+#define FAL_MTD                                     mtd_default_get_dev(0)
 #endif
 
 #if !defined(FAL_PART_LABEL) || defined(DOXYGEN)
