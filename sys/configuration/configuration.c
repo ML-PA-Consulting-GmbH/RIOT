@@ -36,6 +36,10 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
+#define _NODE(nxt)              container_of((nxt), conf_handler_node_t, node)
+#define _HANDLER(n)             container_of((n), conf_handler_t, node)
+#define _ARRAY_HANDLER(n)       container_of((n), conf_array_handler_t, handler.node)
+
 /**
  * @brief   Iterator item type to retrieve when iterating over all nodes in the configuration tree
  */
@@ -154,20 +158,20 @@ static bool _sid_in_array_range(const conf_array_handler_t *node, conf_sid_t sid
 
 static bool _sid_in_range(const conf_handler_node_t *node, conf_sid_t sid)
 {
-    if (node->ops && container_of(node, conf_handler_t, node)->conf_flags.handles_array) {
-        return _sid_in_array_range(container_of(node, conf_array_handler_t, handler.node), sid);
+    if (node->ops && _HANDLER(node)->conf_flags.handles_array) {
+        return _sid_in_array_range(_ARRAY_HANDLER(node), sid);
     }
     else if (!node->ops) {
         return _sid_in_node_range(node, sid);
     }
-    return container_of(node, conf_handler_t, node)->node.handler_id->sid_lower == sid;
+    return _HANDLER(node)->node.handler_id->sid_lower == sid;
 }
 
 static bool _sid_in_array_bounds(const conf_array_handler_t *array, conf_sid_t sid)
 {
     if (sid > array->handler.node.array_id->sid_lower) {
         uint32_t index = (sid - array->handler.node.array_id->sid_lower - 1) /
-                         array->handler.node.array_id->sid_stride;
+                          array->handler.node.array_id->sid_stride;
         if (index >= array->array_size) {
             return false;
         }
@@ -245,10 +249,7 @@ static int _configuration_find_handler_sid(const conf_handler_node_t **next_hand
     }
     while (handler) {
         const conf_handler_node_t *sub;
-        for (sub = handler->subnodes;
-             sub;
-             sub = container_of(sub->node.next, conf_handler_node_t, node)) {
-
+        for (sub = handler->subnodes; sub; sub = _NODE(sub->node.next)) {
             if (!_sid_in_range(sub, *sid)) {
                 continue;
             }
@@ -256,14 +257,14 @@ static int _configuration_find_handler_sid(const conf_handler_node_t **next_hand
                 return -ENOBUFS;
             }
             if (*sid != sub->node_id->sid_lower) {
-                if (sub->ops && container_of(sub, conf_handler_t, node)->conf_flags.handles_array) {
+                if (sub->ops && _HANDLER(sub)->conf_flags.handles_array) {
                     uint32_t index = (*sid - sub->array_id->sid_lower - 1) /
-                                    sub->array_id->sid_stride;
-                    if (index >= container_of(sub, conf_array_handler_t, handler.node)->array_size) {
+                                     sub->array_id->sid_stride;
+                    if (index >= _ARRAY_HANDLER(sub)->array_size) {
                         return -ERANGE;
                     }
                     /* Set data offset */
-                    *offset += index * container_of(sub, conf_handler_t, node)->size;
+                    *offset += index * _HANDLER(sub)->size;
                     /* map to first array element (normalize) */
                     *sid -= (index * sub->array_id->sid_stride);
 
@@ -279,8 +280,8 @@ static int _configuration_find_handler_sid(const conf_handler_node_t **next_hand
         }
     }
     if (*sid != (*next_handler)->node_id->sid_lower) {
-        if ((*next_handler)->ops && container_of((*next_handler), conf_handler_t, node)->conf_flags.handles_array) {
-            if (!_sid_in_array_bounds(container_of((*next_handler), conf_array_handler_t, handler.node), *sid)) {
+        if ((*next_handler)->ops && _HANDLER(*next_handler)->conf_flags.handles_array) {
+            if (!_sid_in_array_bounds(_ARRAY_HANDLER(*next_handler), *sid)) {
                 return -ERANGE;
             }
         }
@@ -321,18 +322,14 @@ static conf_handler_node_t *_configuration_handler_sid_iterator_next(conf_iterat
             key->sid_normal = next.node->node_id->sid_lower;
             if (next.node->node.next) {
                 assert(iter->sp < ARRAY_SIZE(iter->stack));
-                iter->stack[iter->sp++] = (conf_iterator_item_t) {
-                    container_of(next.node->node.next, conf_handler_node_t, node)
-                };
+                iter->stack[iter->sp++] = (conf_iterator_item_t) { _NODE(next.node->node.next) };
             }
         }
         const conf_handler_node_t *subnodes = next.node->subnodes;
         if (subnodes) {
             if (!next.node->ops || iter->max_depth) {
                 assert(iter->sp < ARRAY_SIZE(iter->stack));
-                iter->stack[iter->sp++] = (conf_iterator_item_t) {
-                    subnodes
-                };
+                iter->stack[iter->sp++] = (conf_iterator_item_t) { subnodes };
             }
         }
         _debug_print(key->sid, key->offset, configuration_key_buf(key));
@@ -354,8 +351,8 @@ static conf_handler_node_t *_configuration_path_sid_iterator_next(conf_path_iter
         if (key->sid != *sid_start && _configuration_append_segment(next.node, configuration_key_buf(key), key->buf_len)) {
             return NULL;
         }
-        if (next.node->ops && container_of(next.node, conf_handler_t, node)->conf_flags.handles_array
-                           && container_of(next.node, conf_handler_t, node)->conf_flags.export_as_a_whole == 0) {
+        if (next.node->ops && _HANDLER(next.node)->conf_flags.handles_array
+                           && _HANDLER(next.node)->conf_flags.export_as_a_whole == 0) {
 
             bool skip = key->sid == *sid_start && next.node->node_id->sid_lower < key->sid_normal;
             if (next.index == 0) {
@@ -372,21 +369,19 @@ static conf_handler_node_t *_configuration_path_sid_iterator_next(conf_path_iter
                     key->sid += (next.node->array_id->sid_stride - (key->sid_normal - (next.node->array_id->sid_lower + 1)));
                 }
                 key->sid_normal = next.node->node_id->sid_lower + 1;
-                key->offset = next.index * container_of(next.node, conf_handler_t, node)->size;
+                key->offset = next.index * _HANDLER(next.node)->size;
             }
             if (key->sid != *sid_start && _configuration_append_index(next.index, configuration_key_buf(key), key->buf_len)) {
                 return NULL;
             }
             if (!skip) {
-                if (++next.index < container_of(next.node, conf_array_handler_t, handler.node)->array_size) {
+                if (++next.index < _ARRAY_HANDLER(next.node)->array_size) {
                     assert(iter->sp < ARRAY_SIZE(iter->stack));
                     iter->stack[iter->sp++] = next;
                 }
                 else if (next.node != iter->root && next.node->node.next) {
                     assert(iter->sp < ARRAY_SIZE(iter->stack));
-                    iter->stack[iter->sp++] = (conf_path_iterator_item_t) {
-                        container_of(next.node->node.next, conf_handler_node_t, node), 0
-                    };
+                    iter->stack[iter->sp++] = (conf_path_iterator_item_t) { _NODE(next.node->node.next), 0 };
                 }
             }
         }
@@ -394,21 +389,17 @@ static conf_handler_node_t *_configuration_path_sid_iterator_next(conf_path_iter
             key->sid_normal = next.node->node_id->sid_lower;
             if (next.node != iter->root && next.node->node.next) {
                 assert(iter->sp < ARRAY_SIZE(iter->stack));
-                iter->stack[iter->sp++] = (conf_path_iterator_item_t) {
-                    container_of(next.node->node.next, conf_handler_node_t, node), 0
-                };
+                iter->stack[iter->sp++] = (conf_path_iterator_item_t) { _NODE(next.node->node.next), 0 };
             }
         }
         const conf_handler_node_t *subnodes = next.node->subnodes;
         if (subnodes) {
-            bool array_as_a_whole = next.node->ops && container_of(next.node, conf_handler_t, node)->conf_flags.handles_array
-                                                   && container_of(next.node, conf_handler_t, node)->conf_flags.export_as_a_whole;
+            bool array_as_a_whole = next.node->ops && _HANDLER(next.node)->conf_flags.handles_array
+                                                   && _HANDLER(next.node)->conf_flags.export_as_a_whole;
             if (!next.node->ops || iter->max_depth) {
                 if (!array_as_a_whole) {
                     assert(iter->sp < ARRAY_SIZE(iter->stack));
-                    iter->stack[iter->sp++] = (conf_path_iterator_item_t) {
-                        subnodes, 0
-                    };
+                    iter->stack[iter->sp++] = (conf_path_iterator_item_t) { subnodes, 0 };
                 }
             }
         }
@@ -416,6 +407,14 @@ static conf_handler_node_t *_configuration_path_sid_iterator_next(conf_path_iter
         return (conf_handler_node_t *)next.node;
     }
     return NULL;
+}
+
+static void _configuration_key_restore(conf_key_buf_t *key, conf_sid_t sid, int key_len)
+{
+    if (key_len) {
+        configuration_key_buf(key)[key_len] = '\0';
+    }
+    key->sid = sid;
 }
 
 static int _configuration_handler_set_internal(const conf_handler_node_t *root,
@@ -442,17 +441,14 @@ static int _configuration_handler_set_internal(const conf_handler_node_t *root,
             continue;
         }
         size_t sz = size ? *size : 0;
-        if ((ret = handler->ops->set(container_of(handler, conf_handler_t, node), key, value, size))) {
+        if ((ret = handler->ops->set(_HANDLER(handler), key, value, size))) {
             break;
         }
         if (value) {
             value = (const uint8_t *)value + (sz - *size);
         }
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return ret;
 }
 
@@ -480,15 +476,12 @@ static int _configuration_handler_get_internal(const conf_handler_node_t *root,
             continue;
         }
         size_t sz = *size;
-        if ((ret = handler->ops->get(container_of(handler, conf_handler_t, node), key, value, size))) {
+        if ((ret = handler->ops->get(_HANDLER(handler), key, value, size))) {
             break;
         }
         value = (uint8_t *)value + (sz - *size);
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return ret;
 }
 
@@ -512,12 +505,9 @@ static int _configuration_handler_import_internal(const conf_handler_node_t *roo
         if (!handler->ops || !handler->ops->import) {
             continue;
         }
-        handler->ops->import(container_of(handler, conf_handler_t, node), key);
+        handler->ops->import(_HANDLER(handler), key);
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return 0;
 }
 
@@ -543,18 +533,15 @@ static int _configuration_handler_export_internal(const conf_handler_node_t *roo
             continue;
         }
         if (handler->ops_dat && handler->ops_dat->verify) {
-            if (handler->ops_dat->verify(container_of(handler, conf_handler_t, node), key)) {
+            if (handler->ops_dat->verify(_HANDLER(handler), key)) {
                 continue;
             }
         }
-        if ((ret = handler->ops->export(container_of(handler, conf_handler_t, node), key))) {
+        if ((ret = handler->ops->export(_HANDLER(handler), key))) {
             break;
         }
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return ret;
 }
 
@@ -578,12 +565,9 @@ static int _configuration_handler_delete_internal(const conf_handler_node_t *roo
         if (!handler->ops || !handler->ops->delete) {
             continue;
         }
-        handler->ops->delete(container_of(handler, conf_handler_t, node), key);
+        handler->ops->delete(_HANDLER(handler), key);
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return 0;
 }
 
@@ -609,12 +593,9 @@ static int _configuration_handler_apply_internal(const conf_handler_node_t *root
         }
         /* If this fails, there would be an inconsistency between verify() and applied values, or
            an API misuse where verify() was not called before. */
-        handler->ops_dat->apply(container_of(handler, conf_handler_t, node), key);
+        handler->ops_dat->apply(_HANDLER(handler), key);
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return 0;
 }
 
@@ -637,12 +618,9 @@ static int _configuration_handler_lock(const conf_handler_node_t *root, conf_key
         if (!handler->ops) {
             continue;
         }
-        mutex_lock(&container_of(handler, conf_handler_t, node)->mutex);
+        mutex_lock(&_HANDLER(handler)->mutex);
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return 0;
 }
 
@@ -665,12 +643,9 @@ static int _configuration_handler_unlock(const conf_handler_node_t *root, conf_k
         if (!handler->ops) {
             continue;
         }
-        mutex_unlock(&container_of(handler, conf_handler_t, node)->mutex);
+        mutex_unlock(&_HANDLER(handler)->mutex);
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+     _configuration_key_restore(key, sid, key_len);
     return 0;
 }
 
@@ -695,7 +670,7 @@ static int _configuration_handler_verify_internal(const conf_handler_node_t *roo
         if (!handler->ops_dat || !handler->ops_dat->verify) {
             continue;
         }
-        if (handler->ops_dat->verify(container_of(handler, conf_handler_t, node), key)) {
+        if (handler->ops_dat->verify(_HANDLER(handler), key)) {
             if (!try_reimport || !handler->ops->import) {
                 ret = -ECANCELED;
                 break;
@@ -703,16 +678,13 @@ static int _configuration_handler_verify_internal(const conf_handler_node_t *roo
             else if ((ret = _configuration_handler_import_internal(configuration_get_root(), key))) {
                 break;
             }
-            if (handler->ops_dat->verify(container_of(handler, conf_handler_t, node), key)) {
+            if (handler->ops_dat->verify(_HANDLER(handler), key)) {
                 ret = -ECANCELED;
                 break;
             }
         }
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return ret;
 }
 
@@ -739,13 +711,10 @@ static int _configuration_set_backend_internal(const conf_handler_node_t *root, 
         if (!handler->ops) {
             continue;
         }
-        container_of(handler, conf_handler_t, node)->src_backend = src_backend;
-        container_of(handler, conf_handler_t, node)->dst_backend = dst_backend;
+        _HANDLER(handler)->src_backend = src_backend;
+        _HANDLER(handler)->dst_backend = dst_backend;
     }
-    if (key_len) {
-        configuration_key_buf(key)[key_len] = '\0';
-    }
-    key->sid = sid;
+    _configuration_key_restore(key, sid, key_len);
     return ret;
 }
 

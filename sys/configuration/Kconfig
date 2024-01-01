@@ -13,6 +13,6 @@ menuconfig MODULE_CONFIGURATION
 if MODULE_CONFIGURATION
 
 config CONFIGURATION_DEPTH_MAX
-    int "Maximum number of slash separated segments in a configuration key"
+    int "Maximum number of nested configuration items"
 
 endif # MODULE_CONFIGURATION
