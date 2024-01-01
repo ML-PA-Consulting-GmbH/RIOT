@@ -135,7 +135,6 @@ static int _be_fdb_load(const struct conf_backend *be,
 static int _be_fdb_store(const struct conf_backend *be,
                          conf_key_buf_t *key, const void *val, size_t *size)
 {
-    /* Flash cannot take real benefit from offset parameter */
     (void)be;
     struct fdb_blob blob;
     fdb_err_t err;
@@ -152,7 +151,6 @@ static int _be_fdb_delete(const struct conf_backend *be, conf_key_buf_t *key)
 {
     (void)be;
     fdb_err_t err;
-    /* not an error if key does not exist */
     if ((err = fdb_kv_del(&_kvdb, configuration_key_buf(key))) != FDB_NO_ERR && err != FDB_KV_NAME_ERR) {
         return -EIO;
     }
