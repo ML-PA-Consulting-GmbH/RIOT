@@ -129,7 +129,7 @@ extern struct fal_flash_dev mtd_flash0;
 /**
  * @brief   Partition 2 compound definition
  */
-#define FAL_ROW_PART2   { FAL_PART_MAGIC_WORD, FAL_PART2_LABEL, "fal_mtd",
+#define FAL_ROW_PART2   { FAL_PART_MAGIC_WORD, FAL_PART2_LABEL, "fal_mtd", \
                           FAL_PART2_OFFSET, FAL_PART2_LENGTH, 0 },
 #else
 #define FAL_ROW_PART2
@@ -148,7 +148,7 @@ extern struct fal_flash_dev mtd_flash0;
 /**
  * @brief   Partition 3 compound definition
  */
-#define FAL_ROW_PART3   { FAL_PART_MAGIC_WORD, FAL_PART3_LABEL, "fal_mtd",
+#define FAL_ROW_PART3   { FAL_PART_MAGIC_WORD, FAL_PART3_LABEL, "fal_mtd", \
                           FAL_PART3_OFFSET, FAL_PART3_LENGTH, 0 },
 #else
 #define FAL_ROW_PART3
