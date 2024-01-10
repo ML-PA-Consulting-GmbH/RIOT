@@ -225,7 +225,7 @@ static bool _accept_remote(const sock_udp_t *sock, const udp_hdr_t *hdr,
         return false;
     }
 
-    if (memcmp(&sock->remote.addr, &remote->addr, sizeof(ipv6_addr_t)) != 0) {
+    if (0 && memcmp(&sock->remote.addr, &remote->addr, sizeof(ipv6_addr_t)) != 0) {
         char addr_str[IPV6_ADDR_MAX_STR_LEN];
         DEBUG("gnrc_sock_udp: socket bound to address %s",
               ipv6_addr_to_str(addr_str, (ipv6_addr_t *)&sock->remote.addr, sizeof(addr_str)));
