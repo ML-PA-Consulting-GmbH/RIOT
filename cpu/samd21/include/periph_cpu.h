@@ -21,6 +21,7 @@
 #define PERIPH_CPU_H
 
 #include <limits.h>
+#include <string.h>
 
 #include "periph_cpu_common.h"
 
@@ -195,6 +196,29 @@ struct sam0_aux_cfg_mapping {
     uint64_t nvm_locks                  : 16; /**< NVM Region Lock Bits.                */
 };
 /** @} */
+
+/**
+ * @brief   Initialize @p cfg with default values to restore default configuration bits
+ *
+ * @param[in]       cfg         Pointer to configuration structure
+ */
+static inline void sam0_aux_config_init_default(struct sam0_aux_cfg_mapping *cfg)
+{
+    memcpy(cfg, (void *)NVMCTRL_USER, sizeof(*cfg));
+    cfg->bootloader_size                = 0x7;
+    cfg->eeprom_size                    = 0x7;
+    cfg->bod33_level                    = 0x7; /* 0x22 for AECQ100 */
+    cfg->bod33_enable                   = 0x1;
+    cfg->bod33_action                   = 0x1;
+    cfg->wdt_enable                     = 0x0;
+    cfg->wdt_always_on                  = 0x0;
+    cfg->wdt_period                     = 0x0b;
+    cfg->wdt_window                     = 0x05;
+    cfg->wdt_ewoffset                   = 0x0b;
+    cfg->wdt_window_enable              = 0x0;
+    cfg->bod33_hysteresis               = 0x0;
+    cfg->nvm_locks                      = 0xffff;
+}
 
 /**
  * @brief  CPU ISR vector has NVMCTRL interrupt service routine

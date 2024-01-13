@@ -156,6 +156,18 @@ struct sam0_aux_cfg_mapping {
 };
 
 /**
+ * @brief   Initialize @p cfg with default values to restore default configuration bits
+ *
+ * @param[in]       cfg         Pointer to configuration structure
+ */
+static inline void sam0_aux_config_init_default(struct sam0_aux_cfg_mapping *cfg)
+{
+    /** TODO: Implementation for SAML1x is more complicated due to CRC.
+        14.4.2.1.3 CRC Computation and Programming */
+    (void)cfg;
+}
+
+/**
  * @brief  CPU ISR vector has NVMCTRL interrupt service routine
  */
 #define isr_nvmctrl     isr_nvmctrl
