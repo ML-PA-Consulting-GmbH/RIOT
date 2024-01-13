@@ -563,6 +563,13 @@ void sam0_flashpage_aux_reset(const nvm_user_page_t *cfg)
     _write_row((void*)NVMCTRL_USER, cfg, sizeof(*cfg), AUX_CHUNK_SIZE, _cmd_write_aux);
 }
 
+void sam0_flashpage_aux_restore(void)
+{
+    nvm_user_page_t cfg;
+    sam0_aux_config_init_default(&cfg);
+    sam0_flashpage_aux_reset(&cfg);
+}
+
 #ifdef FLASHPAGE_RWWEE_NUMOF
 
 static void _cmd_erase_row_rwwee(void)
