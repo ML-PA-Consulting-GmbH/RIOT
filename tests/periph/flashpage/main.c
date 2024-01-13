@@ -674,6 +674,18 @@ static int cmd_test_config(int argc, char **argv)
 
     return 0;
 }
+
+static int cmd_restore_config(int argc, char **argv)
+{
+    (void) argc;
+    (void) argv;
+
+    puts("[START]");
+    sam0_flashpage_aux_restore();
+    puts("[SUCCESS]");
+
+    return 0;
+}
 #endif /* NVMCTRL_USER */
 
 static const shell_command_t shell_commands[] = {
@@ -705,6 +717,7 @@ static const shell_command_t shell_commands[] = {
 #ifdef NVMCTRL_USER
     { "dump_config_page", "Dump the content of the MCU configuration page", cmd_dump_config },
     { "test_config_page", "Test writing config page. (!DANGER ZONE!)", cmd_test_config },
+    { "restore_config_page", "Attempt to restore the default config page (!DANGER ZONE!)", cmd_restore_config },
 #endif
     { NULL, NULL, NULL }
 };
