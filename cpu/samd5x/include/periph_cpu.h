@@ -21,6 +21,7 @@
 #define PERIPH_CPU_H
 
 #include <limits.h>
+#include <string.h>
 
 #include "macros/units.h"
 #include "periph_cpu_common.h"
@@ -260,6 +261,31 @@ struct sam0_aux_cfg_mapping {
     /* config words 5,6,7 */
     uint32_t user_pages[3];                   /**< User pages                           */
 };
+
+/**
+ * @brief   Initialize @p cfg with default values to restore default configuration bits
+ *
+ * @param[in]       cfg         Pointer to configuration structure
+ */
+static inline void sam0_aux_config_init_default(struct sam0_aux_cfg_mapping *cfg)
+{
+    memcpy(cfg, (void *)NVMCTRL_USER, sizeof(*cfg));
+    cfg->bod33_disable                  = 0x1;
+    cfg->bod33_level                    = 0x1c;
+    cfg->bod33_action                   = 0x1;
+    cfg->bod33_hysteresis               = 0x2;
+    cfg->nvm_boot_size                  = 0xf;
+    cfg->smart_eeprom_blocks            = 0x0;
+    cfg->smart_eeprom_page_size         = 0x0;
+    cfg->ram_eccdis                     = 0x1;
+    cfg->wdt_enable                     = 0x0;
+    cfg->wdt_always_on                  = 0x0;
+    cfg->wdt_period                     = 0xb;
+    cfg->wdt_window                     = 0xb;
+    cfg->wdt_ewoffset                   = 0xb;
+    cfg->wdt_window_enable              = 0x0;
+    cfg->nvm_locks                      = 0xffffffff;
+}
 
 /**
  * @brief  CPU ISR vector has NVMCTRL0 interrupt service routine
