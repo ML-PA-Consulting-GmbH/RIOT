@@ -23,12 +23,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "architecture.h"
 #include "od.h"
 #include "shell.h"
 #include "periph/flashpage.h"
 #include "unaligned.h"
+#include "fmt.h"
 
 #define LINE_LEN            (16)
 
@@ -45,7 +47,7 @@
 /*
  * @brief   Allocate an aligned buffer for raw writings
  */
-static char raw_buf[RAW_BUF_SIZE] ALIGNMENT_ATTR;
+static uint8_t raw_buf[RAW_BUF_SIZE] ALIGNMENT_ATTR;
 
 #ifdef MODULE_PERIPH_FLASHPAGE_PAGEWISE
 /**
@@ -220,7 +222,7 @@ static int cmd_write_raw(int argc, char **argv)
 #endif
 
     if (argc < 3) {
-        printf("usage: %s <addr> <data>\n", argv[0]);
+        printf("usage: %s <addr> <hexadecimal data>\n", argv[0]);
         return 1;
     }
 
@@ -230,15 +232,27 @@ static int cmd_write_raw(int argc, char **argv)
     addr = getaddr(argv[1]);
 #endif
     /* try to align */
-    memcpy(raw_buf, argv[2], strlen(argv[2]));
+    int len;
+    if ((len = strlen(argv[2])) % 2 || (unsigned)len > sizeof(raw_buf) * 2) {
+        printf("error: data must have an even length and must be <= %u\n",
+               sizeof(raw_buf) * 2);
+        return 1;
+    }
+    for (int i = 0; i < len; i++) {
+        if (!isxdigit((int)(argv[2][i]))) {
+            printf("error: data must be hexadecimal\n");
+            return 1;
+        }
+    }
+    len = fmt_hex_bytes(raw_buf, argv[2]);
 
-    flashpage_write((void*)addr, raw_buf, strlen(raw_buf));
+    flashpage_write((void*)addr, raw_buf, len);
 #if (__SIZEOF_POINTER__ == 2)
     printf("wrote local data to flash address %#" PRIx16 " of len %" PRIuSIZE "\n",
-           addr, strlen(raw_buf));
+           addr, len);
 #else
     printf("wrote local data to flash address %#" PRIx32 " of len %" PRIuSIZE "\n",
-           addr, strlen(raw_buf));
+           addr, len);
 #endif
     return 0;
 }
@@ -424,7 +438,7 @@ static int cmd_test_last_raw(int argc, char **argv)
     (void) argv;
     unsigned last_free = flashpage_last_free();
 
-    memset(raw_buf, 0, sizeof(raw_buf));
+    memset(raw_buf, 0xff, sizeof(raw_buf));
 
     /* try to align */
     memcpy(raw_buf, "test12344321tset", 16);
@@ -438,7 +452,7 @@ static int cmd_test_last_raw(int argc, char **argv)
     flashpage_write(flashpage_addr(last_free), raw_buf, sizeof(raw_buf));
 
     /* verify that previous write_raw effectively wrote the desired data */
-    if (memcmp(flashpage_addr(last_free), raw_buf, strlen(raw_buf)) != 0) {
+    if (memcmp(flashpage_addr(last_free), raw_buf, 16) != 0) {
         puts("error verifying the content of last page");
         return 1;
     }
@@ -585,10 +599,10 @@ static int cmd_test_last_rwwee_raw(int argc, char **argv)
     /* erase the page first */
     flashpage_rwwee_write_page(((int)FLASHPAGE_RWWEE_NUMOF - 1), NULL);
 
-    flashpage_rwwee_write(flashpage_rwwee_addr((int)FLASHPAGE_RWWEE_NUMOF - 1), raw_buf, strlen(raw_buf));
+    flashpage_rwwee_write(flashpage_rwwee_addr((int)FLASHPAGE_RWWEE_NUMOF - 1), raw_buf, 16);
 
     /* verify that previous write_raw effectively wrote the desired data */
-    if (memcmp(flashpage_rwwee_addr((int)FLASHPAGE_RWWEE_NUMOF - 1), raw_buf, strlen(raw_buf)) != 0) {
+    if (memcmp(flashpage_rwwee_addr((int)FLASHPAGE_RWWEE_NUMOF - 1), raw_buf, 16) != 0) {
         puts("error verifying the content of last RWWEE page");
         return 1;
     }
@@ -673,6 +687,18 @@ static int cmd_test_config(int argc, char **argv)
 
     return 0;
 }
+
+static int cmd_restore_config(int argc, char **argv)
+{
+    (void) argc;
+    (void) argv;
+
+    puts("[START]");
+    sam0_flashpage_aux_restore();
+    puts("[SUCCESS]");
+
+    return 0;
+}
 #endif /* NVMCTRL_USER */
 
 static const shell_command_t shell_commands[] = {
@@ -683,7 +709,7 @@ static const shell_command_t shell_commands[] = {
     { "read", "Copy the given page to the local page buffer and dump to STDOUT", cmd_read },
     { "write", "Write the local page buffer to the given page", cmd_write },
 #endif
-    { "write_raw", "Write (ASCII, max 64B) data to the given address", cmd_write_raw },
+    { "write_raw", "Write raw bytes (max 64B) to the given address", cmd_write_raw },
     { "erase", "Erase the given page buffer", cmd_erase },
 #ifdef MODULE_PERIPH_FLASHPAGE_PAGEWISE
     { "edit", "Write bytes to the local page buffer", cmd_edit },
@@ -704,6 +730,7 @@ static const shell_command_t shell_commands[] = {
 #ifdef NVMCTRL_USER
     { "dump_config_page", "Dump the content of the MCU configuration page", cmd_dump_config },
     { "test_config_page", "Test writing config page. (!DANGER ZONE!)", cmd_test_config },
+    { "restore_config_page", "Attempt to restore the default config page (!DANGER ZONE!)", cmd_restore_config },
 #endif
     { NULL, NULL, NULL }
 };

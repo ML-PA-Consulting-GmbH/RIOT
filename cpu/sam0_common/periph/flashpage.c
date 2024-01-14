@@ -55,6 +55,12 @@
 #define _NVMCTRL NVMCTRL
 #endif
 
+/**
+ * @brief   The user must ensure that the driver is configured with a proper number of wait states
+ *          when the CPU is running at high frequencies. (Don't know how to compute this)
+ */
+#define FLASHPAGE_READ_WAIT_STATES  3
+
 static inline void wait_nvm_is_ready(void)
 {
 #ifdef NVMCTRL_STATUS_READY
@@ -252,6 +258,7 @@ static void _write_page(void* dst, const void *data, size_t len, void (*cmd_writ
     }
 
     cmd_write();
+    wait_nvm_is_ready();
     _lock();
 }
 
@@ -295,6 +302,154 @@ static void _write_row(uint8_t *dst, const void *_data, size_t len, size_t chunk
     }
 }
 
+#ifdef isr_nvmctrl
+/**
+ * @brief   NVMCTRL ISR
+ */
+void isr_nvmctrl(void)
+{
+    NVMCTRL_INTFLAG_Type intflag = _NVMCTRL->INTFLAG;
+#if defined(NVMCTRL_INTFLAG_NSCHK)
+    if (intflag.reg & NVMCTRL_INTFLAG_NSCHK) {
+        DEBUG("NVMCTRL: Non-secure check\n");
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_KEYE)
+    if (intflag.reg & NVMCTRL_INTFLAG_KEYE) {
+        DEBUG("NVMCTRL: Key error\n");
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_NVME)
+    if (intflag.reg & NVMCTRL_INTFLAG_NVME) {
+        DEBUG("NVMCTRL: Non-volatile memory error\n");
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_LOCKE)
+    if (intflag.reg & NVMCTRL_INTFLAG_LOCKE) {
+        DEBUG("NVMCTRL: Lock error\n");
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_ECCSE) && defined(NVMCTRL_INTFLAG_ECCDE)
+    if ((intflag.reg & NVMCTRL_INTFLAG_ECCSE) ||
+        (intflag.reg & NVMCTRL_INTFLAG_ECCDE)) {
+        if (intflag.reg & NVMCTRL_INTFLAG_ECCSE) {
+            DEBUG("NVMCTRL: ECC single bit error\n");
+        }
+        if (intflag.reg & NVMCTRL_INTFLAG_ECCDE) {
+            DEBUG("NVMCTRL: ECC double bit error\n");
+        }
+#if defined(NVMCTRL_ECCERR_OFFSET)
+        NVMCTRL_ECCERR_Type eccerr = NVMCTRL->ECCERR;
+#if defined(NVMCTRL_ECCERR_ADDR_Pos)
+        DEBUG("NVMCTRL: ECC error in quad word at address: 0x%08lx\n",
+              (eccerr.reg & NVMCTRL_ECCERR_ADDR_Msk) >> NVMCTRL_ECCERR_ADDR_Pos);
+#endif
+#if defined(NVMCTRL_ECCERR_TYPEL_Pos)
+        DEBUG("NVMCTRL: ECC error in low byte: 0x%08lx\n",
+              (eccerr.reg & NVMCTRL_ECCERR_TYPEL_Msk) >> NVMCTRL_ECCERR_TYPEL_Pos);
+#endif
+#if defined(NVMCTRL_ECCERR_TYPEH_Pos)
+        DEBUG("NVMCTRL: ECC error in high byte: 0x%08lx\n",
+              (eccerr.reg & NVMCTRL_ECCERR_TYPEH_Msk) >> NVMCTRL_ECCERR_TYPEH_Pos);
+#endif
+    }
+#endif
+#endif
+#if defined(NVMCTRL_INTFLAG_PROGE)
+    if (intflag.reg & NVMCTRL_INTFLAG_PROGE) {
+        DEBUG("NVMCTRL: Programming error\n");
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_ADDRE)
+    if (intflag.reg & NVMCTRL_INTFLAG_ADDRE) {
+        DEBUG("NVMCTRL: Address error\n");
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_ERROR)
+    if (intflag.reg & NVMCTRL_INTFLAG_ERROR) {
+        DEBUG("NVMCTRL: Error\n");
+        NVMCTRL_STATUS_Type status = _NVMCTRL->STATUS;
+#if defined(NVMCTRL_STATUS_NVME)
+        if (status.reg & NVMCTRL_STATUS_NVME) {
+            DEBUG("NVMCTRL: Non-volatile memory error\n");
+            _NVMCTRL->STATUS.reg |= NVMCTRL_STATUS_NVME;
+        }
+#endif
+#if defined(NVMCTRL_STATUS_LOCKE)
+        if (status.reg & NVMCTRL_STATUS_LOCKE) {
+            DEBUG("NVMCTRL: Lock error\n");
+            _NVMCTRL->STATUS.reg |= NVMCTRL_STATUS_LOCKE;
+        }
+#endif
+#if defined(NVMCTRL_STATUS_PROGE)
+        if (status.reg & NVMCTRL_STATUS_PROGE) {
+            DEBUG("NVMCTRL: Programming error\n");
+            _NVMCTRL->STATUS.reg |= NVMCTRL_STATUS_PROGE;
+        }
+#endif
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_DONE)
+    if (intflag.reg & NVMCTRL_INTFLAG_DONE) {
+        DEBUG("NVMCTRL: Operation done\n");
+    }
+#endif
+#if defined(NVMCTRL_INTFLAG_READY)
+    if (intflag.reg & NVMCTRL_INTFLAG_READY) {
+        DEBUG("NVMCTRL: NVMCTRL ready\n");
+    }
+#endif
+    /* reset interrupt flags */
+    _NVMCTRL->INTFLAG.reg = NVMCTRL_INTFLAG_MASK;
+    cortexm_isr_end();
+}
+#endif
+
+void flashpage_init(void)
+{
+#ifdef NVMCTRL_IRQn
+    NVIC_EnableIRQ(NVMCTRL_IRQn);
+#endif
+    _unlock();
+    /* set power reduction mode to best power saving mode (wakeup on first access) */
+#ifdef NVMCTRL_CTRLA_PRM
+    _NVMCTRL->CTRLA.reg &= ~NVMCTRL_CTRLA_PRM_Msk;
+    _NVMCTRL->CTRLA.reg |= NVMCTRL_CTRLA_PRM_SEMIAUTO;
+#elif defined(NVMCTRL_CTRLB_SLEEPPRM)
+    _NVMCTRL->CTRLB.reg &= ~NVMCTRL_CTRLB_SLEEPPRM_Msk;
+    _NVMCTRL->CTRLB.reg |= NVMCTRL_CTRLB_SLEEPPRM_WAKEONACCESS;
+#endif
+    /* set automatic wait states (depends on AHB bus frequency) */
+#ifdef NVMCTRL_CTRLA_RWS
+    _NVMCTRL->CTRLA.reg &= ~(NVMCTRL_CTRLA_RWS_Msk);
+    _NVMCTRL->CTRLA.reg |= NVMCTRL_CTRLA_AUTOWS;
+#elif defined(NVMCTRL_CTRLB_RWS)
+    _NVMCTRL->CTRLB.reg &= ~(NVMCTRL_CTRLB_RWS_Msk);
+    _NVMCTRL->CTRLB.reg |= NVMCTRL_CTRLB_RWS(FLASHPAGE_READ_WAIT_STATES);
+#endif
+    /* set write mode to manual */
+#ifdef NVMCTRL_CTRLA_WMODE
+    _NVMCTRL->CTRLA.reg &= ~(NVMCTRL_CTRLA_WMODE_Msk);
+    _NVMCTRL->CTRLA.reg |= NVMCTRL_CTRLA_WMODE_MAN;
+#elif defined(NVMCTRL_CTRLB_MANW)
+    _NVMCTRL->CTRLB.reg |= NVMCTRL_CTRLB_MANW;
+#endif
+    /* disable cache lines */
+#ifdef NVMCTRL_CTRLA_CACHEDIS0
+    _NVMCTRL->CTRLA.reg |= (NVMCTRL_CTRLA_CACHEDIS0 | NVMCTRL_CTRLA_CACHEDIS1);
+#elif defined(NVMCTRL_CTRLB_CACHEDIS)
+    _NVMCTRL->CTRLB.reg |= NVMCTRL_CTRLB_CACHEDIS;
+#endif
+    /* ECC errors from the debugger when CPU is halted in debug mode shall not be logged */
+#ifdef NVMCTRL_DBGCTRL_ECCDIS
+    _NVMCTRL->DBGCTRL.reg |= NVMCTRL_DBGCTRL_ECCDIS;
+    _NVMCTRL->DBGCTRL.reg &= ~(NVMCTRL_DBGCTRL_ECCELOG);
+#endif
+    /* enable all interrupts */
+    _NVMCTRL->INTFLAG.reg = NVMCTRL_INTFLAG_MASK;
+    _lock();
+}
+
 void flashpage_erase(unsigned page)
 {
     assert((unsigned)page < FLASHPAGE_NUMOF);
@@ -323,6 +478,78 @@ void sam0_flashpage_aux_write(uint32_t offset, const void *data, size_t len)
     _write_row((void*)dst, data, len, AUX_CHUNK_SIZE, _cmd_write_aux);
 }
 
+static void _debug_print_user_cfg(const nvm_user_page_t *cfg)
+{
+    (void)cfg;
+    DEBUG_PUTS("NVM User Row:");
+    /* config is a bitfield */
+#if defined(CPU_COMMON_SAMD5X)
+    DEBUG("BOD33 disable:               0x%x\n", cfg->bod33_disable);
+    DEBUG("BOD33 level:                 0x%x\n", cfg->bod33_level);
+    DEBUG("BOD33 action:                0x%x\n", cfg->bod33_action);
+    DEBUG("BOD33 hysteresis:            0x%x\n", cfg->bod33_hysteresis);
+    DEBUG("BID12 factory calibration:   0x%x\n", cfg->bod12_calibration);
+    DEBUG("NVM bootloader size:         0x%x (%u K)\n", cfg->nvm_boot_size,
+                                                        (15 - cfg->nvm_boot_size) * 8);
+    DEBUG("SBLK:                        0x%x\n", cfg->smart_eeprom_blocks);
+    DEBUG("PSZ:                         0x%x\n", cfg->smart_eeprom_page_size);
+    DEBUG("RAM ECCDIS:                  0x%x\n", cfg->ram_eccdis);
+    DEBUG("WDT enable:                  0x%x\n", cfg->wdt_enable);
+    DEBUG("WDT always on:               0x%x\n", cfg->wdt_always_on);
+    DEBUG("WDT period:                  0x%x\n", cfg->wdt_period);
+    DEBUG("WDT window:                  0x%x\n", cfg->wdt_window);
+    DEBUG("WDT early warning offset:    0x%x\n", cfg->wdt_ewoffset);
+    DEBUG("WDT window enable:           0x%x\n", cfg->wdt_window_enable);
+    DEBUG("NVM locks:                   0x%08lx\n", cfg->nvm_locks);
+#elif defined(CPU_COMMON_SAMD21) || defined(CPU_COMMON_SAML21)
+    DEBUG("NVM bootloader size:         0x%x (%u 256B)\n", cfg->bootloader_size,
+                                                           1u << (7 - cfg->bootloader_size));
+    DEBUG("EEPROM size:                 0x%x\n", cfg->eeprom_size);
+    DEBUG("BOD33 level:                 0x%x\n", cfg->bod33_level);
+#if defined(CPU_COMMON_SAML21)
+    DEBUG("BOD33 disable:               0x%x\n", cfg->bod33_disable);
+#elif defined(CPU_COMMON_SAMD21)
+    DEBUG("BOD33 enable:                0x%x\n", cfg->bod33_enable);
+#endif
+    DEBUG("BOD33 action:                0x%x\n", cfg->bod33_action);
+    DEBUG("BOD12 calibration:           0x%x\n", cfg->bod12_calibration);
+    DEBUG("WDT enable:                  0x%x\n", cfg->wdt_enable);
+    DEBUG("WDT always on:               0x%x\n", cfg->wdt_always_on);
+    DEBUG("WDT period:                  0x%x\n", cfg->wdt_period);
+    DEBUG("WDT window:                  0x%x\n", cfg->wdt_window);
+    DEBUG("WDT early warning offset:    0x%u\n", cfg->wdt_ewoffset);
+    DEBUG("WDT window enable:           0x%x\n", cfg->wdt_window_enable);
+    DEBUG("BOD33 hysteresis:            0x%x\n", cfg->bod33_hysteresis);
+    DEBUG("NVM locks:                   0x%04x\n", cfg->nvm_locks);
+#elif defined(CPU_COMMON_SAML1X)
+    DEBUG("SULCK:                       0x%x\n", cfg->secure_region_unlock);
+    DEBUG("NSULCK:                      0x%x\n", cfg->non_secure_region_unlock);
+    DEBUG("BOD33 level:                 0x%x\n", cfg->bod33_level);
+    DEBUG("BOD33 disable:               0x%x\n", cfg->bod33_disable);
+    DEBUG("BOD33 action:                0x%x\n", cfg->bod33_action);
+    DEBUG("BOD12 calibration:           0x%x\n", cfg->bod12_calibration);
+    DEBUG("WDT run standby:             0x%x\n", cfg->wdt_run_standby);
+    DEBUG("WDT enable:                  0x%x\n", cfg->wdt_enable);
+    DEBUG("WDT always on:               0x%x\n", cfg->wdt_always_on);
+    DEBUG("WDT period:                  0x%x\n", cfg->wdt_period);
+    DEBUG("WDT window:                  0x%x\n", cfg->wdt_window);
+    DEBUG("WDT early warning offset:    0x%u\n", cfg->wdt_ewoffset);
+    DEBUG("WDT window enable:           0x%x\n", cfg->wdt_window_enable);
+    DEBUG("BOD33 hysteresis:            0x%x\n", cfg->bod33_hysteresis);
+    DEBUG("RXN:                         0x%x\n", cfg->ram_execute_never);
+    DEBUG("DXN:                         0x%x\n", cfg->data_execute_never);
+    DEBUG("AS:                          0x%x\n", cfg->secure_flash_as_size);
+    DEBUG("ANSC:                        0x%x\n", cfg->nsc_size);
+    DEBUG("DS:                          0x%x\n", cfg->secure_flash_data_size);
+    DEBUG("RS:                          0x%x\n", cfg->secure_ram_size);
+    DEBUG("URWEN:                       0x%x\n", cfg->user_row_write_enable);
+    DEBUG("NOSECA:                      0x%lx\n", cfg->nonsec_a);
+    DEBUG("NOSECB:                      0x%lx\n", cfg->nonsec_b);
+    DEBUG("NOSECC:                      0x%lx\n", cfg->nonsec_c);
+    DEBUG("USERCRC:                     0x%lx\n", cfg->user_crc);
+#endif
+}
+
 void sam0_flashpage_aux_reset(const nvm_user_page_t *cfg)
 {
     nvm_user_page_t old_cfg;
@@ -332,8 +559,16 @@ void sam0_flashpage_aux_reset(const nvm_user_page_t *cfg)
         memcpy(&old_cfg, (void*)NVMCTRL_USER, sizeof(*cfg));
     }
 
+    _debug_print_user_cfg(cfg);
     _erase_page((void*)NVMCTRL_USER, _cmd_erase_aux);
     _write_row((void*)NVMCTRL_USER, cfg, sizeof(*cfg), AUX_CHUNK_SIZE, _cmd_write_aux);
+}
+
+void sam0_flashpage_aux_restore(void)
+{
+    nvm_user_page_t cfg;
+    sam0_aux_config_init_default(&cfg);
+    sam0_flashpage_aux_reset(&cfg);
 }
 
 #ifdef FLASHPAGE_RWWEE_NUMOF

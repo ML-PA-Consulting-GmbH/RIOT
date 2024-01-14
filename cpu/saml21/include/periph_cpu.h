@@ -20,6 +20,8 @@
 #ifndef PERIPH_CPU_H
 #define PERIPH_CPU_H
 
+#include <string.h>
+
 #include "periph_cpu_common.h"
 
 #ifdef __cplusplus
@@ -155,20 +157,48 @@ struct sam0_aux_cfg_mapping {
     uint64_t eeprom_size                :  3; /**< one of eight different EEPROM sizes  */
     uint64_t reserved_1                 :  1; /**< Factory settings - do not change.    */
     uint64_t bod33_level                :  6; /**< BOD33 threshold level at power-on.   */
-    uint64_t bod33_enable               :  1; /**< BOD33 Enable at power-on.            */
+    uint64_t bod33_disable              :  1; /**< BOD33 Disable at power-on.           */
     uint64_t bod33_action               :  2; /**< BOD33 Action at power-on.            */
-    uint64_t reserved_2                 :  9; /**< Factory settings - do not change.    */
+    const uint64_t bod12_calibration    :  9; /**< Factory settings - do not change.    */
     uint64_t wdt_enable                 :  1; /**< WDT Enable at power-on.              */
     uint64_t wdt_always_on              :  1; /**< WDT Always-On at power-on.           */
     uint64_t wdt_period                 :  4; /**< WDT Period at power-on.              */
     uint64_t wdt_window                 :  4; /**< WDT Window at power-on.              */
     uint64_t wdt_ewoffset               :  4; /**< WDT Early Warning Interrupt Offset   */
     uint64_t wdt_window_enable          :  1; /**< WDT Window mode enabled on power-on  */
-    uint64_t bod33_hysteresis           :  1; /**< BOD33 Hysteresis configuration       */
-    uint64_t reserved_3                 :  6; /**< Factory settings - do not change.    */
+    uint64_t bod33_hysteresis           :  1; /**< BOD33 Hysteresis configuration at power-on */
+    const uint64_t bod12_hysteresis     :  1; /**< BOD12 Hysteresis configuration at power-on */
+    uint64_t reserved_2                 :  6; /**< Factory settings - do not change.    */
     uint64_t nvm_locks                  : 16; /**< NVM Region Lock Bits.                */
 };
 /** @} */
+
+static inline void sam0_aux_config_init_default(struct sam0_aux_cfg_mapping *cfg)
+{
+    memcpy(cfg, (void *)NVMCTRL_USER, sizeof(*cfg));
+    cfg->bootloader_size                = 0x7;
+    cfg->eeprom_size                    = 0x7;
+    cfg->bod33_level                    = 0x6; /* 0x22 for AECQ100 */
+    cfg->bod33_disable                  = 0x0;
+    cfg->bod33_action                   = 0x1;
+    cfg->wdt_enable                     = 0x0;
+    cfg->wdt_always_on                  = 0x0;
+    cfg->wdt_period                     = 0xb;
+    cfg->wdt_window                     = 0xb;
+    cfg->wdt_ewoffset                   = 0xb;
+    cfg->wdt_window_enable              = 0x0;
+    cfg->bod33_hysteresis               = 0x0;
+    cfg->nvm_locks                      = 0xffff;
+}
+
+/**
+ * @brief  CPU ISR vector has NVMCTRL interrupt service routine
+ */
+#define isr_nvmctrl     isr_nvmctrl
+/**
+ * @brief  CPU NVMCTRL IRQ number
+ */
+#define NVMCTRL_IRQn    NVMCTRL_IRQn
 
 #ifdef __cplusplus
 }
