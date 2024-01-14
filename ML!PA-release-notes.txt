@@ -18,3 +18,8 @@ RIOT-2024.01-mlpa-4 - Merge Notes
  - merge benpicco/mtd_flashpage-aux
  - merge hendrikve/stdio_uart_add_flush_rx
  - merge benpicco/GNRC_IPV6_STATIC_LLADDR_FIXED
+
+- cherry-pick b5e8b38c1279fb55eab873a4ab36a72a92a1472f (vfs: fix FATFS_VFS_FILE_BUFFER_SIZE for increased VFS_NAME_MAX)
+- revert -m1 9314eaf77e9d0c80761b4caf599dea31e07462d5 (benpicco/cpu/sam0_common/flashpage_irq_disable)
+- merge fabian18/pr/cpu/sam0/flashpage_fix
+- cherry-pick 916e3376d9c317e510b40b1a6ef9877e76f00173 (drivers/mtd_flashpage: adapt to MTD handling via XFA)
