@@ -1,0 +1,5 @@
+USEMODULE_INCLUDES_configuration := $(LAST_MAKEFILEDIR)/include
+USEMODULE_INCLUDES += $(USEMODULE_INCLUDES_configuration)
+
+PSEUDOMODULES += configuration_backend_%
+PSEUDOMODULES += configuration_strings
