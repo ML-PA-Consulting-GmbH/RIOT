@@ -407,6 +407,7 @@ void gnrc_pktbuf_stats(void)
     uint8_t *chunk = &_static_buf[0];
     int count = 0;
 
+    mutex_lock(&gnrc_pktbuf_mutex);
     printf("packet buffer: first byte: %p, last byte: %p (size: %u)\n",
            (void *)&_static_buf[0],
            (void *)&_static_buf[CONFIG_GNRC_PKTBUF_SIZE],
@@ -427,6 +428,7 @@ void gnrc_pktbuf_stats(void)
         if ((size == 0) && (!gnrc_pktbuf_contains(ptr)) &&
             (!gnrc_pktbuf_contains(chunk)) && (size > CONFIG_GNRC_PKTBUF_SIZE)) {
             puts("ERROR");
+            mutex_unlock(&gnrc_pktbuf_mutex);
             return;
         }
         _print_chunk(chunk, size, count++);
@@ -438,6 +440,7 @@ void gnrc_pktbuf_stats(void)
     if (chunk <= &_static_buf[CONFIG_GNRC_PKTBUF_SIZE - 1]) {
         _print_chunk(chunk, &_static_buf[CONFIG_GNRC_PKTBUF_SIZE] - chunk, count);
     }
+    mutex_unlock(&gnrc_pktbuf_mutex);
 #else
     DEBUG("pktbuf: needs od module\n");
 #endif
