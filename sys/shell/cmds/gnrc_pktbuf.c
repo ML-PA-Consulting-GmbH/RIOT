@@ -21,6 +21,9 @@ static int _gnrc_pktbuf_cmd(int argc, char **argv)
     (void)argc;
     (void)argv;
     gnrc_pktbuf_stats();
+#if IS_USED(MODULE_GNRC_TRACE_PKTBUF_STATIC)
+    gnrc_pktbuf_print_leases();
+#endif
     return 0;
 }
 
