@@ -35,7 +35,11 @@
 
 static kernel_pid_t _pid = KERNEL_PID_UNDEF;
 
-static char _stack[GNRC_SIXLOWPAN_STACK_SIZE + DEBUG_EXTRA_STACKSIZE];
+static char _stack[GNRC_SIXLOWPAN_STACK_SIZE
+#if ENABLE_DEBUG || MODULE_GNRC_PKTBUF_TRACING
++ THREAD_EXTRA_STACKSIZE_PRINTF
+#endif
+];
 static msg_t _msg_q[GNRC_SIXLOWPAN_MSG_QUEUE_SIZE];
 
 /* handles GNRC_NETAPI_MSG_TYPE_RCV commands */

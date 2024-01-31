@@ -49,7 +49,11 @@
 
 #define _MAX_L2_ADDR_LEN    (8U)
 
-static char _stack[GNRC_IPV6_STACK_SIZE + DEBUG_EXTRA_STACKSIZE];
+static char _stack[GNRC_IPV6_STACK_SIZE
+#if ENABLE_DEBUG || MODULE_GNRC_PKTBUF_TRACING
++ THREAD_EXTRA_STACKSIZE_PRINTF
+#endif
+];
 static msg_t _msg_q[GNRC_IPV6_MSG_QUEUE_SIZE];
 
 #ifdef MODULE_FIB
