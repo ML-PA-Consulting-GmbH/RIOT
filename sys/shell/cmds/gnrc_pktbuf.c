@@ -13,6 +13,8 @@
  * @author  Martine Lenders <m.lenders@fu-berlin.de>
  */
 
+#include <stdio.h>
+
 #include "net/gnrc/pktbuf.h"
 #include "shell.h"
 
@@ -21,6 +23,7 @@ static int _gnrc_pktbuf_cmd(int argc, char **argv)
     (void)argc;
     (void)argv;
     gnrc_pktbuf_stats();
+    puts("");
 #if IS_USED(MODULE_GNRC_TRACE_PKTBUF_STATIC)
     gnrc_pktbuf_print_leases();
 #endif
