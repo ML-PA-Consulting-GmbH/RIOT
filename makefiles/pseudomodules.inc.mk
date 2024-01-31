@@ -132,9 +132,12 @@ PSEUDOMODULES += gnrc_netif_timestamp
 PSEUDOMODULES += gnrc_pktbuf_cmd
 ## @}
 ## @defgroup pseudomodule_gnrc_pktbuf_tracing_tracing gnrc_pktbuf_tracing
+## @{
 ## @brief Debug pktbuf memory management by hooking in a print into each
 ##        creation of a pktbuf, release, and refcount change
 PSEUDOMODULES += gnrc_pktbuf_tracing
+PSEUDOMODULES += gnrc_trace_pktbuf_static
+## @}
 PSEUDOMODULES += gnrc_netif_6lo
 PSEUDOMODULES += gnrc_netif_ipv6
 PSEUDOMODULES += gnrc_netif_mac

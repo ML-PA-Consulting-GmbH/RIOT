@@ -139,6 +139,16 @@ static inline uintptr_t cpu_get_caller_pc(void)
 }
 
 /**
+ * @brief   Returns the current content of the link register (lr)
+ */
+static inline uint32_t cpu_get_last_instruction(void)
+{
+    uint32_t *lr_ptr;
+    __asm__ __volatile__("mov %0, lr" : "=r"(lr_ptr));
+    return (uintptr_t)lr_ptr;
+}
+
+/**
  * @brief   Put the CPU into the 'wait for event' sleep mode
  *
  * This function is meant to be used for short periods of time, where it is not
