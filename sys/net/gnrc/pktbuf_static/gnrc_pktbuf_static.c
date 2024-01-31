@@ -85,6 +85,8 @@ uint32_t gnrc_pktbuf_get_usage(void)
 void gnrc_pktbuf_print_leases(void)
 {
     unsigned count = 0;
+    /* _leases[i] is a pointer in pktbuf */
+    mutex_lock(&gnrc_pktbuf_mutex);
     for (unsigned i = 0; i < ARRAY_SIZE(_leases); ++i) {
         if (_leases[i] == 0) {
             continue;
@@ -94,6 +96,7 @@ void gnrc_pktbuf_print_leases(void)
                (void *)_leases[i], _lease_len[i], _lease_pids[i], _lease_lr[i]);
         od_hex_dump((void *)_leases[i], _lease_len[i], OD_WIDTH_DEFAULT);
     }
+    mutex_unlock(&gnrc_pktbuf_mutex);
 }
 
 static void _lease_out(const void *ptr, size_t len, uintptr_t last_inst)
