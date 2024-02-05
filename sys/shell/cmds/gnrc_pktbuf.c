@@ -26,6 +26,7 @@ static int _gnrc_pktbuf_cmd(int argc, char **argv)
     puts("");
 #if IS_USED(MODULE_GNRC_TRACE_PKTBUF_STATIC)
     gnrc_pktbuf_print_leases();
+    printf("pktbuf: leased out: %"PRIu32"\n", gnrc_pktbuf_get_usage());
 #endif
     return 0;
 }
