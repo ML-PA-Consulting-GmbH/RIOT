@@ -204,6 +204,7 @@ void gnrc_pktbuf_init(void)
     /* Silence false -Wcast-align: _static_buf has qualifier
      * `alignas(_unused_t)`, so it is guaranteed to be safe */
     _first_unused = (_unused_t *)(uintptr_t)_static_buf;
+    _first_unused->canary = GNRC_PKTBUF_STATIC_UNUSED_CANARY;
     _first_unused->next = NULL;
     _first_unused->size = sizeof(_static_buf);
     mutex_unlock(&gnrc_pktbuf_mutex);
@@ -473,6 +474,9 @@ bool gnrc_pktbuf_is_sane(void)
      */
 
     while (ptr) {
+        if (ptr->canary != GNRC_PKTBUF_STATIC_UNUSED_CANARY) {
+            return false;
+        }
         if ((&_static_buf[0] >= (uint8_t *)ptr)
             && ((uint8_t *)ptr >= &_static_buf[CONFIG_GNRC_PKTBUF_SIZE])) {
             return false;
@@ -527,12 +531,18 @@ static void *_pktbuf_alloc(size_t size, uintptr_t last_inst)
 
     size = _align(size);
     while (ptr && (size > ptr->size)) {
+        if (ptr->canary != GNRC_PKTBUF_STATIC_UNUSED_CANARY) {
+            printf("pktbuf alloc: corrupted _unused_t struct at %p\n", (void *)ptr);
+        }
         prev = ptr;
         ptr = ptr->next;
     }
     if (ptr == NULL) {
         DEBUG("pktbuf: no space left in packet buffer\n");
         return NULL;
+    }
+    if (ptr->canary != GNRC_PKTBUF_STATIC_UNUSED_CANARY) {
+        printf("pktbuf alloc: corrupted _unused_t struct in allocated pointer at %p\n", (void *)ptr);
     }
     /* _unused_t struct would fit => add new space at ptr */
     if (sizeof(_unused_t) > (ptr->size - size)) {
@@ -559,6 +569,7 @@ static void *_pktbuf_alloc(size_t size, uintptr_t last_inst)
         else {
             prev->next = new;
         }
+        new->canary = GNRC_PKTBUF_STATIC_UNUSED_CANARY;
         new->next = ptr->next;
         new->size = ptr->size - size;
     }
@@ -618,9 +629,16 @@ void gnrc_pktbuf_free_internal(void *data, size_t size)
     }
 
     while (ptr && (((void *)ptr) < data)) {
+        if (ptr->canary != GNRC_PKTBUF_STATIC_UNUSED_CANARY) {
+            printf("pktbuf free: corrupted _unused_t struct at %p\n", (void *)ptr);
+        }
         prev = ptr;
         ptr = ptr->next;
     }
+    if (ptr && ptr->canary != GNRC_PKTBUF_STATIC_UNUSED_CANARY) {
+        printf("pktbuf free: corrupted _unused_t struct in next free pointer at %p\n", (void *)ptr);
+    }
+    new->canary = GNRC_PKTBUF_STATIC_UNUSED_CANARY;
     new->next = ptr;
     new->size = _align(size);
     /* calculate number of bytes between new _unused_t chunk and end of packet

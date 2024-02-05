@@ -21,6 +21,7 @@
 #ifndef PKTBUF_STATIC_H
 #define PKTBUF_STATIC_H
 
+#include <stdint.h>
 #include <sys/types.h>
 
 #ifdef __cplusplus
@@ -33,9 +34,15 @@ extern "C" {
 #define GNRC_PKTBUF_STATIC_ALIGN_MASK   (sizeof(_unused_t) - 1)
 
 /**
+ * @brief   Canary value to detect buffer overflows
+ */
+#define GNRC_PKTBUF_STATIC_UNUSED_CANARY 0x23a7c0de42fab118u
+
+/**
  * @brief   Marks an unused section of the packet buffer arena array
  */
 typedef struct _unused {
+    uint64_t canary;        /**< a canary to detect buffer overflows */
     struct _unused *next;   /**< the next unused section */
     unsigned int size;      /**< the size of the unused section */
 } _unused_t;
