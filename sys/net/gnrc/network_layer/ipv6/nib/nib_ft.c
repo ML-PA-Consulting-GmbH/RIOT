@@ -36,12 +36,18 @@ int gnrc_ipv6_nib_ft_get(const ipv6_addr_t *dst, gnrc_pktsnip_t *pkt,
 
 int gnrc_ipv6_nib_ft_add(const ipv6_addr_t *dst, unsigned dst_len,
                          const ipv6_addr_t *next_hop, unsigned iface,
-                         uint16_t ltime)
+                         uint32_t ltime)
 {
     int res = 0;
     bool is_default_route = ((dst == NULL) || (dst_len == 0) ||
                              ipv6_addr_is_unspecified(dst));
 
+    uint32_t ltime_ms = ltime * MS_PER_SEC;
+    if (ltime_ms / MS_PER_SEC != ltime) {
+        /* overflow */
+        assert(false);
+        ltime_ms = UINT32_MAX;
+    }
     if ((iface == 0) || ((is_default_route) && (next_hop == NULL))) {
         return -EINVAL;
     }
@@ -57,7 +63,7 @@ int gnrc_ipv6_nib_ft_add(const ipv6_addr_t *dst, unsigned dst_len,
             _prime_def_router = ptr;
             if (ltime > 0) {
                 _evtimer_add(ptr, GNRC_IPV6_NIB_RTR_TIMEOUT,
-                             &ptr->rtr_timeout, ltime * MS_PER_SEC);
+                             &ptr->rtr_timeout, ltime_ms);
             }
         }
     }
@@ -72,7 +78,7 @@ int gnrc_ipv6_nib_ft_add(const ipv6_addr_t *dst, unsigned dst_len,
         }
         else if (ltime > 0) {
             _evtimer_add(ptr, GNRC_IPV6_NIB_ROUTE_TIMEOUT,
-                         &ptr->route_timeout, ltime * MS_PER_SEC);
+                         &ptr->route_timeout, ltime_ms);
         }
     }
 #else /* CONFIG_GNRC_IPV6_NIB_ROUTER */
