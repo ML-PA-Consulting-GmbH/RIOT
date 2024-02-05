@@ -42,12 +42,16 @@ int gnrc_ipv6_nib_ft_add(const ipv6_addr_t *dst, unsigned dst_len,
     bool is_default_route = ((dst == NULL) || (dst_len == 0) ||
                              ipv6_addr_is_unspecified(dst));
 
-    uint32_t ltime_ms = ltime * MS_PER_SEC;
-    if (ltime_ms / MS_PER_SEC != ltime) {
-        /* overflow */
-        assert(false);
-        ltime_ms = UINT32_MAX;
+    if (ltime < UINT32_MAX) {
+        /* UINT32_MAX means infinite lifetime.
+         * The valid lifetime is given in seconds, but our timers work in
+         * milliseconds, so we have to scale down to the smallest possible
+         * value (UINT32_MAX - 1). This is however alright since we ask for
+         * a new router advertisement before this timeout expires */
+        ltime = (ltime > (UINT32_MAX / MS_PER_SEC)) ? (UINT32_MAX - 1) : ltime;
     }
+    uint32_t ltime_ms = ltime * MS_PER_SEC;
+
     if ((iface == 0) || ((is_default_route) && (next_hop == NULL))) {
         return -EINVAL;
     }
