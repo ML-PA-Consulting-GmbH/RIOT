@@ -33,7 +33,8 @@ $(NANOPB_OUT_DIR)/%.pb.c: $(PROTOBUF_FILES)
 # with the clean target is currently not possible.
 	-@mkdir -p $(NANOPB_OUT_DIR)
 # Generate source files for a single protobuf file
-	$(Q)protoc  --plugin=protoc-gen-nanopb=$(PROTOC_GEN_NANOPB) \
-				--proto_path=$(dir $(filter $(subst .pb.c,.proto,$(notdir $@)), $^)) \
-				--nanopb_out="$(NANOPB_OUT_DIR)" $(PROTO_INCLUDES) \
-				$(filter $(subst .pb.c,.proto,$(notdir $@)), $^)
+	@cd "$(dir $(filter %$(notdir $(basename $(basename $@))).proto,$^))" && \
+	    protoc --plugin=protoc-gen-nanopb=$(PROTOC_GEN_NANOPB) \
+		    --proto_path=. \
+			--nanopb_out="$(NANOPB_OUT_DIR)" $(PROTO_INCLUDES) \
+			$(notdir $(filter %$(notdir $(basename $(basename $@))).proto,$^))
