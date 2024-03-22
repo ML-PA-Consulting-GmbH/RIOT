@@ -41,6 +41,10 @@ ifneq (,$(filter crc32_fast,$(USEMODULE)))
   USEMODULE += checksum
 endif
 
+ifneq (,$(filter cpp,$(USEMODULE)))
+  USEMODULE += cpp_new_delete
+endif
+
 ifneq (,$(filter debug_irq_disable,$(USEMODULE)))
   USEMODULE += fmt
 endif
@@ -255,22 +259,6 @@ ifneq (,$(filter posix_sockets,$(USEMODULE)))
   USEMODULE += posix_headers
 endif
 
-ifneq (,$(filter md5sum ,$(USEMODULE)))
-  USEMODULE += shell_cmd_md5sum
-endif
-
-ifneq (,$(filter sha1sum,$(USEMODULE)))
-  USEMODULE += shell_cmd_sha1sum
-endif
-
-ifneq (,$(filter sha256sum,$(USEMODULE)))
-  USEMODULE += shell_cmd_sha256sum
-endif
-
-ifneq (,$(filter random_cmd,$(USEMODULE)))
-  USEMODULE += shell_cmd_random
-endif
-
 ifneq (,$(filter shell_commands,$(USEMODULE)))
   # shell_commands has been renamed to shell_cmds_default, but let's keep this
   # for backward compatibility
@@ -292,11 +280,6 @@ include $(RIOTBASE)/makefiles/stdio.inc.mk
 ifneq (,$(filter isrpipe_read_timeout,$(USEMODULE)))
   USEMODULE += isrpipe
   USEMODULE += ztimer_usec
-endif
-
-ifneq (,$(filter md5sum sha1sum sha256sum,$(USEMODULE)))
-  USEMODULE += vfs_util
-  USEMODULE += hashes
 endif
 
 ifneq (,$(filter posix_semaphore,$(USEMODULE)))
@@ -711,6 +694,10 @@ endif
 
 ifneq (,$(filter wifi_scan_list,$(USEMODULE)))
   USEMODULE += l2scan_list
+endif
+
+ifneq (,$(filter configuration configuration_%,$(USEMODULE)))
+  include $(RIOTBASE)/sys/configuration/Makefile.dep
 endif
 
 include $(RIOTBASE)/sys/test_utils/Makefile.dep

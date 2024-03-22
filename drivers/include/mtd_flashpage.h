@@ -92,6 +92,21 @@ extern mtd_dev_t *mtd_aux;
 #endif
 
 /**
+ * @brief   Size of the auxiliary slot on the internal flash
+ *          Must align with the flash page size.
+ *
+ * @note    Don't set this config value directly!
+ *          Instead set `SLOT_AUX_LEN` in the board's `Makefile.include`
+ *
+ * This value is fixed and can not be changed in the field / via firmware
+ * updates. Changing this value requires re-flashing of riotboot.
+ *
+ */
+#ifndef CONFIG_SLOT_AUX_LEN
+#define CONFIG_SLOT_AUX_LEN 0
+#endif
+
+/**
  * @brief   Default MTD offset for the AUX slot
  */
 #ifndef CONFIG_SLOT_AUX_MTD_OFFSET

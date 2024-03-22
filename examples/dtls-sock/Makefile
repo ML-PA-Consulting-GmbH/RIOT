@@ -20,6 +20,10 @@ USEPKG += tinydtls
 
 # Pull in sock APIs
 USEMODULE += sock_dtls
+# When using asymmetric cryptography, e.g. ecc,
+# this verifies the public key against a known set.
+# It does not affect symmetric crypto e.g. PSK.
+USEMODULE += sock_dtls_verify_public_key
 USEMODULE += sock_udp
 
 # extra utilities for endpoint printing
@@ -61,3 +65,8 @@ ifeq (,$(filter arch_avr8,$(FEATURES_USED)))
 else
   CFLAGS += -DTHREAD_STACKSIZE_MAIN=\(4*THREAD_STACKSIZE_LARGE\)
 endif
+
+# We have two credentials for client and server, each. If we are to run both
+# server and client, we need four slots in total. The default (2) would be
+# sufficient if only client or server is ever run.
+CFLAGS += -DCONFIG_CREDMAN_MAX_CREDENTIALS=4
