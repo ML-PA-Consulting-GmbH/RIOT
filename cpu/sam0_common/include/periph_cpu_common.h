@@ -1396,6 +1396,18 @@ typedef struct sam0_aux_cfg_mapping nvm_user_page_t;
 #endif
 
 /**
+ * @brief  CPU has a @ref flashpage_init() function
+ */
+#define CPU_PERIPH_FLASHPAGE_HAS_INIT   1
+
+/**
+ * @brief   Restore the default configuration
+ *
+ * The configuration will take effect after a cold restart.
+ */
+void sam0_flashpage_aux_restore(void);
+
+/**
  * @brief   Reset the configuration area, apply a new configuration.
  *
  *

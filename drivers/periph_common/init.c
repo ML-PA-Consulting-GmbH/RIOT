@@ -65,6 +65,12 @@
 void periph_init(void)
 {
 #ifdef MODULE_PERIPH_INIT
+#ifdef MODULE_PERIPH_FLASHPAGE
+#if CPU_PERIPH_FLASHPAGE_HAS_INIT
+    extern void flashpage_init(void);
+    flashpage_init();
+#endif
+#endif
     /* initialize buttonss */
     if (IS_USED(MODULE_PERIPH_INIT_BUTTONS)) {
         extern void button_init(void);
