@@ -1458,17 +1458,18 @@ static void _handle_rtr_timeout(_nib_dr_entry_t *router)
 {
     if ((router->next_hop != NULL) && (router->next_hop->mode & _DRL)) {
         _nib_offl_entry_t *route = NULL;
-        unsigned iface = _nib_onl_get_if(router->next_hop);
-        ipv6_addr_t addr = router->next_hop->ipv6;
+        _nib_onl_entry_t *next_hop = router->next_hop;
 
         _nib_drl_remove(router);
-        /* also remove all routes to that router */
+        /* The Router Lifetime applies only to
+           the router's usefulness as a default router; it
+           does not apply to information contained in other
+           message fields or options. Options that need time
+           limits for their information include their own
+           lifetime fields.
+           (https://datatracker.ietf.org/doc/html/rfc4861#section-4.2) */
         while ((route = _nib_offl_iter(route))) {
-            if ((route->next_hop != NULL) &&
-                (_nib_onl_get_if(route->next_hop) == iface) &&
-                (ipv6_addr_equal(&route->next_hop->ipv6, &addr))) {
-                route->mode = _EMPTY;
-                route->next_hop->mode &= ~_DST;
+            if (route->next_hop == next_hop) {
                 _nib_offl_clear(route);
                 /* XXX routing protocol gets informed in case NUD
                  * determines ipv6->src (still in neighbor cache) to be
@@ -1653,7 +1654,7 @@ static uint32_t _handle_pio(gnrc_netif_t *netif, const icmpv6_hdr_t *icmpv6,
 
         if (valid_ltime < UINT32_MAX) { /* UINT32_MAX means infinite lifetime */
             /* the valid lifetime is given in seconds, but our timers work in
-             * microseconds, so we have to scale down to the smallest possible
+             * milliseconds, so we have to scale down to the smallest possible
              * value (UINT32_MAX - 1). This is however alright since we ask for
              * a new router advertisement before this timeout expires */
             valid_ltime = (valid_ltime > (UINT32_MAX / MS_PER_SEC)) ?
@@ -1720,20 +1721,11 @@ static uint32_t _handle_rio(gnrc_netif_t *netif, const ipv6_hdr_t *ipv6,
     DEBUG("     - Route lifetime: %" PRIu32 "\n",
           byteorder_ntohl(rio->route_ltime));
 
-    if (route_ltime < UINT32_MAX) { /* UINT32_MAX means infinite lifetime */
-        /* the valid lifetime is given in seconds, but our timers work in
-         * microseconds, so we have to scale down to the smallest possible
-         * value (UINT32_MAX - 1). This is however alright since we ask for
-         * a new router advertisement before this timeout expires */
-        route_ltime = (route_ltime > (UINT32_MAX / MS_PER_SEC)) ?
-                      (UINT32_MAX - 1) : route_ltime * MS_PER_SEC;
-    }
-
     if (route_ltime == 0) {
         gnrc_ipv6_nib_ft_del(&rio->prefix, rio->prefix_len);
     } else {
         gnrc_ipv6_nib_ft_add(&rio->prefix, rio->prefix_len, &ipv6->src,
-                             netif->pid, route_ltime);
+                             netif->pid, route_ltime == UINT32_MAX ? 0 : route_ltime);
     }
 
     return route_ltime;

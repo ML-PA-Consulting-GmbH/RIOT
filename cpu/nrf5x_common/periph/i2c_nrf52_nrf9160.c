@@ -93,6 +93,14 @@ static inline NRF_TWIM_Type *bus(i2c_t dev)
 }
 
 /**
+ * @brief   Like i2c_write_bytes, but with the constraint (created by the
+ *          hardware) that data is in RAM
+ */
+static int direct_i2c_write_bytes(i2c_t dev, uint16_t addr, const void *data,
+                    size_t len,
+                    uint8_t flags);
+
+/**
  * Block until the interrupt described by inten_success_flag or
  * TWIM_INTEN_ERROR_Msk fires.
  *
@@ -116,6 +124,16 @@ static int finish(i2c_t dev, int inten_success_flag)
     if ((bus(dev)->EVENTS_STOPPED)) {
         bus(dev)->EVENTS_STOPPED = 0;
         DEBUG("[i2c] finish: stop event occurred\n");
+    }
+
+    if (inten_success_flag & TWIM_INTEN_LASTTX_Msk) {
+        /* The interrupt is raised already when the last TX is started, but we
+         * have to wait until it was actually transmitted lest the transmission
+         * would be suppressed immediately by the next following write --
+         * careful here: enabling DEBUG introduces enough latency that the
+         * issue doesn't show up any more. */
+        while (bus(dev)->TXD.AMOUNT != bus(dev)->TXD.MAXCNT &&
+                !bus(dev)->EVENTS_ERROR) {}
     }
 
     if (bus(dev)->EVENTS_ERROR) {
@@ -262,7 +280,7 @@ int i2c_write_regs(i2c_t dev, uint16_t addr, uint16_t reg,
     }
 
     memcpy(&tx_buf[reg_addr_len], data, len);
-    int ret = i2c_write_bytes(dev, addr, tx_buf, reg_addr_len + len, flags);
+    int ret = direct_i2c_write_bytes(dev, addr, tx_buf, reg_addr_len + len, flags);
 
     /* Release tx_buf */
     mutex_unlock(&buffer_lock);
@@ -330,6 +348,31 @@ int i2c_read_regs(i2c_t dev, uint16_t addr, uint16_t reg,
 }
 
 int i2c_write_bytes(i2c_t dev, uint16_t addr, const void *data, size_t len,
+                    uint8_t flags)
+{
+    if ((unsigned int)data >= CPU_RAM_BASE && (unsigned int)data < CPU_RAM_BASE + CPU_RAM_SIZE) {
+        return direct_i2c_write_bytes(dev, addr, data, len, flags);
+    }
+
+    /* These are critical for the memcpy; direct_i2c_write_bytes makes some
+     * more */
+    assert((len > 0) && (len < 256));
+
+    /* Lock tx_buf */
+    mutex_lock(&buffer_lock);
+
+    memcpy(tx_buf, data, len);
+
+    int result = direct_i2c_write_bytes(dev, addr, tx_buf, len, flags);
+
+    /* Release tx_buf */
+    mutex_unlock(&buffer_lock);
+
+    return result;
+}
+
+int direct_i2c_write_bytes(i2c_t dev, uint16_t addr, const void *data,
+                    size_t len,
                     uint8_t flags)
 {
     assert((dev < I2C_NUMOF) && data && (len > 0) && (len < 256));
