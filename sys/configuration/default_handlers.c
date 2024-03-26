@@ -782,6 +782,7 @@ static int _decode_skip_cbor(const conf_handler_t *handler,
     }
     *dec_size -= dec.cur - (const uint8_t *)*dec_data;
     *dec_data = dec.cur;
+    return 0;
 #endif
     return -ENOTSUP;
 }

@@ -140,7 +140,7 @@ static bool _sid_in_range(const conf_handler_t *handler, conf_sid_t sid)
     if (handler->conf_flags.handles_array) {
         return _sid_in_array_range(_ARRAY_HANDLER(handler), sid);
     }
-    else if (handler->subnodes) {
+    else if (!handler->conf_flags.handles_primitive) {
         return _sid_in_node_range(handler, sid);
     }
     return handler->handler_id->sid_lower == sid;
@@ -316,7 +316,12 @@ static conf_handler_t *_configuration_handler_encode_iterator_next(conf_path_ite
 {
     if (iter->sp > 0) {
         conf_path_iterator_item_t next = iter->stack[--iter->sp];
-        if (next.node->node_id->sid_lower > key->sid_normal) {
+        if (next.node->node_id->sid_lower > key->sid) {
+            key->sid = next.node->node_id->sid_lower;
+            key->sid_normal = next.node->node_id->sid_lower;
+            key->offset = 0;
+        }
+        else if (next.node->node_id->sid_lower > key->sid_normal) {
             key->sid += next.node->node_id->sid_lower - key->sid_normal;
             key->sid_normal = next.node->node_id->sid_lower;
         }
@@ -337,7 +342,7 @@ static conf_handler_t *_configuration_handler_encode_iterator_next(conf_path_ite
             }
             push_subnodes = true;
         }
-        else if (next.node->subnodes && next.index < 1) {
+        else if (!next.node->conf_flags.primitive_type && next.index < 1) {
             assert(iter->sp < ARRAY_SIZE(iter->stack));
             iter->stack[iter->sp++] = (conf_path_iterator_item_t) { next.node, 1 };
             if (key->sid != *sid_start) {
@@ -373,11 +378,11 @@ static conf_handler_t *_configuration_handler_decode_iterator_next(conf_path_ite
         conf_path_iterator_item_t next = iter->stack[--iter->sp];
         if (handler) {
             /* got a new key: go deeper by finding the next handler */
-            if (next.node->subnodes) {
+            if (!next.node->conf_flags.handles_primitive) {
                 assert(iter->sp < ARRAY_SIZE(iter->stack));
                 iter->stack[iter->sp++] = (conf_path_iterator_item_t) { next.node, next.index};
             }
-            if (next.node != handler && handler->subnodes) {
+            if (next.node != handler && !handler->conf_flags.handles_primitive) {
                 uint32_t index = 0;
                 if (handler->conf_flags.handles_array && key->sid > handler->node_id->sid_lower) {
                     index = _sid_array_index(_ARRAY_HANDLER(handler), key->sid);
@@ -425,7 +430,12 @@ static conf_handler_t *_configuration_path_sid_iterator_next(conf_path_iterator_
 {
     if (iter->sp > 0) {
         conf_path_iterator_item_t next = iter->stack[--iter->sp];
-        if (next.node->node_id->sid_lower > key->sid_normal) {
+        if (next.node->node_id->sid_lower > key->sid) {
+            key->sid = next.node->node_id->sid_lower;
+            key->sid_normal = next.node->node_id->sid_lower;
+            key->offset = 0;
+        }
+        else if (next.node->node_id->sid_lower > key->sid_normal) {
             key->sid += next.node->node_id->sid_lower - key->sid_normal;
             key->sid_normal = next.node->node_id->sid_lower;
         }
@@ -881,7 +891,7 @@ int configuration_decode_internal(conf_path_iterator_t *iter, conf_iterator_rest
             next = NULL;
         }
         /* get handler of SID */
-        if ((skip && (handler == iter->root)) ||
+        if ((skip && (handler = iter->root)) ||
             (handler = *root) ||
             (handler = *root = _configuration_handler_decode_iterator_next(iter, key, next, &restore->sid))) {
 #if IS_USED(MODULE_CONFIGURATION_CUSTOM_OPERATIONS)

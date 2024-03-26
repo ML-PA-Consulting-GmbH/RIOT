@@ -67,13 +67,13 @@ void auto_init_configuration_root_backend_init(void);
 /**
  * @brief   The size of the encoding buffer for the default export handler
  */
-#define CONFIG_CONFIGURATION_ENCODING_BUF_SIZE      128
+#define CONFIG_CONFIGURATION_ENCODING_BUF_SIZE      512
 #endif
 #if !defined(CONFIG_CONFIGURATION_DECODING_BUF_SIZE) || defined(DOXYGEN)
 /**
  * @brief   The size of the decoding buffer for the default import handler
  */
-#define CONFIG_CONFIGURATION_DECODING_BUF_SIZE      128
+#define CONFIG_CONFIGURATION_DECODING_BUF_SIZE      512
 #endif
 
 /**
