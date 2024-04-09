@@ -373,7 +373,7 @@ int at_send_cmd(at_dev_t *dev, const char *command, uint32_t timeout);
  * @brief   Read a line from device
  *
  * @param[in]   dev         device to operate on
- * @param[in]   resp_buf    buffer to store line
+ * @param[out]  resp_buf    buffer to store line
  * @param[in]   len         size of @p resp_buf
  * @param[in]   keep_eol    true to keep the CR character in the response
  * @param[in]   timeout     timeout (in usec)
@@ -387,7 +387,7 @@ ssize_t at_readline(at_dev_t *dev, char *resp_buf, size_t len, bool keep_eol, ui
  * @brief   Read a line from device, skipping a possibly empty line.
  *
  * @param[in]   dev         device to operate on
- * @param[in]   resp_buf    buffer to store line
+ * @param[out]  resp_buf    buffer to store line
  * @param[in]   len         size of @p resp_buf
  * @param[in]   keep_eol    true to keep the CR character in the response
  * @param[in]   timeout     timeout (in usec)
