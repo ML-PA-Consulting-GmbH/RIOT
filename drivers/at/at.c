@@ -216,6 +216,8 @@ int at_send_cmd(at_dev_t *dev, const char *command, uint32_t timeout)
 {
     size_t cmdlen = strlen(command);
 
+    DEBUG("at_send_cmd(): sending %s\n", command);
+
     uart_write(dev->uart, (const uint8_t *)command, cmdlen);
     uart_write(dev->uart, (const uint8_t *)CONFIG_AT_SEND_EOL, AT_SEND_EOL_LEN);
 
@@ -281,6 +283,7 @@ ssize_t at_send_cmd_get_resp_wait_ok(at_dev_t *dev, const char *command, const c
 
     res = at_send_cmd(dev, command, timeout);
     if (res) {
+        DEBUG_PUTS("at_send_cmd_get_resp_wait_ok(): could not send command");
         goto out;
     }
 
@@ -304,14 +307,18 @@ ssize_t at_send_cmd_get_resp_wait_ok(at_dev_t *dev, const char *command, const c
 
     /* wait for OK */
     if (res >= 0) {
+        DEBUG("at_send_cmd_get_resp_wait_ok(): received data \"%s\"\n", resp_buf);
         res_ok = at_readline_skip_empty(dev, ok_buf, sizeof(ok_buf), false, timeout);
         if (res_ok < 0) {
+            DEBUG_PUTS("at_send_cmd_get_resp_wait_ok(): could not read OK");
             return -1;
         }
         ssize_t len_ok = sizeof(CONFIG_AT_RECV_OK) - 1;
         if ((len_ok != 0) && (strcmp(ok_buf, CONFIG_AT_RECV_OK) == 0)) {
+            DEBUG_PUTS("at_send_cmd_get_resp_wait_ok(): received OK");
         }
         else {
+            DEBUG("at_send_cmd_get_resp_wait_ok(): expected "CONFIG_AT_RECV_OK" but received \"%s\"\n", ok_buf);
             /* Something else than OK */
             res = -1;
         }
@@ -505,6 +512,7 @@ ssize_t at_readline_skip_empty(at_dev_t *dev, char *resp_buf, size_t len,
         /* skip possible empty line */
         res = at_readline(dev, resp_buf, len, keep_eol, timeout);
     }
+    DEBUG("at_readline_skip_empty(): received data \"%s\"\n", resp_buf);
     return res;
 }
 
