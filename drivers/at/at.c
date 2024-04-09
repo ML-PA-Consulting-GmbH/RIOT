@@ -507,11 +507,16 @@ out:
 ssize_t at_readline_skip_empty(at_dev_t *dev, char *resp_buf, size_t len,
                                bool keep_eol, uint32_t timeout)
 {
-    ssize_t res = at_readline(dev, resp_buf, len, keep_eol, timeout);
-    if (res == 0) {
-        /* skip possible empty line */
+    ssize_t res;
+    /* skip possibly empty lines until data arrives */
+    int num_lines = 0; (void) num_lines;
+    do {
+        memset(resp_buf, 0, len);
         res = at_readline(dev, resp_buf, len, keep_eol, timeout);
+        num_lines++;
     }
+    while (res == 0);
+    DEBUG("at_readline_skip_empty(): skipped %d empty lines, line %d with result %d\n", num_lines - 1, num_lines, res);
     DEBUG("at_readline_skip_empty(): received data \"%s\"\n", resp_buf);
     return res;
 }
