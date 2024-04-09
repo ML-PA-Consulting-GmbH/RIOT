@@ -278,6 +278,7 @@ ssize_t at_send_cmd_get_resp_wait_ok(at_dev_t *dev, const char *command, const c
     ssize_t res;
     ssize_t res_ok;
     char ok_buf[64];
+    size_t prefix_len = resp_prefix ? strlen(resp_prefix) : 0;
 
     at_drain(dev);
 
@@ -289,21 +290,23 @@ ssize_t at_send_cmd_get_resp_wait_ok(at_dev_t *dev, const char *command, const c
 
     /* URCs may occur right after the command has been sent and before the
      * expected response */
-    do {
+    while (true) {
         res = at_readline_skip_empty(dev, resp_buf, len, false, timeout);
 
-        /* Strip the expected prefix */
-        if (res > 0 && resp_prefix && *resp_prefix) {
-            size_t prefix_len = strlen(resp_prefix);
-            if (strncmp(resp_buf, resp_prefix, prefix_len) == 0) {
-                size_t remaining_len = strlen(resp_buf) - prefix_len;
-                /* The one extra byte in the copy is the terminating nul byte */
-                memmove(resp_buf, resp_buf + prefix_len, remaining_len + 1);
-                res -= prefix_len;
-                break;
-            }
+        if (res < 0 || !prefix_len) {
+            break;
         }
-    } while (res >= 0);
+
+        /* match prefix */
+        if (strncmp(resp_buf, resp_prefix, prefix_len) == 0) {
+            /* Strip the expected prefix */
+            size_t remaining_len = strlen(resp_buf) - prefix_len;
+            /* The one extra byte in the copy is the terminating nul byte */
+            memmove(resp_buf, resp_buf + prefix_len, remaining_len + 1);
+            res -= prefix_len;
+            break;
+        }
+    }
 
     /* wait for OK */
     if (res >= 0) {

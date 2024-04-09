@@ -258,7 +258,7 @@ ssize_t at_send_cmd_get_resp(at_dev_t *dev, const char *command, char *resp_buf,
  *
  * @param[in]   dev         device to operate on
  * @param[in]   command     command to send
- * @param[in]   resp_prefix expected prefix in the response
+ * @param[in]   resp_prefix expected prefix in the response, may be NULL or empty to match anything
  * @param[out]  resp_buf    buffer for storing response
  * @param[in]   len         len of @p buffer
  * @param[in]   timeout     timeout (in usec)
