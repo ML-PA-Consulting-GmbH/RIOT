@@ -825,13 +825,22 @@ int configuration_encode_internal(conf_path_iterator_t *iter, conf_iterator_rest
     }
     conf_handler_t *handler;
     while ((handler = _configuration_handler_encode_iterator_next(iter, key, &restore->sid))) {
-            const conf_backend_t *be = *configuration_get_dst_backend(iter->root);
+        const conf_backend_t *be = *configuration_get_dst_backend(iter->root);
+        /* do not export a subnode which has an own backend set
+           because this would export the same data to two backends */
+        const onst_conf_backend_t *be_h = *configuration_get_dst_backend(handler);
 #if IS_USED(MODULE_CONFIGURATION_CUSTOM_OPERATIONS)
         if (!handler->ops_be_dat || !handler->ops_be_dat->encode) {
             continue;
         }
+        if (be_h && be_h != be && be_h->ops && be_h->ops->be_store) {
+            continue;
+        }
         ret = handler->ops_be_dat->encode(handler, key, &restore->sid, be->fmt, &buf, size);
 #else
+        if (be_h && be_h != be && be_h->ops && be_h->ops->be_store) {
+            continue;
+        }
         ret = configuration_encode_handler_default(handler, key, &restore->sid, be->fmt, &buf, size);
 #endif
         if (ret) {
