@@ -574,6 +574,9 @@ static int _configuration_handler_import_internal(const conf_handler_t *root,
         if (!be || !be->ops || !be->ops->be_load) {
             continue;
         }
+        if (handler != root && be == *configuration_get_src_backend(root)) {
+            continue;
+        }
 #if IS_USED(MODULE_CONFIGURATION_CUSTOM_OPERATIONS)
         if (!handler->ops_be || !handler->ops_be->import) {
             continue;
@@ -603,6 +606,9 @@ static int _configuration_handler_export_internal(const conf_handler_t *root,
     while ((handler = _configuration_path_sid_iterator_next(&iter, key, &restore.sid))) {
         const conf_backend_t *be = *configuration_get_dst_backend(handler);
         if (!be || !be->ops || !be->ops->be_store) {
+            continue;
+        }
+        if (handler != root && be == *configuration_get_dst_backend(root)) {
             continue;
         }
         if (handler->ops_dat && handler->ops_dat->verify) {
@@ -641,6 +647,9 @@ static int _configuration_handler_delete_internal(const conf_handler_t *root,
     while ((handler = _configuration_path_sid_iterator_next(&iter, key, &restore.sid))) {
         const conf_backend_t *be = *configuration_get_src_backend(handler);
         if (!be || !be->ops || !be->ops->be_delete) {
+            continue;
+        }
+        if (handler != root && be == *configuration_get_src_backend(root)) {
             continue;
         }
 #if IS_USED(MODULE_CONFIGURATION_CUSTOM_OPERATIONS)
