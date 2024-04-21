@@ -190,9 +190,7 @@ static int _configuration_append_segment(const conf_handler_t *next, conf_key_bu
             if (*buf == '/') {
                 *buf = '\0';
             }
-            if (size - strlen(key_buf) < 1 + strlen(next->node_id->subtree) + 1) {
-                return -ENOBUFS;
-            }
+            assert(size > strlen(key_buf) + 1 + strlen(next->node_id->subtree) + 1);
             strcat(buf, "/");
             strcat(buf, next->node_id->subtree);
         }
@@ -222,9 +220,7 @@ static int _configuration_append_index(uint32_t index, conf_key_buf_t *key,
         size_t size = key_buf_len;
         char sindex[11];
         sindex[fmt_u32_dec(sindex, index)] = '\0';
-        if (size - strlen(buf) < 1 + strlen(sindex) + 1) {
-            return -ENOBUFS;
-        }
+        assert(size > strlen(buf) + 1 + strlen(sindex) + 1);
         strcat(buf, "/");
         strcat(buf, sindex);
     }
