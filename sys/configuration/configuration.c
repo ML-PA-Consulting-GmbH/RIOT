@@ -374,8 +374,13 @@ static conf_handler_t *_configuration_handler_encode_iterator_next(conf_path_ite
         }
         else if (push_subnodes) {
             if (next.node->subnodes) {
-                assert(iter->sp < ARRAY_SIZE(iter->stack));
-                iter->stack[iter->sp++] = (conf_path_iterator_item_t) { next.node->subnodes, 0 };
+                /* Stop encoding when the backend changes, because subnode is exported to another backend */
+                const conf_backend_t *be = *configuration_get_dst_backend(iter->root);
+                const conf_backend_t *be_h = *configuration_get_dst_backend(next.node);
+                if (!be_h || be == be_h) {
+                    assert(iter->sp < ARRAY_SIZE(iter->stack));
+                    iter->stack[iter->sp++] = (conf_path_iterator_item_t) { next.node->subnodes, 0 };
+                }
             }
         }
         return (conf_handler_t *)next.node;
