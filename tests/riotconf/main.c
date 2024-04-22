@@ -147,7 +147,7 @@ static void _test_riotconf_slot_read(void)
 static void _test_riotconf_slot_write(void)
 {
     char data[] = "Hello World!";
-    int ret = riotconf_slot_start_write(0);
+    int ret = riotconf_slot_start_write(0, NULL);
     TEST_ASSERT(!ret);
     ret = riotconf_slot_write(0, data, 0, sizeof(data));
     TEST_ASSERT(!ret);
