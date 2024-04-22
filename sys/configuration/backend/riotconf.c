@@ -32,6 +32,7 @@
 #include "riotconf/slot.h"
 
 static riotconf_slot_t _current = -EINVAL;
+static riotconf_hdr_t _current_hdr;
 
 __attribute__((weak))
 int configuration_backend_riotconf_accept(const riotconf_hdr_t *hdr)
@@ -112,11 +113,13 @@ static int _be_riotconf_store(const struct conf_backend *be,
         return -ENOENT;
     }
     if (offset == 0) {
-        riotconf_slot_start_write(_current);
+        riotconf_slot_start_write(_current, &_current_hdr);
     }
     riotconf_slot_write(_current, val, offset, *size);
     if (!more) {
-        riotconf_slot_finish_write(_current, 0, 0, offset + *size);
+        uint32_t version = _current_hdr.magic == RIOTCONF_MAGIC ? _current_hdr.version : 0;
+        uint32_t sequence = _current_hdr.magic == RIOTCONF_MAGIC ? _current_hdr.sequence : 0;
+        riotconf_slot_finish_write(_current, sequence, version, offset + *size);
     }
     return 0;
 }
