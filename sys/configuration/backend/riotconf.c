@@ -137,6 +137,11 @@ const conf_backend_ops_t conf_backend_riotconf_ops = {
     .be_delete = _be_riotconf_delete,
 };
 
+riotconf_slot_t configuration_backend_riotconf_slot_current(void)
+{
+    return _current;
+}
+
 int configuration_backend_riotconf_reset(void)
 {
     return _be_riotconf_reset();
