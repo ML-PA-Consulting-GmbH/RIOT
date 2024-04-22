@@ -100,6 +100,7 @@ static conf_iterator_restore_t _configuration_iterator_init(conf_iterator_t *ite
                                                             const conf_key_buf_t *key,
                                                             char *key_buf)
 {
+    (void)key_buf;
     assert(iter);
     assert(handler);
     iter->root = handler;
@@ -119,6 +120,7 @@ static conf_iterator_restore_t _configuration_path_iterator_init(conf_path_itera
                                                                  const conf_key_buf_t *key,
                                                                  char *key_buf)
 {
+    (void)key_buf;
     assert(iter);
     assert(handler);
     iter->root = handler;
@@ -165,7 +167,7 @@ static bool _sid_in_array_bounds(const conf_array_handler_t *array, conf_sid_t s
 static int _configuration_append_segment(const conf_handler_t *next, conf_key_buf_t *key,
                                          char *key_buf, size_t key_buf_len)
 {
-    (void)next; (void)key;
+    (void)next; (void)key; (void)key_buf; (void)key_buf_len;
 #if IS_USED(MODULE_CONFIGURATION_STRINGS)
     if (key_buf) {
         char *buf = key_buf;
@@ -213,7 +215,7 @@ static void _debug_print(const conf_key_buf_t *key)
 static int _configuration_append_index(uint32_t index, conf_key_buf_t *key,
                                        char *key_buf, size_t key_buf_len)
 {
-    (void)index; (void)key;
+    (void)index; (void)key; (void)key_buf; (void)key_buf_len;
 #if IS_USED(MODULE_CONFIGURATION_STRINGS)
     if (key_buf) {
         char *buf = key_buf;
@@ -514,6 +516,7 @@ static conf_handler_t *_configuration_path_sid_iterator_next(conf_path_iterator_
 static void _configuration_key_restore(conf_key_buf_t *key, const conf_iterator_restore_t *restore,
                                        char *key_buf)
 {
+    (void)key_buf;
 #if IS_USED(MODULE_CONFIGURATION_STRINGS)
     if (key_buf) {
         key_buf[restore->key_len] = '\0';
