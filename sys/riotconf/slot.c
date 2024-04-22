@@ -126,13 +126,18 @@ void riotconf_slot_finish_read(riotconf_slot_t slot)
     riotconf_storage_finish_read(dev);
 }
 
-int riotconf_slot_start_write(riotconf_slot_t slot)
+int riotconf_slot_start_write(riotconf_slot_t slot, riotconf_hdr_t *hdr)
 {
     riotconf_storage_t *dev = riotconf_storage_get(slot);
     if (!dev) {
         return -ENODEV;
     }
-    return riotconf_storage_start_write(dev);
+    int ret = riotconf_storage_start_write(dev);
+    if (hdr) {
+        memcpy(hdr, dev->sector_buf, sizeof(*hdr));
+        riotconf_hdr_ntoh(hdr);
+    }
+    return ret;
 }
 
 int riotconf_slot_write(riotconf_slot_t slot, const void *data, size_t offset, size_t size)
