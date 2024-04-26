@@ -178,7 +178,7 @@ static void _test_riotconf_slot_highest(void)
         .size = sizeof(data0),
         .version = 123
     };
-    riotconf_hdr_ntoh(&hdr0);
+    riotconf_hdr_hton(&hdr0);
     mtd_write(&_mtd[0].base, &hdr0, 0, sizeof(hdr0));
     mtd_write(&_mtd[0].base, data0, sizeof(hdr0), sizeof(data0));
     memset(&hdr0, 0, sizeof(hdr0));
@@ -191,7 +191,7 @@ static void _test_riotconf_slot_highest(void)
         .sequence = 1,
         .version = 124
     };
-    riotconf_hdr_ntoh(&hdr1);
+    riotconf_hdr_hton(&hdr1);
     mtd_write(&_mtd[1].base, &hdr1, 0, sizeof(hdr1));
     mtd_write(&_mtd[1].base, data1, sizeof(hdr1), sizeof(data1));
     memset(&hdr1, 0, sizeof(hdr1));
