@@ -50,6 +50,7 @@ riotconf_slot_t riotconf_slot_highest_seq(riotconf_slot_compat_cb_t compatible)
             if (compatible && !compatible(&hdr)) {
                 continue;
             }
+            highest = hdr.sequence;
             slot = i;
         }
     }
