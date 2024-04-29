@@ -131,7 +131,7 @@ int configuration_import_handler_default(const conf_handler_t *handler,
     if (handler->conf_flags.handles_array && handler->array_id->sid_lower == key->sid_normal) {
         sz = handler->size * _ARRAY_HANDLER(handler)->array_size;
     }
-    int err; (void)err;
+    int err = 0; (void)err;
     if (be->fmt != CONF_FMT_RAW) {
         size_t total = 0;
         conf_path_iterator_t iter = { .root = NULL };
@@ -141,6 +141,8 @@ int configuration_import_handler_default(const conf_handler_t *handler,
         size_t full_dec_size = sizeof(_dec_buffer);
         mutex_lock(&_dec_mutex);
         do {
+            /* if decoding failed with ENOBUFS before it is not allowed to fail again */
+            bool abort_on_failure = (err < 0);
             bool more = total + sizeof(_dec_buffer) < full_dec_size;
             void *dec_data = _dec_buffer;
             size_t dec_size = MIN(sizeof(_dec_buffer), full_dec_size - total);
@@ -157,7 +159,8 @@ int configuration_import_handler_default(const conf_handler_t *handler,
                 dec_size = sizeof(_dec_buffer);
             }
             sz = dec_size;
-            if (!(err = configuration_decode_internal(&iter, &restore, &dec_handler, &dec_key, dec_data, &dec_size)) || err == -ENOBUFS) {
+            if (!(err = configuration_decode_internal(&iter, &restore, &dec_handler, &dec_key, dec_data, &dec_size)) ||
+                (err == -ENOBUFS && !abort_on_failure)) {
                 total += sz - dec_size;
             }
             else {
