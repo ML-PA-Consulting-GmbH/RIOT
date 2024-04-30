@@ -85,10 +85,10 @@ static int _be_fdb_reset(void) {
 
 static int _be_fdb_load(const struct conf_backend *be,
                         conf_key_buf_t *key, void *val, size_t *size,
-                        size_t offset, bool *more)
+                        size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
-    (void)more;
+    (void)flg;
 
     if (offset) {
         /* reading partial records is not supported */
@@ -112,10 +112,10 @@ static int _be_fdb_load(const struct conf_backend *be,
 
 static int _be_fdb_store(const struct conf_backend *be,
                          conf_key_buf_t *key, const void *val, size_t *size,
-                         size_t offset, bool more)
+                         size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
-    (void)more;
+    (void)flg;
 
     if (offset) {
         /* writing partial records is not supported */
