@@ -695,6 +695,15 @@ static inline uint64_t _sid_array_remainder(const conf_array_handler_t *array, c
 }
 
 /**
+ * @brief   Flags to be interpreted by the backend handlers
+ */
+typedef enum {
+    CONF_BACKEND_FLAG_START   = 1u << 0,    /**< Storage backend is not opened yet */
+    CONF_BACKEND_FLAG_FINISH  = 1u << 1,    /**< Storage backend must be closed */
+    CONF_BACKEND_FLAG_MORE    = 1u << 2,    /**< More data is available */
+} conf_backend_flags_t;
+
+/**
  * @brief   Handler prototype to load configuration data from a persistent storage backend
  *
  * This is called by the configuration handler on import.
