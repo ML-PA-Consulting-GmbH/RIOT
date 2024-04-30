@@ -86,10 +86,10 @@ static struct kv _kv[] = {
 
 static int _be_ram_load(const struct conf_backend *be,
                         conf_key_buf_t *key, void *val, size_t *size,
-                        size_t offset, bool *more)
+                        size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
-    (void)more;
+    (void)flg;
 
     assert(offset + *size <= CONFIG_CONFIGURATION_BACKEND_RAM_BUF_SIZE);
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
@@ -116,10 +116,10 @@ static int _be_ram_load(const struct conf_backend *be,
 
 static int _be_ram_store(const struct conf_backend *be,
                          conf_key_buf_t *key, const void *val, size_t *size,
-                         size_t offset, bool more)
+                         size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
-    (void)more;
+    (void)flg;
 
     assert(offset + *size <= CONFIG_CONFIGURATION_BACKEND_RAM_BUF_SIZE);
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
