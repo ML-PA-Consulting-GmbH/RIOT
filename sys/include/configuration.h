@@ -716,13 +716,13 @@ typedef enum {
  *                                  If offset is 0 it returns the full size of the configuration value
  * @param[in]           offset      Offset in the value to be imported
  *                                  (may not be supported by all backends)
- * @param[in, out]      more        True if there is more data to be imported for the given key
+ * @param[in, out]      flg         Backend flags
  *
  * @return  0 on success
  */
 typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
                                           conf_key_buf_t *key, void *val, size_t *size,
-                                          size_t offset, bool *more);
+                                          size_t offset, conf_backend_flags_t *flg);
 
 /**
  * @brief   Handler prototype to store configuration data to a persistent storage backend
@@ -736,13 +736,13 @@ typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
  *                                  and 0 as output
  * @param[in]           offset      Offset in the value to be exported
  *                                  (may not be supported by all backends)
- * @param[in]           more        True if there is more data to be exported for the given key
+ * @param[in]           flg         Backend flags
  *
  * @return  0 on success
  */
 typedef int (*conf_backend_store_handler) (const struct conf_backend *be,
                                            conf_key_buf_t *key, const void *val, size_t *size,
-                                           size_t offset, bool more);
+                                           size_t offset, conf_backend_flags_t *flg);
 
 /**
  * @brief   Handler prototype to delete configuration data from a persistent storage backend
