@@ -25,6 +25,8 @@
 #include "net/nanocoap/cache.h"
 #include "ztimer.h"
 
+#include "forward_proxy_internal.h"
+
 #define ENABLE_DEBUG    0
 #include "debug.h"
 
@@ -34,16 +36,7 @@
 #define CLIENT_EP_FLAGS_ETAG_LEN_MASK   0x0f
 #define CLIENT_EP_FLAGS_ETAG_LEN_POS    0U
 
-typedef struct {
-    sock_udp_ep_t ep;
-    uint16_t mid;
-    uint8_t flags;
-#if IS_USED(MODULE_NANOCOAP_CACHE)
-    uint8_t req_etag[COAP_ETAG_LENGTH_MAX];
-#endif
-    ztimer_t empty_ack_timer;
-    event_t event;
-} client_ep_t;
+extern kernel_pid_t forward_proxy_pid;
 
 extern uint16_t gcoap_next_msg_id(void);
 extern void gcoap_forward_proxy_post_event(void *arg);
@@ -61,7 +54,15 @@ static void _cep_set_in_use(client_ep_t *cep);
 static uint8_t _cep_get_response_type(client_ep_t *cep);
 static void _cep_set_response_type(client_ep_t *cep, uint8_t resp_type);
 static uint8_t _cep_get_req_etag_len(client_ep_t *cep);
-static void _cep_set_req_etag_len(client_ep_t *cep, uint8_t req_etag_len);
+
+/**
+ * @brief   Store the given ETag in the given client endpoint
+ * @param[out]  cep         client endpoint to store the ETag in
+ * @param[in]   etag        ETag to store
+ * @param[in]   etag_len    length of @p etag in bytes
+ */
+static void _cep_set_req_etag(client_ep_t *cep, const void *etag,
+                              uint8_t etag_len);
 
 const coap_resource_t forward_proxy_resources[] = {
     { "/", COAP_IGNORE, _forward_proxy_handler, NULL },
@@ -79,6 +80,9 @@ gcoap_listener_t forward_proxy_listener = {
 void gcoap_forward_proxy_init(void)
 {
     gcoap_register_listener(&forward_proxy_listener);
+    if (IS_ACTIVE(MODULE_GCOAP_FORWARD_PROXY_THREAD)) {
+        gcoap_forward_proxy_thread_init();
+    }
 }
 
 static client_ep_t *_allocate_client_ep(const sock_udp_ep_t *ep)
@@ -89,8 +93,9 @@ static client_ep_t *_allocate_client_ep(const sock_udp_ep_t *ep)
          cep++) {
         if (!_cep_in_use(cep)) {
             _cep_set_in_use(cep);
-            _cep_set_req_etag_len(cep, 0);
+            _cep_set_req_etag(cep, NULL, 0);
             memcpy(&cep->ep, ep, sizeof(*ep));
+            DEBUG("Client_ep is allocated %p\n", (void *)cep);
             return cep;
         }
     }
@@ -100,7 +105,9 @@ static client_ep_t *_allocate_client_ep(const sock_udp_ep_t *ep)
 static void _free_client_ep(client_ep_t *cep)
 {
     ztimer_remove(ZTIMER_MSEC, &cep->empty_ack_timer);
-    memset(cep, 0, sizeof(*cep));
+    /* timer removed but event could be queued */
+    cep->flags = 0;
+    DEBUG("Client_ep is freed %p\n", (void *)cep);
 }
 
 static int _request_matcher_forward_proxy(gcoap_listener_t *listener,
@@ -346,11 +353,7 @@ static int _gcoap_forward_proxy_copy_options(coap_pkt_t *pkt,
             if (IS_USED(MODULE_NANOCOAP_CACHE) && opt.opt_num == COAP_OPT_ETAG) {
                 if (_cep_get_req_etag_len(cep) == 0) {
                     /* TODO: what to do on multiple ETags? */
-                    _cep_set_req_etag_len(cep, (uint8_t)optlen);
-#if IS_USED(MODULE_NANOCOAP_CACHE)
-                    /* req_tag in cep is pre-processor guarded so we need to as well */
-                    memcpy(cep->req_etag, value, optlen);
-#endif
+                    _cep_set_req_etag(cep, value, optlen);
                 }
                 /* skip original ETag of request, otherwise we might accidentally fill the cache
                  * with 2.03 Valid responses which would require additional handling.
@@ -386,24 +389,34 @@ static int _gcoap_forward_proxy_copy_options(coap_pkt_t *pkt,
     return len;
 }
 
+int gcoap_forward_proxy_req_send(client_ep_t *cep)
+{
+    int len;
+    if ((len = gcoap_req_send((uint8_t *)cep->pdu.hdr, coap_get_total_len(&cep->pdu),
+                             &cep->server_ep, _forward_resp_handler, cep,
+                             GCOAP_SOCKET_TYPE_UNDEF)) <= 0) {
+        DEBUG("gcoap_forward_proxy_req_send(): gcoap_req_send failed %d\n", len);
+        _free_client_ep(cep);
+    }
+    return len;
+}
+
 static int _gcoap_forward_proxy_via_coap(coap_pkt_t *client_pkt,
                                          client_ep_t *client_ep,
                                          uri_parser_result_t *urip)
 {
-    coap_pkt_t pkt;
-    sock_udp_ep_t origin_server_ep;
-
     ssize_t len;
     gcoap_request_memo_t *memo = NULL;
 
-    if (!_parse_endpoint(&origin_server_ep, urip)) {
+    if (!_parse_endpoint(&client_ep->server_ep, urip)) {
+        _free_client_ep(client_ep);
         return -EINVAL;
     }
 
     /* do not forward requests if they already exist, e.g., due to CON
        and retransmissions. In the future, the proxy should set an
        empty ACK message to stop the retransmissions of a client */
-    gcoap_forward_proxy_find_req_memo(&memo, client_pkt, &origin_server_ep);
+    gcoap_forward_proxy_find_req_memo(&memo, client_pkt, &client_ep->server_ep);
     if (memo) {
         DEBUG("gcoap_forward_proxy: request already exists, ignore!\n");
         _free_client_ep(client_ep);
@@ -420,28 +433,37 @@ static int _gcoap_forward_proxy_via_coap(coap_pkt_t *client_pkt,
 
     unsigned token_len = coap_get_token_len(client_pkt);
 
-    coap_pkt_init(&pkt, proxy_req_buf, CONFIG_GCOAP_PDU_BUF_SIZE,
+    coap_pkt_init(&client_ep->pdu, proxy_req_buf, CONFIG_GCOAP_PDU_BUF_SIZE,
                   sizeof(coap_hdr_t) + token_len);
 
-    pkt.hdr->ver_t_tkl = client_pkt->hdr->ver_t_tkl;
-    pkt.hdr->code = client_pkt->hdr->code;
-    pkt.hdr->id = client_pkt->hdr->id;
+    client_ep->pdu.hdr->ver_t_tkl = client_pkt->hdr->ver_t_tkl;
+    client_ep->pdu.hdr->code = client_pkt->hdr->code;
+    client_ep->pdu.hdr->id = client_pkt->hdr->id;
 
     if (token_len) {
-        memcpy(coap_get_token(&pkt), coap_get_token(client_pkt), token_len);
+        memcpy(coap_get_token(&client_ep->pdu), coap_get_token(client_pkt), token_len);
     }
 
     /* copy all options from client_pkt to pkt */
-    len = _gcoap_forward_proxy_copy_options(&pkt, client_pkt, client_ep, urip);
+    len = _gcoap_forward_proxy_copy_options(&client_ep->pdu, client_pkt, client_ep, urip);
 
     if (len == -EINVAL) {
+        _free_client_ep(client_ep);
         return -EINVAL;
     }
+    if (IS_USED(MODULE_GCOAP_FORWARD_PROXY_THREAD)) {
+        /* WORKAROUND: DTLS communication is blocking the gcoap thread,
+         * therefore the communication should be handled in the proxy thread */
 
-    len = gcoap_req_send((uint8_t *)pkt.hdr, len,
-                         &origin_server_ep,
-                         _forward_resp_handler, (void *)client_ep,
-                         GCOAP_SOCKET_TYPE_UNDEF);
+        msg_t msg = {   .type = GCOAP_FORWARD_PROXY_MSG_SEND,
+                        .content.ptr = client_ep
+                    };
+        msg_send(&msg, forward_proxy_pid);
+    }
+    else {
+        len = gcoap_forward_proxy_req_send(client_ep);
+    }
+
     return len;
 }
 
@@ -480,10 +502,11 @@ int gcoap_forward_proxy_request_process(coap_pkt_t *pkt,
     }
 
     /* target is using CoAP */
-    if (!strncmp("coap", urip.scheme, urip.scheme_len)) {
+    if (!strncmp("coap", urip.scheme, urip.scheme_len) ||
+        !strncmp("coaps", urip.scheme, urip.scheme_len)) {
+        /* client context ownership is passed to gcoap_forward_proxy_req_send() */
         int res = _gcoap_forward_proxy_via_coap(pkt, cep, &urip);
         if (res < 0) {
-            _free_client_ep(cep);
             return -EINVAL;
         }
     }
@@ -525,13 +548,20 @@ static uint8_t _cep_get_req_etag_len(client_ep_t *cep)
     return 0;
 }
 
-static void _cep_set_req_etag_len(client_ep_t *cep, uint8_t req_etag_len)
+static void _cep_set_req_etag(client_ep_t *cep, const void *etag,
+                              uint8_t etag_len)
 {
-    if (IS_USED(MODULE_NANOCOAP_CACHE)) {
+    (void)cep;
+    (void)etag;
+    (void)etag_len;
+#if MODULE_NANOCOAP_CACHE
+    if (etag_len <= COAP_ETAG_LENGTH_MAX) {
         cep->flags &= ~CLIENT_EP_FLAGS_ETAG_LEN_MASK;
-        cep->flags |= (req_etag_len << CLIENT_EP_FLAGS_ETAG_LEN_POS)
-                     & CLIENT_EP_FLAGS_ETAG_LEN_MASK;
+        cep->flags |= (etag_len << CLIENT_EP_FLAGS_ETAG_LEN_POS)
+                      & CLIENT_EP_FLAGS_ETAG_LEN_MASK;
+        memcpy(cep->req_etag, etag, etag_len);
     }
+#endif
 }
 
 /** @} */
