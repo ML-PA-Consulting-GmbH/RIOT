@@ -345,6 +345,14 @@ struct {                                                \
 }
 
 /**
+ * @brief   A range of keys, used to select a subkey range to export
+ */
+typedef struct {
+    conf_sid_t sid_lower;       /**< Lower SID of the range */
+    conf_sid_t sid_upper;       /**< Upper SID of the range */
+} conf_key_range_t;
+
+/**
  * @brief   Key buffer type with a static maximum key length
  *
  * @param   len             Buffer length to store a key
@@ -352,6 +360,7 @@ struct {                                                \
 #define CONF_KEY_T(len)                                 \
 struct {                                                \
     _CONF_KEY_BASE_T;                                   \
+    conf_key_range_t *subkey;                           \
     _CONF_KEY_BUF_LEN                                   \
     _CONF_KEY_BUF(len)                                  \
 }
@@ -632,6 +641,9 @@ enum {
  */
 typedef struct conf_handler {
     list_node_t node;                                   /**< Every node is in a list, managed by its parent */
+#if IS_USED(MODULE_CONFIGURATION_HANDLER_PARENT)
+    struct conf_handler *parent;                        /**< Pointer to the parent node */
+#endif
     struct conf_handler *subnodes;                      /**< Every node has a list of subnodes */
     union {
         const conf_handler_array_id_t *array_id;        /**< Pointer to handler array identification */
@@ -649,7 +661,6 @@ typedef struct conf_handler {
 #endif
     void *data;                                         /**< Pointer to the configuration item data location (may be NULL) */
     uint32_t size;                                      /**< Configuration item size in bytes */
-    unsigned level;                                     /**< Level in the configuration tree (root = 0) */
     conf_handler_flags_t conf_flags;                    /**< Configuration of handler behavior */
     mutex_t mutex;                                      /**< Lock for unique access to the configuration item */
 } conf_handler_t;
@@ -693,6 +704,15 @@ static inline uint64_t _sid_array_remainder(const conf_array_handler_t *array, c
 }
 
 /**
+ * @brief   Flags to be interpreted by the backend handlers
+ */
+typedef enum {
+    CONF_BACKEND_FLAG_START   = 1u << 0,    /**< Storage backend is not opened yet */
+    CONF_BACKEND_FLAG_FINISH  = 1u << 1,    /**< Storage backend must be closed */
+    CONF_BACKEND_FLAG_MORE    = 1u << 2,    /**< More data is available */
+} conf_backend_flags_t;
+
+/**
  * @brief   Handler prototype to load configuration data from a persistent storage backend
  *
  * This is called by the configuration handler on import.
@@ -705,13 +725,13 @@ static inline uint64_t _sid_array_remainder(const conf_array_handler_t *array, c
  *                                  If offset is 0 it returns the full size of the configuration value
  * @param[in]           offset      Offset in the value to be imported
  *                                  (may not be supported by all backends)
- * @param[in, out]      more        True if there is more data to be imported for the given key
+ * @param[in, out]      flg         Backend flags
  *
  * @return  0 on success
  */
 typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
                                           conf_key_buf_t *key, void *val, size_t *size,
-                                          size_t offset, bool *more);
+                                          size_t offset, conf_backend_flags_t *flg);
 
 /**
  * @brief   Handler prototype to store configuration data to a persistent storage backend
@@ -725,13 +745,13 @@ typedef int (*conf_backend_load_handler) (const struct conf_backend *be,
  *                                  and 0 as output
  * @param[in]           offset      Offset in the value to be exported
  *                                  (may not be supported by all backends)
- * @param[in]           more        True if there is more data to be exported for the given key
+ * @param[in]           flg         Backend flags
  *
  * @return  0 on success
  */
 typedef int (*conf_backend_store_handler) (const struct conf_backend *be,
                                            conf_key_buf_t *key, const void *val, size_t *size,
-                                           size_t offset, bool more);
+                                           size_t offset, conf_backend_flags_t *flg);
 
 /**
  * @brief   Handler prototype to delete configuration data from a persistent storage backend

@@ -131,20 +131,25 @@ int configuration_import_handler_default(const conf_handler_t *handler,
     if (handler->conf_flags.handles_array && handler->array_id->sid_lower == key->sid_normal) {
         sz = handler->size * _ARRAY_HANDLER(handler)->array_size;
     }
-    int err; (void)err;
+    int err = 0; (void)err;
     if (be->fmt != CONF_FMT_RAW) {
         size_t total = 0;
         conf_path_iterator_t iter = { .root = NULL };
         conf_iterator_restore_t restore;
         const conf_handler_t *dec_handler = handler;
         conf_key_buf_t dec_key = *key;
+        conf_backend_flags_t flg = 0;
         size_t full_dec_size = sizeof(_dec_buffer);
         mutex_lock(&_dec_mutex);
         do {
-            bool more = total + sizeof(_dec_buffer) < full_dec_size;
+            /* if decoding failed with ENOBUFS before it is not allowed to fail again */
+            bool abort_on_failure = (err < 0);
+            if (total + sizeof(_dec_buffer) >= full_dec_size) {
+                flg |= CONF_BACKEND_FLAG_FINISH;
+            }
             void *dec_data = _dec_buffer;
             size_t dec_size = MIN(sizeof(_dec_buffer), full_dec_size - total);
-            if ((err = be->ops->be_load(be, key, dec_data, &dec_size, total, &more))) {
+            if ((err = be->ops->be_load(be, key, dec_data, &dec_size, total, &flg))) {
                 DEBUG("configuration: backend importing key %s failed (%d)\n",
                         configuration_key_buf(key), err);
                 goto restore_key;
@@ -153,11 +158,13 @@ int configuration_import_handler_default(const conf_handler_t *handler,
                 /* first read returns the full size */
                 full_dec_size = dec_size;
             }
-            if (more) {
+            if (flg & CONF_BACKEND_FLAG_MORE) {
                 dec_size = sizeof(_dec_buffer);
+                flg &= ~CONF_BACKEND_FLAG_MORE;
             }
             sz = dec_size;
-            if (!(err = configuration_decode_internal(&iter, &restore, &dec_handler, &dec_key, dec_data, &dec_size)) || err == -ENOBUFS) {
+            if (!(err = configuration_decode_internal(&iter, &restore, &dec_handler, &dec_key, dec_data, &dec_size)) ||
+                (err == -ENOBUFS && !abort_on_failure)) {
                 total += sz - dec_size;
             }
             else {
@@ -169,8 +176,8 @@ int configuration_import_handler_default(const conf_handler_t *handler,
     }
     else if (handler->data) {
         uint8_t *data = (uint8_t *)handler->data + key->offset;
-        bool more = false;
-        if ((err = be->ops->be_load(be, key, data, &sz, 0, &more))) {
+        conf_backend_flags_t flg = CONF_BACKEND_FLAG_FINISH;
+        if ((err = be->ops->be_load(be, key, data, &sz, 0, &flg))) {
             DEBUG("configuration: backend importing key %s failed (%d)\n",
                 configuration_key_buf(key), err);
         }
@@ -180,6 +187,15 @@ restore_key:
     mutex_unlock(&_dec_mutex);
     key->sid = sid_restore;
     return 0;
+}
+
+static bool _check_subkey(const conf_key_buf_t *key)
+{
+    (void)key;
+#if IS_USED(MODULE_CONFIGURATION_KEY_SUBKEY)
+    return !key->subkey || key->sid > key->subkey->sid_lower;
+#endif
+    return true;
 }
 
 int configuration_export_handler_default(const conf_handler_t *handler,
@@ -200,11 +216,12 @@ int configuration_export_handler_default(const conf_handler_t *handler,
     }
     int err; (void)err;
     size_t total = 0;
+    conf_key_buf_t enc_key = *key;
+    conf_backend_flags_t flg = 0;
     if (be->fmt != CONF_FMT_RAW) {
         conf_path_iterator_t iter = { .root = NULL };
         conf_iterator_restore_t restore;
         const conf_handler_t *enc_handler = handler;
-        conf_key_buf_t enc_key = *key;
         void *enc_data = _enc_buffer;
         size_t enc_size = sizeof(_enc_buffer);
         mutex_lock(&_enc_mutex);
@@ -212,9 +229,11 @@ int configuration_export_handler_default(const conf_handler_t *handler,
             if (err == -ENOBUFS) {
                 /* need to flush */
                 sz = sizeof(_enc_buffer) - enc_size;
-                if ((err = be->ops->be_store(be, key, enc_data, &sz, total, true))) {
-                    DEBUG("configuration: backend exporting key %s failed (%d)\n",
-                            configuration_key_buf(key), err);
+                if (_check_subkey(&enc_key)) {
+                    if ((err = be->ops->be_store(be, key, enc_data, &sz, total, &flg))) {
+                        DEBUG("configuration: backend exporting key %s failed (%d)\n",
+                                configuration_key_buf(key), err);
+                    }
                 }
                 total += sz;
                 enc_data = _enc_buffer;
@@ -230,7 +249,8 @@ int configuration_export_handler_default(const conf_handler_t *handler,
         sz = sizeof(_enc_buffer) - enc_size;
     }
     if (data) {
-        if ((err = be->ops->be_store(be, key, data, &sz, total, false))) {
+        flg |= CONF_BACKEND_FLAG_FINISH;
+        if ((err = be->ops->be_store(be, key, data, &sz, total, &flg))) {
             DEBUG("configuration: backend exporting key %s failed (%d)\n",
                 configuration_key_buf(key), err);
         }
@@ -271,9 +291,13 @@ static int _encode_node_handler_cbor(const conf_handler_t *handler,
 #if IS_USED(MODULE_NANOCBOR)
     nanocbor_encoder_t enc;
     nanocbor_encoder_init(&enc, *enc_data, *enc_size);
-    if (key->sid_normal== handler->node_id->sid_lower) {
+    if (key->sid_normal == handler->node_id->sid_lower) {
         if (*sid_start != key->sid) {
-            if (nanocbor_fmt_uint(&enc, handler->node_id->sid_lower) < 0) {
+            uint64_t sid = key->sid;
+#if IS_USED(MODULE_CONFIGURATION_DELTA_ENCODING)
+            sid = key->sid - handler->parent->node_id->sid_lower;
+#endif
+            if (nanocbor_fmt_uint(&enc, sid) < 0) {
                 DEBUG("configuration: failed to encode node SID %"PRIu64" handler %p\n",
                       key->sid, (const void *)handler);
                 return -ENOBUFS;
@@ -354,7 +378,11 @@ static int _encode_array_handler_cbor(const conf_handler_t *handler,
     nanocbor_encoder_init(&enc, *enc_data, *enc_size);
     if (key->sid_normal == arr_handler->handler.array_id->sid_lower) {
         if (*sid_start != key->sid) {
-            if (nanocbor_fmt_uint(&enc, arr_handler->handler.array_id->sid_lower) < 0) {
+            uint64_t sid = key->sid;
+#if IS_USED(MODULE_CONFIGURATION_DELTA_ENCODING)
+            sid = key->sid - handler->parent->array_id->sid_lower;
+#endif
+            if (nanocbor_fmt_uint(&enc, sid) < 0) {
                 DEBUG("configuration: failed to encode array SID %"PRIu64" handler %p\n",
                       key->sid, (const void *)arr_handler);
                 return -ENOBUFS;
@@ -479,7 +507,11 @@ static int _encode_uint_cbor(const conf_handler_t *handler,
     const void *data = ((const uint8_t *)handler->data) + key->offset;
     nanocbor_encoder_t enc;
     nanocbor_encoder_init(&enc, *enc_data, *enc_size);
-    if (nanocbor_fmt_uint(&enc, key->sid) < 0) {
+    uint64_t sid = key->sid;
+#if IS_USED(MODULE_CONFIGURATION_DELTA_ENCODING)
+    sid = key->sid - handler->parent->node_id->sid_lower;
+#endif
+    if (nanocbor_fmt_uint(&enc, sid) < 0) {
         DEBUG("configuration: failed to encode SID %"PRIu64" for CBOR uint handler %p\n",
               key->sid, (const void *)handler);
         return -ENOBUFS;
@@ -570,7 +602,11 @@ static int _encode_int_cbor(const conf_handler_t *handler,
     const void *data = ((const uint8_t *)handler->data) + key->offset;
     nanocbor_encoder_t enc;
     nanocbor_encoder_init(&enc, *enc_data, *enc_size);
-    if (nanocbor_fmt_uint(&enc, key->sid) < 0) {
+    uint64_t sid = key->sid;
+#if IS_USED(MODULE_CONFIGURATION_DELTA_ENCODING)
+    sid = key->sid - handler->parent->node_id->sid_lower;
+#endif
+    if (nanocbor_fmt_uint(&enc, sid) < 0) {
         DEBUG("configuration: failed to encode SID %"PRIu64" for CBOR int handler %p\n",
               key->sid, (const void *)handler);
         return -ENOBUFS;
@@ -661,7 +697,11 @@ static int _encode_byte_string_cbor(const conf_handler_t *handler,
     const uint8_t *data = ((const uint8_t *)handler->data) + key->offset;
     nanocbor_encoder_t enc;
     nanocbor_encoder_init(&enc, *enc_data, *enc_size);
-    if (nanocbor_fmt_uint(&enc, key->sid) < 0) {
+    uint64_t sid = key->sid;
+#if IS_USED(MODULE_CONFIGURATION_DELTA_ENCODING)
+    sid = key->sid - handler->parent->node_id->sid_lower;
+#endif
+    if (nanocbor_fmt_uint(&enc, sid) < 0) {
         DEBUG("configuration: failed to encode SID %"PRIu64" for CBOR byte string handler %p\n",
               key->sid, (const void *)handler);
         return -ENOBUFS;
@@ -718,7 +758,11 @@ static int _encode_text_string_cbor(const conf_handler_t *handler,
     const char *data = ((const char *)handler->data) + key->offset;
     nanocbor_encoder_t enc;
     nanocbor_encoder_init(&enc, *enc_data, *enc_size);
-    if (nanocbor_fmt_uint(&enc, key->sid) < 0) {
+    uint64_t sid = key->sid;
+#if IS_USED(MODULE_CONFIGURATION_DELTA_ENCODING)
+    sid = key->sid - handler->parent->node_id->sid_lower;
+#endif
+    if (nanocbor_fmt_uint(&enc, sid) < 0) {
         DEBUG("configuration: failed to encode SID %"PRIu64" for CBOR test string handler %p\n",
               key->sid, (const void *)handler);
         return -ENOBUFS;

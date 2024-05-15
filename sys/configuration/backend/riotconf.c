@@ -32,6 +32,7 @@
 #include "riotconf/slot.h"
 
 static riotconf_slot_t _current = -EINVAL;
+static riotconf_hdr_t _current_hdr;
 
 __attribute__((weak))
 int configuration_backend_riotconf_accept(const riotconf_hdr_t *hdr)
@@ -65,7 +66,7 @@ static int _be_riotconf_reset(void)
 
 static int _be_riotconf_load(const struct conf_backend *be,
                              conf_key_buf_t *key, void *val, size_t *size,
-                             size_t offset, bool *more)
+                             size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
     (void)key;
@@ -77,26 +78,29 @@ static int _be_riotconf_load(const struct conf_backend *be,
         return -ENOENT;
     }
     size_t rd = *size;
-    if (offset == 0) {
+    if (!(*flg & CONF_BACKEND_FLAG_START)) {
         riotconf_slot_start_read(_current, &sector, &sector_size);
+        *flg |= CONF_BACKEND_FLAG_START;
         riotconf_hdr_t *p_hdr = sector;
         riotconf_hdr_t hdr = *p_hdr;
         riotconf_hdr_ntoh(&hdr);
         if (*size < hdr.size) {
             *size = hdr.size;
-            *more = true;
+            *flg |= CONF_BACKEND_FLAG_MORE;
         }
         else {
             rd = hdr.size;
             *size = rd;
+            *flg |= CONF_BACKEND_FLAG_FINISH;
         }
     }
     if ((ret = riotconf_slot_read(_current, val, offset, rd)) < 0) {
         goto fin;
     }
-    if (!*more) {
+    if (*flg & CONF_BACKEND_FLAG_FINISH) {
 fin:
         riotconf_slot_finish_read(_current);
+        *flg &= ~CONF_BACKEND_FLAG_FINISH;
     }
     return ret;
 
@@ -104,19 +108,23 @@ fin:
 
 static int _be_riotconf_store(const struct conf_backend *be,
                               conf_key_buf_t *key, const void *val, size_t *size,
-                              size_t offset, bool more)
+                              size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
     (void)key;
     if (_current < 0) {
         return -ENOENT;
     }
-    if (offset == 0) {
-        riotconf_slot_start_write(_current);
+    if (!(*flg & CONF_BACKEND_FLAG_START)) {
+        riotconf_slot_start_write(_current, &_current_hdr);
+        *flg |= CONF_BACKEND_FLAG_START;
     }
     riotconf_slot_write(_current, val, offset, *size);
-    if (!more) {
-        riotconf_slot_finish_write(_current, 0, 0, offset + *size);
+    if ((*flg & CONF_BACKEND_FLAG_FINISH)) {
+        uint32_t version = _current_hdr.magic == RIOTCONF_MAGIC ? _current_hdr.version : 0;
+        uint32_t sequence = _current_hdr.magic == RIOTCONF_MAGIC ? _current_hdr.sequence : 0;
+        riotconf_slot_finish_write(_current, sequence, version, offset + *size);
+        *flg &= ~CONF_BACKEND_FLAG_FINISH;
     }
     return 0;
 }
@@ -136,6 +144,11 @@ const conf_backend_ops_t conf_backend_riotconf_ops = {
     .be_store = _be_riotconf_store,
     .be_delete = _be_riotconf_delete,
 };
+
+riotconf_slot_t configuration_backend_riotconf_slot_current(void)
+{
+    return _current;
+}
 
 int configuration_backend_riotconf_reset(void)
 {

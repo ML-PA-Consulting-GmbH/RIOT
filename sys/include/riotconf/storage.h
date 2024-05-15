@@ -7,7 +7,7 @@
  */
 
 /**
- * @defgroup    sys_riotboot_storage    RIOT configuration storage API
+ * @defgroup    sys_riotconf_storage    RIOT configuration storage API
  * @ingroup     sys
  * @{
  *

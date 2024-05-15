@@ -86,10 +86,10 @@ static struct kv _kv[] = {
 
 static int _be_ram_load(const struct conf_backend *be,
                         conf_key_buf_t *key, void *val, size_t *size,
-                        size_t offset, bool *more)
+                        size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
-    (void)more;
+    (void)flg;
 
     assert(offset + *size <= CONFIG_CONFIGURATION_BACKEND_RAM_BUF_SIZE);
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
@@ -100,7 +100,7 @@ static int _be_ram_load(const struct conf_backend *be,
             if (!offset) {
                 if (*size < _kv[i].len) {
                     *size = _kv[i].len;
-                    *more = true;
+                    *flg |= CONF_BACKEND_FLAG_MORE;
                 }
                 else {
                     rd = _kv[i].len;
@@ -116,19 +116,20 @@ static int _be_ram_load(const struct conf_backend *be,
 
 static int _be_ram_store(const struct conf_backend *be,
                          conf_key_buf_t *key, const void *val, size_t *size,
-                         size_t offset, bool more)
+                         size_t offset, conf_backend_flags_t *flg)
 {
     (void)be;
-    (void)more;
+    (void)flg;
 
     assert(offset + *size <= CONFIG_CONFIGURATION_BACKEND_RAM_BUF_SIZE);
     for (unsigned i = 0; i < ARRAY_SIZE(_kv); i++) {
         if (!strcmp(configuration_key_buf(key), _kv[i].key) ||
             _kv[i].sid == key->sid) {
             memcpy((uint8_t *)_kv[i].value + offset, val, *size);
-            if (more == false) {
+            if (*flg & CONF_BACKEND_FLAG_FINISH) {
                 _kv[i].deleted = false;
                 _kv[i].len = offset + *size;
+                *flg &= ~CONF_BACKEND_FLAG_FINISH;
             }
             return 0;
         }

@@ -50,6 +50,7 @@ riotconf_slot_t riotconf_slot_highest_seq(riotconf_slot_compat_cb_t compatible)
             if (compatible && !compatible(&hdr)) {
                 continue;
             }
+            highest = hdr.sequence;
             slot = i;
         }
     }
@@ -126,13 +127,18 @@ void riotconf_slot_finish_read(riotconf_slot_t slot)
     riotconf_storage_finish_read(dev);
 }
 
-int riotconf_slot_start_write(riotconf_slot_t slot)
+int riotconf_slot_start_write(riotconf_slot_t slot, riotconf_hdr_t *hdr)
 {
     riotconf_storage_t *dev = riotconf_storage_get(slot);
     if (!dev) {
         return -ENODEV;
     }
-    return riotconf_storage_start_write(dev);
+    int ret = riotconf_storage_start_write(dev);
+    if (hdr) {
+        memcpy(hdr, dev->sector_buf, sizeof(*hdr));
+        riotconf_hdr_ntoh(hdr);
+    }
+    return ret;
 }
 
 int riotconf_slot_write(riotconf_slot_t slot, const void *data, size_t offset, size_t size)
@@ -145,7 +151,7 @@ int riotconf_slot_write(riotconf_slot_t slot, const void *data, size_t offset, s
     return riotconf_storage_write(dev, data, offset, size);
 }
 
-static void _reiotconf_checksum(riotconf_storage_t *dev, void *sec_buf, size_t sec_size, riotconf_hdr_t *hdr)
+static void _riotconf_checksum(riotconf_storage_t *dev, void *sec_buf, size_t sec_size, riotconf_hdr_t *hdr)
 {
     riotconf_hdr_t *h = (riotconf_hdr_t *)sec_buf;
     riotconf_hdr_checksum_ctx_t chk;
@@ -194,7 +200,7 @@ void riotconf_slot_finish_write(riotconf_slot_t slot, uint32_t seq, uint32_t ver
     riotconf_storage_start_read(dev, &sector, &sector_size);
     riotconf_storage_read(dev, sector, 0, sector_size);
     memcpy(sector, &hdr, sizeof(hdr));
-    _reiotconf_checksum(dev, sector, sector_size, &hdr);
+    _riotconf_checksum(dev, sector, sector_size, &hdr);
     riotconf_storage_finish_read(dev);
 
     assert(hdr.sequence == seq);
@@ -224,7 +230,7 @@ int riotconf_slot_validate(riotconf_slot_t slot, riotconf_hdr_t *hdr)
         return -EINVAL;
     }
     uint32_t checksum = hdr->checksum;
-    _reiotconf_checksum(dev, sector, sector_size, hdr);
+    _riotconf_checksum(dev, sector, sector_size, hdr);
     riotconf_storage_finish_read(dev);
     if (checksum != hdr->checksum) {
         LOG_DEBUG("%s: riotconf_slot checksum invalid\n", __func__);

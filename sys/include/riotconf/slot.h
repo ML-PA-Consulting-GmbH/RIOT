@@ -7,7 +7,7 @@
  */
 
 /**
- * @defgroup    sys_riotboot_slot   Helpers to manipulate RIOT configuration partitions
+ * @defgroup    sys_riotconf_slot   Helpers to manipulate RIOT configuration partitions
  * @ingroup     sys
  * @{
  *
@@ -69,6 +69,7 @@ riotconf_slot_t riotconf_slot_other(riotconf_slot_t current);
  * has been verified for correctness.
  *
  * @param[in]   slot    Configuration slot
+ * @param[in]   state   State to encode
  *
  * @return  The state of the slot
  */
@@ -115,14 +116,17 @@ void riotconf_slot_finish_read(riotconf_slot_t slot);
  *
  * The first sector containing the header is saved before erase.
  *
+ * @note  If the output header has a valid magic number, you may assume that also version and sequence number are valid.
+ *
  * @warning The configuration on the device is invalidated to not have valid but partially written data
  *
  * @param[in]   slot    Configuration slot
+ * @param[out]  hdr     If not NUll, it will contain the header of the current slot which was erased
  *
  * @return  0 on success
  * @return  <0 on error
  */
-int riotconf_slot_start_write(riotconf_slot_t slot);
+int riotconf_slot_start_write(riotconf_slot_t slot, riotconf_hdr_t *hdr);
 
 /**
  * @brief   Write configuration data to a slot

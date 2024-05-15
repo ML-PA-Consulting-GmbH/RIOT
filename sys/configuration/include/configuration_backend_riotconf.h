@@ -48,6 +48,16 @@ extern "C" {
 int configuration_backend_riotconf_accept(const riotconf_hdr_t *hdr);
 
 /**
+ * @brief   Retrief the current riotconf slot in use
+ *
+ * Pass the return value to @ref riotconf_slot_other to get the other slot
+ * to perform a safe configuration update.
+ *
+ * @return riotconf_slot_t
+ */
+riotconf_slot_t configuration_backend_riotconf_slot_current(void);
+
+/**
  * @brief   __attribute__((weak)) function to be overwritten by the application
  *          to call @ref riotconf_storage_init with board supplied MTDs
  */
