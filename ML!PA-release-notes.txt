@@ -21,3 +21,5 @@ RIOT-2024.04-mlpa-2 - Merge Notes
 - merge mariemC/mariem/coap-coaps-forward-proxy
 - merge fabian18/pr/examples/gcoap_input_URI_and_proxy_fixes
 - merge fabian18/pr/configuration_riotconf
+- merge kfessel/p-fix-can
+- merge benpicco/shell_scripting
