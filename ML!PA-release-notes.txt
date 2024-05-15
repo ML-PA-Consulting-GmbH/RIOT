@@ -1,4 +1,4 @@
-RIOT-2024.04-mlpa-1 - Merge Notes
+RIOT-2024.04-mlpa-2 - Merge Notes
 =================================
 
 - based on 2024.04-devel-606-gb5f9772292
@@ -17,3 +17,7 @@ RIOT-2024.04-mlpa-1 - Merge Notes
  - merge benpicco/pkg/nanopb-multi
  - merge fabian18/pr/configuration_riotconf
  - merge benpicco/go-coap_workaround
+
+- merge mariemC/mariem/coap-coaps-forward-proxy
+- merge fabian18/pr/examples/gcoap_input_URI_and_proxy_fixes
+- merge fabian18/pr/configuration_riotconf
