@@ -24,3 +24,4 @@ RIOT-2024.04-mlpa-2 - Merge Notes
 - merge kfessel/p-fix-can
 - merge benpicco/shell_scripting
 - merge benpicco/cpu/sam0_common-adc_sample_multi
+- merge benpicco/nanocoap_reply_separate
