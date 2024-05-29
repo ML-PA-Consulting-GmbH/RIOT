@@ -48,7 +48,7 @@ extern "C" {
 int configuration_backend_riotconf_accept(const riotconf_hdr_t *hdr);
 
 /**
- * @brief   Retrief the current riotconf slot in use
+ * @brief   Retrieve the current riotconf slot in use
  *
  * Pass the return value to @ref riotconf_slot_other to get the other slot
  * to perform a safe configuration update.
@@ -56,6 +56,13 @@ int configuration_backend_riotconf_accept(const riotconf_hdr_t *hdr);
  * @return riotconf_slot_t
  */
 riotconf_slot_t configuration_backend_riotconf_slot_current(void);
+
+/**
+ * @brief   Retrieve the header of the current configuration slot
+ *
+ * @return  The header of the current configuration slot
+ */
+riotconf_hdr_t configuration_backend_riotconf_header_current(void);
 
 /**
  * @brief   __attribute__((weak)) function to be overwritten by the application
