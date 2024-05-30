@@ -29,8 +29,10 @@
 #include "net/coap.h"
 #include "net/gcoap.h"
 #include "net/gcoap/forward_proxy.h"
+#include "net/nanocoap.h"
 #include "net/nanocoap/cache.h"
 #include "net/sock/async/event.h"
+#include "net/sock/udp.h"
 #include "net/sock/util.h"
 #include "mutex.h"
 #include "random.h"
@@ -107,6 +109,8 @@ static void _dtls_free_up_session(void *arg);
 
 #if ENABLE_DEBUG
 static char _ipv6_addr_str[IPV6_ADDR_MAX_STR_LEN];
+#else
+#define _ipv6_addr_str NULL
 #endif
 
 /* Internal variables */
