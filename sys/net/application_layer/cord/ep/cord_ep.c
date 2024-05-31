@@ -151,7 +151,8 @@ static int _update_remove(unsigned code, gcoap_resp_handler_t handle)
     ssize_t pkt_len = coap_opt_finish(&pkt, COAP_OPT_FINISH_NONE);
 
     /* send request */
-    ssize_t send_len = gcoap_req_send(buf, pkt_len, &_rd_remote, NULL, handle, NULL, GCOAP_SOCKET_TYPE_UNDEF);
+    ssize_t send_len = gcoap_req_send(buf, pkt_len, &_rd_remote, NULL,
+                                      handle, NULL, GCOAP_SOCKET_TYPE_UNDEF);
     if (send_len <= 0) {
         return CORD_EP_ERR;
     }

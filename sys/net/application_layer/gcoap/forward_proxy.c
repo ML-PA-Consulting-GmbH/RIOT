@@ -227,7 +227,8 @@ static bool _parse_endpoint(sock_udp_ep_t *remote,
     return true;
 }
 
-static ssize_t _dispatch_msg(const void *buf, size_t len, sock_udp_ep_t *remote, const sock_udp_ep_t *local)
+static ssize_t _dispatch_msg(const void *buf, size_t len, sock_udp_ep_t *remote,
+                             const sock_udp_ep_t *local)
 {
     /* Yes it's not a request -- but turns out there is nothing in
      * gcoap_req_send that is actually request specific, especially if we

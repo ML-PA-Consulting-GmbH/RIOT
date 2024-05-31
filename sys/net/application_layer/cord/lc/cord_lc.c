@@ -190,7 +190,8 @@ static ssize_t _lookup_raw(const cord_lc_rd_t *rd, unsigned content_format,
     if (pkt_len < 0) {
         return CORD_LC_ERR;
     }
-    res = gcoap_req_send(reqbuf, pkt_len, rd->remote, NULL, _on_lookup, NULL, GCOAP_SOCKET_TYPE_UNDEF);
+    res = gcoap_req_send(reqbuf, pkt_len, rd->remote, NULL,
+                         _on_lookup, NULL, GCOAP_SOCKET_TYPE_UNDEF);
     if (res < 0) {
         return CORD_LC_ERR;
     }

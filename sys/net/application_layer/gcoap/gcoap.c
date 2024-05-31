@@ -29,6 +29,7 @@
 #include "net/coap.h"
 #include "net/gcoap.h"
 #include "net/gcoap/forward_proxy.h"
+#include "net/ipv6/addr.h"
 #include "net/nanocoap.h"
 #include "net/nanocoap/cache.h"
 #include "net/sock/async/event.h"
@@ -948,8 +949,9 @@ static gcoap_request_memo_t* _find_req_memo_by_token(const sock_udp_ep_t *remote
         memo_pdu->hdr = gcoap_request_memo_get_hdr(memo);
 
         /* verbose debug to catch bugs with request/response matching */
-        DEBUG("Seeking memo for remote=%s, tkn=0x%02x%02x%02x%02x%02x%02x%02x%02x, tkl=%u\n",
-              ipv6_addr_to_str(_ipv6_addr_str, &remote->addr.ipv6_addr, IPV6_ADDR_MAX_STR_LEN),
+        DEBUG("Seeking memo for remote=%s, tkn=0x%02x%02x%02x%02x%02x%02x%02x%02x, tkl=%"PRIuSIZE"\n",
+              ipv6_addr_to_str(_ipv6_addr_str, (ipv6_addr_t *)&remote->addr.ipv6,
+                               IPV6_ADDR_MAX_STR_LEN),
               token[0], token[1], token[2], token[3], token[4], token[5], token[6], token[7],
               tkl);
 
@@ -970,8 +972,8 @@ static gcoap_request_memo_t* _find_req_memo_by_token(const sock_udp_ep_t *remote
             }
             else {
                 DEBUG("Remote address mismatch %s\n",
-                      ipv6_addr_to_str(_ipv6_addr_str,
-                                       &memo->remote_ep.addr.ipv6_addr, IPV6_ADDR_MAX_STR_LEN));
+                      ipv6_addr_to_str(_ipv6_addr_str, (ipv6_addr_t *)&memo->remote_ep.addr.ipv6,
+                                       IPV6_ADDR_MAX_STR_LEN));
                 continue;
             }
         }
