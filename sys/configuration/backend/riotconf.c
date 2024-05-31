@@ -32,6 +32,8 @@
 #include "riotconf/slot.h"
 #include "riotconf/storage.h"
 
+#include "configuration_backend_riotconf.h"
+
 static riotconf_slot_t _current = -EINVAL;
 static riotconf_hdr_t _current_hdr;
 
@@ -62,7 +64,7 @@ static int _be_riotconf_init(void)
 
 static int _be_riotconf_reset(void)
 {
-    return 0;
+    return riotconf_slot_invalidate(configuration_backend_riotconf_slot_current());
 }
 
 static int _be_riotconf_load(const struct conf_backend *be,

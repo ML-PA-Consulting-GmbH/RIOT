@@ -78,6 +78,13 @@ void configuration_backend_riotconf_storage_init(void);
 int configuration_backend_riotconf_init(void);
 
 /**
+ * @brief   Reset the riotconf configuration backend
+ *
+ * @return  0 on success, <0 on error
+ */
+int configuration_backend_riotconf_reset(void);
+
+/**
  * @brief   Auto-initialize the riotconf configuration backend
  */
 void auto_init_configuration_backend_riotconf(void);
