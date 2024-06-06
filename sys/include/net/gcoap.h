@@ -559,6 +559,14 @@ extern "C" {
 
 /**
  * @ingroup net_gcoap_conf
+ * @brief   Maximum number of local notifying endpoint addresses
+ */
+#ifndef CONFIG_GCOAP_OBS_NOTIFIERS_MAX
+#define CONFIG_GCOAP_OBS_NOTIFIERS_MAX  (2)
+#endif
+
+/**
+ * @ingroup net_gcoap_conf
  * @brief   Maximum number of registrations for Observable resources
  */
 #ifndef CONFIG_GCOAP_OBS_REGISTRATIONS_MAX
@@ -622,7 +630,7 @@ extern "C" {
  * @brief Stack size for module thread
  * @{
  */
-#ifndef GCOAP_STACK_SIZE
+#ifndef GCOAP_DTLS_EXTRA_STACKSIZE
 #if IS_USED(MODULE_GCOAP_DTLS)
 #define GCOAP_DTLS_EXTRA_STACKSIZE  (THREAD_STACKSIZE_DEFAULT)
 #else
@@ -639,9 +647,11 @@ extern "C" {
 #define GCOAP_VFS_EXTRA_STACKSIZE   (0)
 #endif
 
+#ifndef GCOAP_STACK_SIZE
 #define GCOAP_STACK_SIZE (THREAD_STACKSIZE_DEFAULT + DEBUG_EXTRA_STACKSIZE \
                           + sizeof(coap_pkt_t) + GCOAP_DTLS_EXTRA_STACKSIZE \
                           + GCOAP_VFS_EXTRA_STACKSIZE)
+#endif
 #endif
 /** @} */
 
@@ -837,6 +847,7 @@ struct gcoap_request_memo {
  */
 typedef struct {
     sock_udp_ep_t *observer;            /**< Client endpoint; unused if null */
+    sock_udp_ep_t *notifier;            /**< Local endpoint to send notifications */
     const coap_resource_t *resource;    /**< Entity being observed */
     uint8_t token[GCOAP_TOKENLEN_MAX];  /**< Client token for notifications */
     uint16_t last_msgid;                /**< Message ID of last notification */
