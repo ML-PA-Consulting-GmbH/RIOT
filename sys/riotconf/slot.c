@@ -93,6 +93,7 @@ int riotconf_slot_set_state(riotconf_slot_t slot, uint32_t state)
     if (riotconf_storage_start_write(dev)) {
         return -EIO;
     }
+    riotconf_hdr_hton(&hdr);
     riotconf_storage_finish_write(dev, &hdr);
     return 0;
 }
@@ -156,10 +157,12 @@ static void _riotconf_checksum(riotconf_storage_t *dev, void *sec_buf, size_t se
     riotconf_hdr_t *h = (riotconf_hdr_t *)sec_buf;
     riotconf_hdr_checksum_ctx_t chk;
     riotconf_hdr_checksum_init(&chk, h);
+    riotconf_hdr_state_t state_backup = hdr->state;
     memcpy(hdr, h, sizeof(*hdr));
     size_t total = sizeof(*h) + ntohl(h->size);
     size_t size = MIN(total, sec_size);
 #if ENABLE_DEBUG
+    DEBUG("riotconf: slot %u\n", dev - riotconf_storage_get(0));
     DEBUG("riotconf: sec 0\n");
     od_hex_dump(sec_buf, size, OD_WIDTH_DEFAULT);
 #endif
@@ -177,6 +180,7 @@ static void _riotconf_checksum(riotconf_storage_t *dev, void *sec_buf, size_t se
     }
     riotconf_hdr_checksum_final(&chk, hdr);
     riotconf_hdr_ntoh(hdr);
+    hdr->state = state_backup;
 }
 
 void riotconf_slot_finish_write(riotconf_slot_t slot, uint32_t seq, uint32_t version, size_t size)

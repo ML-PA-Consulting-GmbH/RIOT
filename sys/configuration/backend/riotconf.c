@@ -30,6 +30,9 @@
 #include "mutex.h"
 #include "mtd_default.h"
 #include "riotconf/slot.h"
+#include "riotconf/storage.h"
+
+#include "configuration_backend_riotconf.h"
 
 static riotconf_slot_t _current = -EINVAL;
 static riotconf_hdr_t _current_hdr;
@@ -61,7 +64,7 @@ static int _be_riotconf_init(void)
 
 static int _be_riotconf_reset(void)
 {
-    return 0;
+    return riotconf_slot_invalidate(configuration_backend_riotconf_slot_current());
 }
 
 static int _be_riotconf_load(const struct conf_backend *be,
@@ -148,6 +151,13 @@ const conf_backend_ops_t conf_backend_riotconf_ops = {
 riotconf_slot_t configuration_backend_riotconf_slot_current(void)
 {
     return _current;
+}
+
+riotconf_hdr_t configuration_backend_riotconf_header_current(void)
+{
+    riotconf_hdr_t hdr;
+    riotconf_storage_read(riotconf_storage_get(_current), &hdr, 0, sizeof(hdr));
+    return hdr;
 }
 
 int configuration_backend_riotconf_reset(void)
