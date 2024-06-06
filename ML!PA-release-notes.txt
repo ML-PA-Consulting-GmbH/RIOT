@@ -32,3 +32,4 @@ RIOT-2024.04-mlpa-3 - Merge Notes
 - merge fabian18/pr/fix_gcoap_observe_response_correlation
 - merge fabian18/pr/coap_fixes_and_gcoap_sep_resp
 - merge fabian18/pr/nanocoap_sock_fix_ctx_release
+- merge kfessel/f-make-compile-commads
