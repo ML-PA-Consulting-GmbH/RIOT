@@ -1,4 +1,4 @@
-RIOT-2024.04-mlpa-3 - Merge Notes
+RIOT-2024.04-mlpa-4 - Merge Notes
 =================================
 
 - based on 2024.04-devel-606-gb5f9772292
@@ -33,3 +33,7 @@ RIOT-2024.04-mlpa-3 - Merge Notes
 - merge fabian18/pr/coap_fixes_and_gcoap_sep_resp
 - merge fabian18/pr/nanocoap_sock_fix_ctx_release
 - merge kfessel/f-make-compile-commads
+
+- merge fabian18/pr/configuration_riotconf
+- merge fabian18/pr/coap_fixes_and_gcoap_sep_resp
+- merge fabian18/pr/fix_riotboot_build_with_slot_aux
