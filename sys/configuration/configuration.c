@@ -375,7 +375,7 @@ static conf_handler_t *_configuration_handler_encode_iterator_next(conf_path_ite
             }
             push_subnodes = true;
         }
-        else if (!next.node->conf_flags.primitive_type && next.index < 1) {
+        else if (!next.node->conf_flags.handles_primitive && next.index < 1) {
             assert(iter->sp < ARRAY_SIZE(iter->stack));
             iter->stack[iter->sp++] = (conf_path_iterator_item_t) { next.node, 1 };
             if (key->sid != *sid_start) {

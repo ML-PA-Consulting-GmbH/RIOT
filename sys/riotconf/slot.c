@@ -33,10 +33,6 @@
 #define ENABLE_DEBUG 0
 #include "debug.h"
 
-#if ENABLE_DEBUG
-#include "od.h"
-#endif
-
 riotconf_slot_t riotconf_slot_highest_seq(riotconf_slot_compat_cb_t compatible)
 {
     riotconf_slot_t slot = -1;
@@ -161,20 +157,11 @@ static void _riotconf_checksum(riotconf_storage_t *dev, void *sec_buf, size_t se
     memcpy(hdr, h, sizeof(*hdr));
     size_t total = sizeof(*h) + ntohl(h->size);
     size_t size = MIN(total, sec_size);
-#if ENABLE_DEBUG
-    DEBUG("riotconf: slot %u\n", dev - riotconf_storage_get(0));
-    DEBUG("riotconf: sec 0\n");
-    od_hex_dump(sec_buf, size, OD_WIDTH_DEFAULT);
-#endif
     riotconf_hdr_checksum_update(&chk, sec_buf, size);
     total -= size;
     for (unsigned i = 1; total > 0; i++) {
         size = MIN(total, sec_size);
         riotconf_storage_read(dev, sec_buf, i * sec_size, size);
-#if ENABLE_DEBUG
-        DEBUG("riotconf: sec %u\n", i);
-        od_hex_dump(sec_buf, size, OD_WIDTH_DEFAULT);
-#endif
         riotconf_hdr_checksum_update(&chk, sec_buf, size);
         total -= size;
     }
@@ -264,3 +251,33 @@ int riotconf_slot_invalidate(riotconf_slot_t slot)
     riotconf_storage_finish_write(dev, &hdr);
     return 0;
 }
+
+#if IS_USED(MODULE_RIOTCONF_SLOT_PRINT)
+#include "od.h"
+void riotconf_slot_print(riotconf_slot_t slot)
+{
+    void *sec;
+    size_t sec_size;
+    int ret = riotconf_slot_start_read(slot, &sec, &sec_size);
+    if (ret) {
+        DEBUG("Cannot read slot %u\n", slot);
+        return;
+    }
+    riotconf_hdr_t h = *(riotconf_hdr_t *)sec;
+    riotconf_hdr_ntoh(&h);
+    if (h.magic != RIOTCONF_MAGIC) {
+        riotconf_slot_finish_read(slot);
+        DEBUG("Slot %u is not valid\n", slot);
+        return;
+    }
+    printf("Slot: %d, seq: %"PRIu32", version: %"PRIu32", size %"PRIu32"\n",
+           slot, h.sequence, h.version, h.size);
+    size_t off = 0;
+    while (off < h.size) {
+        riotconf_slot_read(slot, sec, off, sec_size);
+        od_hex_dump(sec, MIN(sec_size, h.size - off), OD_WIDTH_DEFAULT);
+        off += sec_size;
+    }
+    riotconf_slot_finish_read(slot);
+}
+#endif

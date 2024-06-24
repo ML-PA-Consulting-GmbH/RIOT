@@ -534,7 +534,7 @@ static int _encode_uint_cbor(const conf_handler_t *handler,
             assert(false);
             break;
     }
-    if (nanocbor_fmt_uint(&enc, uint_val) != NANOCBOR_OK) {
+    if (nanocbor_fmt_uint(&enc, uint_val) < 0) {
         DEBUG("configuration: failed to encode CBOR uint for SID %"PRIu64" handler %p\n",
               key->sid, (const void *)handler);
         return -ENOBUFS;
