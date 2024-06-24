@@ -865,7 +865,7 @@ typedef struct {
 #if defined(MODULE_SOCK_AUX_LOCAL) || DOXYGEN
     sock_udp_ep_t local;                    /**< Local endpoint from which to send the response */
 #endif
-    int result;                                 /**< Result of precessing the request */
+    int result;                                 /**< Result of processing the request */
     uint8_t *req_buf;                           /**< Buffer to cache request */
     size_t req_buf_size;                        /**< Size of the buffer containing the request */
     uint8_t *resp_buf;                          /**< Buffer to write response to */
@@ -882,6 +882,16 @@ typedef struct {
  * @return  -EINVAL, if the IP port already is in use.
  */
 kernel_pid_t gcoap_init(void);
+
+/**
+ * @brief   Get a pointer to the internal gcoap event queue, to offload tasks to the gcoap thread
+ *          using RIOT's event API
+ *
+ * @warning     Beware to only use the event API on it.
+ *
+ * @return  Event queue pointer
+ */
+event_queue_t *gcoap_get_event_queue(void);
 
 /**
  * @brief   Starts listening for resource paths

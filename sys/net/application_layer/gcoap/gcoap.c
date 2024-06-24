@@ -26,6 +26,7 @@
 #include <string.h>
 
 #include "assert.h"
+#include "event.h"
 #include "net/coap.h"
 #include "net/gcoap.h"
 #include "net/gcoap/forward_proxy.h"
@@ -477,7 +478,7 @@ static void _process_coap_pdu(gcoap_socket_t *sock, sock_udp_ep_t *remote, sock_
         /* normal request */
         else if (coap_get_type(&pdu) == COAP_TYPE_NON
                 || coap_get_type(&pdu) == COAP_TYPE_CON) {
-            size_t pdu_len;
+            ssize_t pdu_len;
 
             if (truncated) {
                 /* TBD: Set a Size1 */
@@ -493,6 +494,10 @@ static void _process_coap_pdu(gcoap_socket_t *sock, sock_udp_ep_t *remote, sock_
                 if (bytes <= 0) {
                     DEBUG("gcoap: send response failed: %" PRIdSIZE "\n", bytes);
                 }
+            }
+            else if (!pdu_len && coap_get_type(&pdu) == COAP_TYPE_CON) {
+                messagelayer_emptyresponse_type = COAP_TYPE_ACK;
+                DEBUG_PUTS("gcoap: Suspending CON request with empty ACK");
             }
         }
         else {
@@ -2072,6 +2077,11 @@ void gcoap_forward_proxy_find_req_memo(gcoap_request_memo_t **memo_ptr,
 void gcoap_forward_proxy_post_event(void *arg)
 {
     event_post(&_queue, arg);
+}
+
+event_queue_t *gcoap_get_event_queue(void)
+{
+    return &_queue;
 }
 
 /* separate response API */
