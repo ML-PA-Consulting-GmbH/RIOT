@@ -8,6 +8,7 @@ menu "System"
 
 rsource "auto_init/Kconfig"
 rsource "chunked_ringbuffer/Kconfig"
+rsource "configuration/Kconfig"
 rsource "congure/Kconfig"
 rsource "debug_irq_disable/Kconfig"
 rsource "entropy_source/Kconfig"
