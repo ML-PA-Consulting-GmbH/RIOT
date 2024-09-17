@@ -29,6 +29,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <stddef.h>
 
 #include "board.h"
 #include "kernel_defines.h"
@@ -55,6 +56,28 @@ static void _init(void)
     }
 
     uart_init(STDIO_UART_DEV, STDIO_UART_BAUDRATE, cb, arg);
+}
+
+#if IS_USED(MODULE_STDIO_AVAILABLE)
+int stdio_available(void)
+{
+    return tsrb_avail(&stdio_uart_isrpipe.tsrb);
+}
+#endif
+
+#if IS_USED(MODULE_STDIO_FLUSH_RX)
+void stdio_flush_rx(void)
+{
+    tsrb_clear(&stdio_uart_isrpipe.tsrb);
+}
+#endif
+
+ssize_t stdio_read(void* buffer, size_t count)
+{
+    if (IS_USED(MODULE_STDIO_UART_RX)) {
+        return (ssize_t)isrpipe_read(&stdio_uart_isrpipe, buffer, count);
+    }
+    return -ENOTSUP;
 }
 
 static ssize_t _write(const void *buffer, size_t len)
