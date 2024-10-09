@@ -18,9 +18,8 @@
  *
  * @}
  */
-
 #include <stdint.h>
-
+#include "macros/units.h"
 #include "macros/utils.h"
 #include "mutex.h"
 #include "periph/adc.h"
@@ -113,11 +112,10 @@ static void _find_presc(uint32_t f_src, adc_res_t res, uint32_t f_tgt,
                         uint8_t *prescale, uint8_t *samplen)
 {
     uint32_t _best_match = UINT32_MAX;
+    uint32_t diff;
 
-#ifdef CPU_COMMON_SAMD21
-    /* SAM D2x counts in half CLK_ADC cycles */
-    f_src <<= 1;
-#endif
+    /* ADC Module GCLK max input freq */
+    assert(f_src <= MHZ(100));
 
     /* minimal prescaler right shift */
 #if defined(ADC_CTRLA_PRESCALER_DIV2) || defined(ADC_CTRLB_PRESCALER_DIV2)
@@ -129,8 +127,19 @@ static void _find_presc(uint32_t f_src, adc_res_t res, uint32_t f_tgt,
     uint8_t bits = _res_bits(res);
 
     for (uint8_t i = start; i < end; ++i) {
+
+        uint32_t f_adc = f_src >> i;
+        if (f_adc < SAM0_ADC_CLOCK_FREQ_MIN ||
+            f_adc > SAM0_ADC_CLOCK_FREQ_MAX) {
+            /* frequency outside valid ADC Clock Period window */
+            continue;
+        }
+#ifdef CPU_COMMON_SAMD21
+        /* SAM D2x counts in half CLK_ADC cycles */
+        f_adc <<= 1;
+#endif
         for (uint8_t _samplen = 32; _samplen > 0; --_samplen) {
-            unsigned diff = _absdiff((f_src >> i) / (_samplen + bits), f_tgt);
+            diff = _absdiff(f_adc / (_samplen + bits), f_tgt);
             if (diff < _best_match) {
                 _best_match = diff;
                 *samplen  = _samplen;
@@ -138,6 +147,9 @@ static void _find_presc(uint32_t f_src, adc_res_t res, uint32_t f_tgt,
             }
         }
     }
+
+     DEBUG("adc.c: f_tgt=%"PRIu32", diff=%"PRIu32", prescaler=%"PRIu8", samplen=%"PRIu8"\n",
+           f_tgt, diff, *prescale, *samplen);
 }
 
 #ifdef ADC_CTRLB_PRESCALER_Pos
