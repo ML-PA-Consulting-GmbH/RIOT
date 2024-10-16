@@ -1,4 +1,4 @@
-RIOT-2024.07-mlpa-1-schunk - Merge Notes
+RIOT-2024.07-mlpa-2-schunk - Merge Notes
 ========================================
 
 - based on master (0cea359db681d99d60d62ed5de167ed428d178d3)
@@ -16,3 +16,5 @@ RIOT-2024.07-mlpa-1-schunk - Merge Notes
 - merge benpicco/cpu/sam0_common-adc_sample_multi
 - merge fabian18/pr/coap_fixes_and_gcoap_sep_resp
 - merge fabian18/pr/configuration_riotconf
+
+- cherry-pick 224fdb2294c1b910dd9c3360e6bdf0e69e0bf850
