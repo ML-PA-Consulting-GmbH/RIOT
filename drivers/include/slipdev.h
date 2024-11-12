@@ -127,6 +127,7 @@ typedef struct {
                                             /* loop at _isr.                                */
 
     uint8_t rxmem[CONFIG_SLIPDEV_BUFSIZE];  /**< memory used by RX buffer */
+    int16_t bytes_tx;                       /**< size of the last sent frame */
     /**
      * @brief   Device state
      * @see     [Device state definitions](@ref drivers_slipdev_states)
