@@ -30,9 +30,6 @@
 #include "net/credman.h"
 #include "net/nanocoap.h"
 #include "net/nanocoap_sock.h"
-#ifdef MODULE_SOCK_ASYNC_EVENT
-#include "net/sock/async/event.h"
-#endif
 #include "net/sock/udp.h"
 #include "net/sock/util.h"
 #include "random.h"
@@ -40,16 +37,16 @@
 #include "time_units.h"
 #include "ztimer.h"
 
+#ifdef MODULE_SOCK_ASYNC_EVENT
+#  include "net/sock/async/event.h"
+#endif
+
 #if MODULE_NANOCOAP_UDP || MODULE_NANOCOAP_TCP
 #  include "net/sock/util.h"
 #endif
 
 #if MODULE_NANOCOAP_TCP
 #  include "net/sock/tcp.h"
-#endif
-
-#if MODULE_NANOCOAP_SERVER_TCP
-#  include "net/sock/async/event.h"
 #endif
 
 #define ENABLE_DEBUG 0
