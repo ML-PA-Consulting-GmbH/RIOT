@@ -11,3 +11,4 @@ RIOT-2025.01-mlpa-dev-20250107 - Merge Notes
  - merge fabian18/pr/configuration_riotconf
  - merge benpicco/cpu/sam0_common-adc_sample_multi
  - merge fabian18/pr/coap_fixes_and_gcoap_sep_resp
+ - merge maribu/sys/net/nanocoap/transport-tcp
