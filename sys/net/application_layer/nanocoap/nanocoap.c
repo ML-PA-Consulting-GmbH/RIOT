@@ -840,7 +840,7 @@ ssize_t coap_build_reply(coap_pkt_t *pkt, unsigned code,
                          uint8_t *rbuf, unsigned rlen, unsigned payload_len)
 {
     unsigned tkl = coap_get_token_len(pkt);
-    unsigned hdr_len = sizeof(coap_udp_hdr_t);
+    unsigned hdr_len;
     unsigned type = COAP_TYPE_NON;
 
     if (!code) {
@@ -853,11 +853,20 @@ ssize_t coap_build_reply(coap_pkt_t *pkt, unsigned code,
         type = COAP_TYPE_ACK;
     }
 
-    if (coap_get_transport(pkt) == COAP_TRANSPORT_TCP) {
-        hdr_len = COAP_TCP_TENTATIVE_HEADER_SIZE + coap_pkt_tkl_ext_len(pkt);
+    switch (coap_get_transport(pkt)) {
+    default:
+    case COAP_TRANSPORT_UDP:
+    case COAP_TRANSPORT_DTLS:
+        hdr_len = sizeof(coap_udp_hdr_t);
+        break;
+    case COAP_TRANSPORT_TCP:
+        hdr_len = COAP_TCP_TENTATIVE_HEADER_SIZE;
+        break;
+    case COAP_TRANSPORT_WS:
+        hdr_len = COAP_WS_HEADER_SIZE;
     }
 
-    hdr_len += tkl;
+    hdr_len += tkl + coap_pkt_tkl_ext_len(pkt);
 
     if ((hdr_len + payload_len) > rlen) {
         return -ENOSPC;
