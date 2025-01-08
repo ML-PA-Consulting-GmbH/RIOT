@@ -1848,6 +1848,19 @@ static void _server_ws_conn_recv_cb(coap_ws_conn_t *conn, void *msg, size_t msg_
             conn->handle->transport->close(conn);
             return;
         }
+
+        /* Hack for CoAP over YOLO: "Connection" may be replaced without us
+         * noticing, so we just reply with a CSM as if this was the initial
+         * handshanke. This is fine, as a CSM message is to be expected at
+         * any point in time. */
+        res = nanocoap_send_csm_message_ws(conn, conn->handle->tx_buf,
+                                           sizeof(conn->handle->tx_buf));
+        if (res < 0) {
+            DEBUG("nanocoap_server_ws: failed to reply CSM on connection %p: %d\n",
+                  (void *)conn, res);
+            conn->handle->transport->close(conn);
+            return;
+        }
         break;
     case COAP_CODE_SIGNAL_PING:
         reply_len = coap_reply_simple(&pkt, COAP_CODE_SIGNAL_PONG,
