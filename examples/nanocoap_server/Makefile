@@ -14,6 +14,7 @@ NETWORK_STACK ?= gnrc
 USEMODULE += netdev_default
 USEMODULE += sock_udp
 USEMODULE += ipv6_addr
+USEMODULE += nanocoap_udp
 
 ifeq ($(NETWORK_STACK),gnrc)
   USEMODULE += auto_init_gnrc_netif
