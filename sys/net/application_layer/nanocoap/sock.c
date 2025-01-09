@@ -451,6 +451,7 @@ int nanocoap_send_abort_signal(nanocoap_sock_t *sock)
         .iol_len = retval,
         .iol_next = NULL,
     };
+    (void)msg;
 
     switch (nanocoap_sock_get_type(sock)) {
 #if MODULE_NANOCOAP_TCP
