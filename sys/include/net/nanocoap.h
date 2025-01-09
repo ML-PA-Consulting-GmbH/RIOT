@@ -909,6 +909,54 @@ static inline void *coap_get_token(const coap_pkt_t *pkt)
 }
 
 /**
+ * @brief   Get the token from a CoAP over UDP packet from a buffer
+ *
+ * @warning This function will happily read past the buffer on invalid input.
+ *          Avoid using this function. Use @ref coap_parse_udp instead.
+ *
+ * @pre     This assumes that the buffer has already been validated (e.g. using
+ *          @ref coap_udp_parse).
+ */
+static inline void *coap_get_token_from_udp_buf(uint8_t *buf)
+{
+    coap_udp_hdr_t *hdr = (void *)buf;
+
+    uint8_t tkl = hdr->ver_t_tkl & 0xf;
+    size_t tkl_ext_len =  coap_get_ext_tkl_field_len_from_tkl_val(tkl);
+    return buf + sizeof(coap_udp_hdr_t) + tkl_ext_len;
+}
+
+/**
+ * @brief   Get the token length from a CoAP over UDP packet from a buffer
+ *
+ * @warning This function will happily read past the buffer on invalid input.
+ *          Avoid using this function. Use @ref coap_parse_udp instead.
+ *
+ * @pre     This assumes that the buffer has already been validated (e.g. using
+ *          @ref coap_udp_parse).
+ */
+static inline size_t coap_get_token_len_from_udp_buf(const uint8_t *buf)
+{
+    coap_udp_hdr_t *hdr = (void *)buf;
+    uint8_t tkl = hdr->ver_t_tkl & 0xf;
+    size_t tkl_ext_len = coap_get_ext_tkl_field_len_from_tkl_val(tkl);
+
+    if (tkl_ext_len == 0) {
+        return tkl;
+    }
+
+    if (tkl_ext_len == 1) {
+        /* In https://www.rfc-editor.org/rfc/rfc8974#section-2.1 the magic
+         * number 13 has no name, so we don't make up one here */
+        return buf[sizeof(coap_udp_hdr_t)] + 13;
+    }
+
+    /* In https://www.rfc-editor.org/rfc/rfc8974#section-2.1 the magic
+     * number 269 has no name, so we don't make up one here */
+    return byteorder_bebuftohs(buf + sizeof(coap_udp_hdr_t)) + 269;
+}
+
+/**
  * @brief   Get the total length of a CoAP packet in the packet buffer
  *
  * @note This does not include possible payload snips.
