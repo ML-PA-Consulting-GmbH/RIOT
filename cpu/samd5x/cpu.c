@@ -364,7 +364,7 @@ void cpu_init(void)
 
     /* select the source of the main clock */
     if (USE_DPLL) {
-        fdpll_init_nolock(0, CLOCK_CORECLOCK * DPLL_DIV, OSCCTRL_DPLLCTRLA_ONDEMAND);
+        fdpll_init_nolock(0, CLOCK_CORECLOCK * DPLL_DIV, 0 /* OSCCTRL_DPLLCTRLA_ONDEMAND */);
         gclk_connect(SAM0_GCLK_MAIN, GCLK_SOURCE_DPLL0,
                      GCLK_GENCTRL_DIV(DPLL_DIV));
         fdpll_lock(0);
@@ -399,5 +399,5 @@ void cpu_init(void)
 
     /* set ONDEMAND bit after all clocks have been configured */
     /* This is to avoid setting the source for the main clock to ONDEMAND before using it. */
-    OSCCTRL->Dpll[0].DPLLCTRLA.reg |= OSCCTRL_DPLLCTRLA_ONDEMAND;
+    //OSCCTRL->Dpll[0].DPLLCTRLA.reg |= OSCCTRL_DPLLCTRLA_ONDEMAND;
 }

@@ -28,6 +28,7 @@
 #include "shell.h"
 #include "test_utils/expect.h"
 #include "can/device.h"
+#include "ztimer.h"
 
 #if IS_USED(MODULE_PERIPH_CAN)
 
@@ -65,14 +66,21 @@ static candev_t *candev = NULL;
 
 static int _send(int argc, char **argv)
 {
+    static uint8_t dt = 0;
     int ret = 0;
 
+    dt++;
     struct can_frame frame = {
         .can_id = 1,
-        .can_dlc = 3,
-        .data[0] = 0xAB,
-        .data[1] = 0xCD,
-        .data[2] = 0xEF,
+        .can_dlc = 8,
+        .data[0] = dt,
+        .data[1] = 0xAB,
+        .data[2] = 0xCD,
+        .data[3] = 0xEF,
+        .data[4] = 0x01,
+        .data[5] = 0x02,
+        .data[6] = 0x03,
+        .data[7] = 0x04,
     };
 
     if (argc > 1) {
@@ -275,7 +283,6 @@ static void _can_event_callback(candev_t *dev, candev_event_t event, void *arg)
 
 int main(void)
 {
-
     puts("candev test application\n");
 
     isrpipe_init(&rxbuf, (uint8_t *)rx_ringbuf, sizeof(rx_ringbuf));
@@ -302,6 +309,7 @@ int main(void)
     candev->isr_arg = NULL;
 
     candev->driver->init(candev);
+
 
 if (IS_ACTIVE(CONFIG_USE_LOOPBACK_MODE)) {
     puts("Switching to loopback mode");
@@ -349,6 +357,19 @@ filters (check Makefile.board.dep), the last filter can be applied correctly. */
 #if defined(MODULE_MCP2515)
     }
 #endif
+
+    ztimer_sleep(ZTIMER_MSEC, 500);
+
+    _set_bit_rate(0, NULL);
+
+    ztimer_sleep(ZTIMER_MSEC, 500);
+
+    uint32_t imsg = 0;
+    while (imsg++ < 42) {
+        printf("%04"PRIu32": msg send start\n", imsg);
+        _send(0, NULL);
+        ztimer_sleep(ZTIMER_MSEC, 500);
+    }
 
     char line_buf[SHELL_DEFAULT_BUFSIZE];
     shell_run(shell_commands, line_buf, SHELL_DEFAULT_BUFSIZE);

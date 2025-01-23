@@ -94,7 +94,7 @@ static void *idle_thread(void *arg)
 
     while (1) {
         if (IS_USED(MODULE_PERIPH_PM)) {
-            pm_set_lowest();
+            //pm_set_lowest();
         }
     }
 

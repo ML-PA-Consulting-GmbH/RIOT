@@ -455,8 +455,15 @@ static int _send(candev_t *candev, const struct can_frame *frame)
     dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_1.bit.MM = _form_message_marker(&can_mm);
     memcpy((void *)dev->msg_ram_conf.tx_fifo_queue[can_mm.put].TXBE_DATA, frame->data, frame->can_dlc);
 
+    /* Assert that no transmission is registered for this buffer */
+    assert(! (dev->conf->can->TXBRP.reg & (1 << can_mm.put)));
     /* Request transmission */
     dev->conf->can->TXBAR.reg |= (1 << can_mm.put);
+    // /* Wait for registration of transmission */
+    // while (! (dev->conf->can->TXBRP.reg & (1 << can_mm.put))) {}
+    // /* Wait for transmission to complete or error */
+    // while (! ((dev->conf->can->TXBTO.reg & (1 << can_mm.put)) ||
+    //           (dev->conf->can->TXBCF.reg & (1 << can_mm.put)))) {}
 
     return 0;
 }
@@ -776,6 +783,12 @@ static void _isr(candev_t *candev)
     if (irq_reg & CAN_IR_TEFN) {
         DEBUG_PUTS("New Tx event FIFO entry");
         dev->conf->can->IR.reg |= CAN_IR_TEFN;
+        /* Acknowledge pending TX events */
+        while (dev->conf->can->TXEFS.bit.EFFL) {
+            uint32_t ev_get_index = dev->conf->can->TXEFS.bit.EFGI;
+            DEBUG("Acknowledging TX event with index %"PRIu32".\n", ev_get_index);
+            dev->conf->can->TXEFA.bit.EFAI = ev_get_index;
+        }
         if (dev->candev.event_callback) {
             dev->candev.event_callback(&(dev->candev), CANDEV_EVENT_TX_CONFIRMATION, NULL);
         }
@@ -923,6 +936,10 @@ static void _isr(candev_t *candev)
         }
     }
 
+    DEBUG("ISR exit, IR state = 0x%"PRIx32" before clearing.\n",
+            dev->conf->can->IR.reg);
+    dev->conf->can->IR.reg = 0x3FFFFFFF;
+
     /* Enable the peripheral's interrupt */
     if (dev->conf->can == CAN0) {
         NVIC_EnableIRQ(CAN0_IRQn);
@@ -955,6 +972,5 @@ void ISR_CAN1(void)
     if (_can_1->candev.event_callback) {
         _can_1->candev.event_callback(&(_can_1->candev), CANDEV_EVENT_ISR, NULL);
     }
-
 }
 #endif
