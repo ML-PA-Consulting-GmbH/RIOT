@@ -1,0 +1,14 @@
+RIOT-2025.01-mlpa-2 - Merge Notes
+=================================
+
+- based on 2025.01-devel-346-ge62e3 (e62e388ed8de42de2c51c875ed8e0aeda8e4e8a6)
+
+ - cherry-pick 7646899f72d805f031eda605d2200c43bac0a160 (gcoap_fileserver: bump stack size)
+ - merge benpicco/drivers/rtt_rtc-no-retain
+ - merge benpicco/pkg/fatfs-threadsafe
+ - merge benpicco/sock-addr_struct
+ - merge benpicco/pkg/nanopb-multi
+ - merge fabian18/pr/configuration_riotconf
+ - merge benpicco/cpu/sam0_common-adc_sample_multi
+ - merge fabian18/pr/coap_fixes_and_gcoap_sep_resp
+ - merge maribu/sys/net/nanocoap/transport-tcp
