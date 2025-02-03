@@ -13,3 +13,4 @@ RIOT-2025.01-mlpa-2 - Merge Notes
  - merge fabian18/pr/coap_fixes_and_gcoap_sep_resp
  - merge maribu/sys/net/nanocoap/transport-tcp
  - merge maribu/sys/tiny_strerror/fix-compilation-picolibc-ubuntu
+ - cherry-pick c48525fc4ec92575d6fd7d516aa3fdcfb0818eb2 (cpu/samd5x/periph_can: fix RX)
