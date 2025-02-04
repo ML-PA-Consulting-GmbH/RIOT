@@ -928,10 +928,7 @@ ssize_t _sock_put_post(nanocoap_sock_t *sock, const char *path, unsigned code,
         .iol_len  = len,
     };
 
-    coap_pkt_t pkt = {
-        .buf = buffer,
-        .snips = &payload,
-    };
+    coap_pkt_t pkt;
 
     struct iovec ctx = {
         .iov_base = response,
@@ -939,8 +936,10 @@ ssize_t _sock_put_post(nanocoap_sock_t *sock, const char *path, unsigned code,
     };
 
     uint16_t lastonum = 0;
-    ssize_t hdr_len = nanocoap_sock_build_pkt(sock, NULL, buffer, sizeof(buffer),
+    ssize_t hdr_len = nanocoap_sock_build_pkt(sock, &pkt, buffer, sizeof(buffer),
                                               type, NULL, 0, code);
+
+    pkt.snips = &payload;
     assume(hdr_len > 0);
     pktpos += hdr_len;
     pktpos += coap_opt_put_uri_pathquery(pktpos, &lastonum, path);
