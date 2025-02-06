@@ -257,3 +257,23 @@ info-rust:
 	@echo "    RIOTBUILD_CONFIG_HEADER_C=\"$(RIOTBUILD_CONFIG_HEADER_C)\""
 	@echo "You can also call cargo related commands with \`make cargo-command CARGO_COMMAND=\"cargo check\"\`."
 	@echo "Beware that the way command line arguments are passed in is not consistent across cargo commands, so adding \`--profile $(CARGO_PROFILE)\` or other flags from above as part of CARGO_COMMAND may be necessary."
+
+info-sbom:
+	@echo ">>>> BEGIN SBOM INPUT"
+	@echo "{"
+	@echo "  \"application\": \"$(APPLICATION)\","
+	@echo "  \"packages\": ["
+	@riot_version=$$(git rev-parse --verify HEAD); \
+	  riot_remote_name=$$(git branch -r --color=never --no-column --no-format --contains $${riot_version} | head -n1 | cut -d / -f1 | sed -E 's/^\s*//'); \
+	  riot_or_fork_url=$$(git remote get-url $${riot_remote_name}); \
+	  echo "{\"name\": \"RIOT OS\", \"url\": \"$${riot_or_fork_url}\", \"version\": \"$${riot_version}\", \"license\": \"LGPL-2.1\"}"
+	@for pkg in $(sort $(USEPKG)); \
+	  do \
+	    pkg_vars=$$(make -j1 -p -n -C "$(RIOTBASE)/pkg/$${pkg}" 2>/dev/null | grep -E '(PKG_URL|PKG_VERSION|PKG_LICENSE)\s*:?='); \
+	    pkg_url=$$(echo $${pkg_vars} | grep -E '^PKG_URL' "$(RIOTBASE)/pkg/$${pkg}/Makefile" | sed -E 's/^\s*PKG_URL\s*:?=\s*//'); \
+	    pkg_ver=$$(echo $${pkg_vars} | grep -E '^PKG_VERSION' "$(RIOTBASE)/pkg/$${pkg}/Makefile" | sed -E 's/^\s*PKG_VERSION\s*:?=\s*//'); \
+	    pkg_lic=$$(echo $${pkg_vars} | grep -E '^PKG_LICENSE' "$(RIOTBASE)/pkg/$${pkg}/Makefile" | sed -E 's/^\s*PKG_LICENSE\s*:?=\s*//'); \
+	    echo " ,{\"name\": \"$${pkg}\", \"url\": \"$${pkg_url}\", \"version\": \"$${pkg_ver}\", \"license\": \"$${pkg_lic}\"}"; \
+	  done
+	@echo "]}"
+	@echo "<<<< END SBOM INPUT"
