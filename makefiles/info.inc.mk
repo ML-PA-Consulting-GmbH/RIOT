@@ -258,22 +258,43 @@ info-rust:
 	@echo "You can also call cargo related commands with \`make cargo-command CARGO_COMMAND=\"cargo check\"\`."
 	@echo "Beware that the way command line arguments are passed in is not consistent across cargo commands, so adding \`--profile $(CARGO_PROFILE)\` or other flags from above as part of CARGO_COMMAND may be necessary."
 
-info-sbom:
+info-sbom-input:
 	@echo ">>>> BEGIN SBOM INPUT"
 	@echo "{"
 	@echo "  \"application\": \"$(APPLICATION)\","
-	@echo "  \"packages\": ["
+	@echo "  \"application_dir\": \"$(CURDIR)\","
+	@echo "  \"external_modules\": ["
+	@imod=0; for module_path in $(EXTERNAL_MODULE_PATHS); \
+	do \
+	  imod=$$(( $${imod} + 1 )); \
+	  [ $${imod} -gt 1 ] && echo -n ","; \
+	  echo "{\"name\": \"$$(basename $${module_path})\", \"srcdir\": \"$${module_path}\"}"; \
+	done
+	@echo "  ],"
 	@riot_version=$$(git rev-parse --verify HEAD); \
 	  riot_remote_name=$$(git branch -r --color=never --no-column --no-format --contains $${riot_version} | head -n1 | cut -d / -f1 | sed -E 's/^\s*//'); \
 	  riot_or_fork_url=$$(git remote get-url $${riot_remote_name}); \
-	  echo "{\"name\": \"RIOT OS\", \"url\": \"$${riot_or_fork_url}\", \"version\": \"$${riot_version}\", \"license\": \"LGPL-2.1\"}"
-	@for pkg in $(sort $(USEPKG)); \
+	  echo "\"riot\": {\"basedir\": \"$(RIOTBASE)\", \"url\": \"$${riot_or_fork_url}\", \"version\": \"$${riot_version}\", \"license\": \"LGPL-2.1\"},"
+	@echo "  \"packages\": ["
+	@ipkg=0; for pkg in $(sort $(USEPKG)); \
 	  do \
-	    pkg_vars=$$(make -j1 -p -n -C "$(RIOTBASE)/pkg/$${pkg}" 2>/dev/null | grep -E '(PKG_URL|PKG_VERSION|PKG_LICENSE)\s*:?='); \
-	    pkg_url=$$(echo $${pkg_vars} | grep -E '^PKG_URL' "$(RIOTBASE)/pkg/$${pkg}/Makefile" | sed -E 's/^\s*PKG_URL\s*:?=\s*//'); \
-	    pkg_ver=$$(echo $${pkg_vars} | grep -E '^PKG_VERSION' "$(RIOTBASE)/pkg/$${pkg}/Makefile" | sed -E 's/^\s*PKG_VERSION\s*:?=\s*//'); \
-	    pkg_lic=$$(echo $${pkg_vars} | grep -E '^PKG_LICENSE' "$(RIOTBASE)/pkg/$${pkg}/Makefile" | sed -E 's/^\s*PKG_LICENSE\s*:?=\s*//'); \
-	    echo " ,{\"name\": \"$${pkg}\", \"url\": \"$${pkg_url}\", \"version\": \"$${pkg_ver}\", \"license\": \"$${pkg_lic}\"}"; \
+	    ipkg=$$(( $${ipkg} + 1 )); \
+	    [ $${ipkg} -gt 1 ] && echo -n ","; \
+	    for pth in $(PKG_PATHS); \
+		do \
+		  case "$${pth}" in \
+		    */$${pkg}/) \
+			  pkg_def_dir="$${pth}"; \
+			  break; \
+			  ;; \
+		  esac; \
+		done; \
+		pkg_source_dir="$(RIOTBASE)/build/pkg/$${pkg}"; \
+	    pkg_vars=$$(make -j1 -p -n -C "$${pkg_def_dir}" 2>/dev/null | grep -E '(PKG_URL|PKG_VERSION|PKG_LICENSE)\s*:?='); \
+	    pkg_url=$$(echo $${pkg_vars} | grep -E '^PKG_URL' "$${pkg_def_dir}/Makefile" | sed -E 's/^\s*PKG_URL\s*:?=\s*//'); \
+	    pkg_ver=$$(echo $${pkg_vars} | grep -E '^PKG_VERSION' "$${pkg_def_dir}/Makefile" | sed -E 's/^\s*PKG_VERSION\s*:?=\s*//'); \
+	    pkg_lic=$$(echo $${pkg_vars} | grep -E '^PKG_LICENSE' "$${pkg_def_dir}/Makefile" | sed -E 's/^\s*PKG_LICENSE\s*:?=\s*//'); \
+	    echo "{\"name\": \"$${pkg}\", \"definition_dir\": \"$${pkg_def_dir}\", \"source_dir\": \"$${pkg_source_dir}\", \"url\": \"$${pkg_url}\", \"version\": \"$${pkg_ver}\", \"license\": \"$${pkg_lic}\"}"; \
 	  done
 	@echo "]}"
 	@echo "<<<< END SBOM INPUT"

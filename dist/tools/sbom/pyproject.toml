@@ -9,6 +9,9 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = "^3.12"
 spdx-tools = "^0.8.3"
+sbomaudit = "^0.4.4"
+sbom-manager = "^0.3.1"
+sbom2doc = "^0.5.1"
 
 
 [build-system]
