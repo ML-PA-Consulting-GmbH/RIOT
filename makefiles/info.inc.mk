@@ -261,24 +261,25 @@ info-rust:
 info-sbom-input:
 	@echo ">>>> BEGIN SBOM INPUT"
 	@echo "{"
-	@echo "  \"application\": \"$(APPLICATION)\","
-	@echo "  \"application_dir\": \"$(CURDIR)\","
+	@echo "  \"application\": {\"name\": \"$(APPLICATION)\", \"source_dir\": \"$(CURDIR)\", \"build_dir\": \"$(BINDIR)\"},"
+	@riot_version=$$(git rev-parse --verify HEAD); \
+	  riot_remote_name=$$(git branch -r --color=never --no-column --no-format --contains $${riot_version} | head -n1 | cut -d / -f1 | sed -E 's/^\s*//'); \
+	  riot_or_fork_url=$$(git remote get-url $${riot_remote_name}); \
+	  echo "  \"riot\": {\"source_dir\": \"$(RIOTBASE)\", \"url\": \"$${riot_or_fork_url}\", \"version\": \"$${riot_version}\", \"license\": \"LGPL-2.1\"},"
 	@echo "  \"external_modules\": ["
 	@imod=0; for module_path in $(EXTERNAL_MODULE_PATHS); \
 	do \
 	  imod=$$(( $${imod} + 1 )); \
+      echo -n "    "; \
 	  [ $${imod} -gt 1 ] && echo -n ","; \
-	  echo "{\"name\": \"$$(basename $${module_path})\", \"srcdir\": \"$${module_path}\"}"; \
+	  echo "{\"name\": \"$$(basename $${module_path})\", \"source_dir\": \"$${module_path}\"}"; \
 	done
 	@echo "  ],"
-	@riot_version=$$(git rev-parse --verify HEAD); \
-	  riot_remote_name=$$(git branch -r --color=never --no-column --no-format --contains $${riot_version} | head -n1 | cut -d / -f1 | sed -E 's/^\s*//'); \
-	  riot_or_fork_url=$$(git remote get-url $${riot_remote_name}); \
-	  echo "\"riot\": {\"basedir\": \"$(RIOTBASE)\", \"url\": \"$${riot_or_fork_url}\", \"version\": \"$${riot_version}\", \"license\": \"LGPL-2.1\"},"
 	@echo "  \"packages\": ["
 	@ipkg=0; for pkg in $(sort $(USEPKG)); \
 	  do \
 	    ipkg=$$(( $${ipkg} + 1 )); \
+        echo -n "    "; \
 	    [ $${ipkg} -gt 1 ] && echo -n ","; \
 	    for pth in $(PKG_PATHS); \
 		do \

@@ -6,46 +6,45 @@ import logging
 import re
 import subprocess
 import tempfile
-from pathlib import Path
+import unittest
 
 class BuildScanner(object):
     def __init__(self, app_dir):
-        self.app_dir = app_dir
-        self.app_name = None
-        self.package_data = []
-        self.file_data = []
+        self.__app_dir = app_dir
+        self.__app_data = None
+        self.__riot_data = None
+        self.__external_module_data = None
+        self.__package_data = None
+        self.__file_data = None
 
     def run(self):
-        pkg_info = BuildScanner._run_pkg_info(self.app_dir)
-        self.app_name = pkg_info['application']
+        sbom_input = BuildScanner._run_sbom_input(self.__app_dir)
+        self.__app_data = sbom_input['application']
+        self.__riot_data = sbom_input['riot']
+        self.__external_module_data = sbom_input['external_modules']
         with tempfile.TemporaryDirectory() as tempdir:
             trace_file = os.path.join(tempdir, 'trace.log')
-            BuildScanner._run_traced_build(self.app_dir,
+            BuildScanner._run_traced_build(self.__app_dir,
                                            trace_file)
             file_paths = BuildScanner._parse_trace_file(trace_file)
-        self.package_data = BuildScanner._complete_package_data(pkg_info['packages'],
-                                                                file_paths)
-        self.file_data = BuildScanner._build_file_data(file_paths,
-                                                       self.app_dir,
-                                                       self.package_data)
+        self.__package_data = BuildScanner._complete_package_data(
+            sbom_input, file_paths)
+        self.__file_data = BuildScanner._build_file_data(
+            sbom_input, file_paths, self.package_data)
 
-    def get_app_name(self):
-        if not self.app_name:
-            raise RuntimeError('Scanner must be run before retrieving data')
-        return self.app_name
+    def get_prop(self, prop_ref, prop_name):
+        if prop_ref is None:
+            raise RuntimeError(f'Scanner must be run before retrieving "{prop_name}"')
+        return prop_ref
 
-    def get_package_data(self):
-        if not self.package_data:
-            raise RuntimeError('Scanner must be run before retrieving data')
-        return self.package_data
-
-    def get_file_data(self):
-        if not self.file_data:
-            raise RuntimeError('Scanner must be run before retrieving data')
-        return self.file_data
+    app_data = property(lambda self: self.get_prop(self.__app_data, 'app_data'))
+    riot_data = property(lambda self: self.get_prop(self.__riot_data, 'riot_data'))
+    external_module_data = property(lambda self: self.get_prop(self.__external_module_data, 'external_module_data'))
+    package_data = property(lambda self: self.get_prop(self.__package_data, 'package_data'))
+    file_data = property(lambda self: self.get_prop(self.__file_data, 'file_data'))
 
     @staticmethod
-    def _run_pkg_info(app_dir):
+    def _run_sbom_input(app_dir):
         logging.info('Retrieving package information for build')
         pkg_info_run = subprocess.run(['make', 'info-sbom-input'],
                                       cwd=app_dir,
@@ -67,14 +66,21 @@ class BuildScanner(object):
     @staticmethod
     def _run_traced_build(app_dir: str, trace_file: str):
         logging.info('Retrieving file information for build (this may take a while)')
+        clean_cmd = ["make", "-j", "clean"]
+        clean_run = subprocess.run(clean_cmd,
+                cwd=app_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
+        if clean_run.returncode != 0:
+            raise RuntimeError(f'Failed to run make clean (stderr="{clean_run.stderr.decode("utf-8")}")')
         build_cmd = ["strace", "-f",
                     "-e", "trace=openat,open",
                     "-e", "quiet=attach,exit,path-resolution,personality,thread-execve,superseded",
                     "-o", f"{trace_file}", "make", "-j"]
         trace_run = subprocess.run(build_cmd,
-                                   cwd=app_dir,
-                                   stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+                cwd=app_dir,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE)
         if trace_run.returncode != 0:
             raise RuntimeError(f'Failed to run make trace-build (stderr="{trace_run.stderr.decode("utf-8")}")')
 
@@ -95,41 +101,109 @@ class BuildScanner(object):
         return sorted(file_paths)
 
     @staticmethod
-    def _build_file_data(file_paths: list, app_dir: str, package_data: list):
+    def _complete_package_data(sbom_input, file_paths: list):
+        logging.info('Completing package data')
+        package_data = [pkg for pkg in sbom_input['packages']]
+        for file in file_paths:
+            if (
+                file.startswith(sbom_input['application']['source_dir'])
+                or file.startswith(sbom_input['application']['build_dir'])
+                or file.startswith(sbom_input['riot']['source_dir'])
+                or any(file.startswith(package['source_dir'])
+                       for package in package_data)
+                or any(file.startswith(ext_mod['source_dir'])
+                       for ext_mod in sbom_input['external_modules'])
+                ):
+                continue
+            # package not known, try to infer from path
+            # NOTE this is an ugly temporary solution
+            if "picolibc" in file:
+                package_data.append({
+                    'name': 'picolibc',
+                    'source_dir': 'unknown',
+                    'url': None,
+                    'version': None,
+                    'license': 'unknown'
+                })
+                continue
+            if "newlib" in file:
+                package_data.append({
+                    'name': 'newlib',
+                    'source_dir': 'unknown',
+                    'url': None,
+                    'version': None,
+                    'license': 'unknown'
+                })
+                continue
+            if "lib/gcc" in file:
+                package_data.append({
+                    'name': 'libgcc',
+                    'source_dir': 'unknown',
+                    'url': None,
+                    'version': None,
+                    'license': 'unknown'
+                })
+                continue
+            if "lib/clang" in file or "lib/llvm" in file:
+                package_data.append({
+                    'name': 'llvm',
+                    'source_dir': 'unknown',
+                    'url': None,
+                    'version': None,
+                    'license': 'unknown'
+                })
+                continue
+            # TODO complete the information above
+        return package_data
+
+    @staticmethod
+    def _build_file_data(sbom_input, file_paths, package_data: list):
         logging.info('Building file data')
         file_data = []
         for file_path in file_paths:
-            file_info = BuildScanner._get_file_info(file_path, app_dir, package_data)
+            file_info = BuildScanner._get_file_info(file_path, sbom_input, package_data)
             file_data.append(file_info)
         return file_data
 
     @staticmethod
-    def _complete_package_data(pkg_data: list, file_paths: list):
-        logging.info('Completing package data')
-        package_data = pkg_data
-        for file in file_paths:
-            for package in package_data:
-                if file.startswith(package['path']):
-                    break
-                else:
-                    package_data.append({
-                        'name': 'unknown',
-                        'basedir': 'unknown',
-                        'url': None,
-                        'version': None,
-                        'license': 'unknown'
-                    })
-        return package_data
-
-    @staticmethod
-    def _get_file_info(file_path: str, app_dir: str, package_data: list):
+    def _get_file_info(file_path, sbom_input, package_data):
         file_info = {
             'path': file_path,
-            'package': None,
-            'license': None
+            'package': 'unknown'
         }
+        if file_path.startswith(sbom_input['riot']['source_dir']):
+            file_info['package'] = "RIOT OS"
+        # package data overrides RIOT data
         for package in package_data:
-            if file_path.startswith(package['path']):
+            if file_path.startswith(package['source_dir']):
                 file_info['package'] = package['name']
                 break
+        for ext_mod in sbom_input['external_modules']:
+            if file_path.startswith(ext_mod['source_dir']):
+                file_info['package'] = ext_mod['name']
+                break
+        if file_path.startswith(sbom_input['application']['source_dir']):
+            file_info['package'] = sbom_input['application']['name']
         return file_info
+
+class BuildScannerTest(unittest.TestCase):
+
+    def test_run(self):
+        riot_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')
+        app_dir = os.path.join(riot_dir, 'tests', 'net', 'nanocoap_cli')
+        scanner = BuildScanner(app_dir)
+        self.assertRaises(RuntimeError, lambda: scanner.app_data)
+        self.assertRaises(RuntimeError, lambda: scanner.riot_data)
+        self.assertRaises(RuntimeError, lambda: scanner.external_module_data)
+        self.assertRaises(RuntimeError, lambda: scanner.package_data)
+        self.assertRaises(RuntimeError, lambda: scanner.file_data)
+        os.environ['BOARD'] = 'native64'
+        scanner.run()
+        self.assertEqual(scanner.app_data['name'], 'tests_nanocoap_cli')
+        self.assertIsInstance(scanner.riot_data, dict)
+        self.assertEqual(len(scanner.external_module_data), 0)
+        self.assertGreater(len(scanner.package_data), 0)
+        self.assertGreater(len(scanner.file_data), 0)
+
+if __name__ == '__main__':
+    unittest.main()
