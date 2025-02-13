@@ -3,6 +3,7 @@
 import os
 import json
 import logging
+import pathlib
 import re
 import subprocess
 import tempfile
@@ -97,13 +98,18 @@ class BuildScanner(object):
                     if match:
                         path = match.group(1)
                         if file_matcher.match(path):
-                            file_paths.add(path)
+                            path = str(pathlib.Path(path).resolve())
+                            # ignore temporary files and only consider regular files
+                            if (not path.startswith('/tmp/')
+                                and os.path.isfile(path)):
+                                file_paths.add(path)
         return sorted(file_paths)
 
     @staticmethod
     def _complete_package_data(sbom_input, file_paths: list):
         logging.info('Completing package data')
         package_data = [pkg for pkg in sbom_input['packages']]
+        unresolved_packages = set()
         for file in file_paths:
             if (
                 file.startswith(sbom_input['application']['source_dir'])
@@ -117,43 +123,61 @@ class BuildScanner(object):
                 continue
             # package not known, try to infer from path
             # NOTE this is an ugly temporary solution
-            if "picolibc" in file:
-                package_data.append({
+            packag_reg = [
+                # TODO complete the information below
+                {
                     'name': 'picolibc',
-                    'source_dir': 'unknown',
+                    'matcher': re.compile(r'^(.*/picolibc)/.*$'),
                     'url': None,
                     'version': None,
-                    'license': 'unknown'
-                })
-                continue
-            if "newlib" in file:
-                package_data.append({
+                    'license': None
+                },
+                {
                     'name': 'newlib',
-                    'source_dir': 'unknown',
+                    'matcher': re.compile(r'^(.*/newlib)/.*$'),
                     'url': None,
                     'version': None,
-                    'license': 'unknown'
-                })
-                continue
-            if "lib/gcc" in file:
-                package_data.append({
+                    'license': None
+                },
+                {
                     'name': 'libgcc',
-                    'source_dir': 'unknown',
+                    'matcher': re.compile(r'^(.*/lib/gcc)/.*$'),
                     'url': None,
                     'version': None,
-                    'license': 'unknown'
-                })
-                continue
-            if "lib/clang" in file or "lib/llvm" in file:
-                package_data.append({
-                    'name': 'llvm',
-                    'source_dir': 'unknown',
+                    'license': None
+                },
+                {
+                    'name': 'clang',
+                    'matcher': re.compile(r'^(.*/lib/clang)/.*$'),
                     'url': None,
                     'version': None,
-                    'license': 'unknown'
-                })
-                continue
-            # TODO complete the information above
+                    'license': None
+                },
+                {
+                    'name': 'linux-gnu',
+                    'matcher': re.compile(r'^(.*/[^/]*-linux-gnu)/.*$'),
+                    'url': None,
+                    'version': None,
+                    'license': None
+                }
+            ]
+            file_has_pkg = False
+            for reg in packag_reg:
+                match = reg['matcher'].match(file)
+                if match:
+                    package_data.append({
+                        'name': reg['name'],
+                        'source_dir': match.group(1),
+                        'url': reg['url'],
+                        'version': reg['version'],
+                        'license': reg['license']
+                    })
+                    file_has_pkg = True
+                    break
+            if not file_has_pkg:
+                unresolved_packages.add(os.path.dirname(file))
+        if unresolved_packages:
+            logging.warning(f'Unresolved packages for files in: {unresolved_packages}')
         return package_data
 
     @staticmethod
@@ -197,13 +221,22 @@ class BuildScannerTest(unittest.TestCase):
         self.assertRaises(RuntimeError, lambda: scanner.external_module_data)
         self.assertRaises(RuntimeError, lambda: scanner.package_data)
         self.assertRaises(RuntimeError, lambda: scanner.file_data)
+        old_board = os.environ.get('BOARD')
         os.environ['BOARD'] = 'native64'
         scanner.run()
+        if old_board is not None:
+            os.environ['BOARD'] = old_board
+        else:
+            del os.environ['BOARD']
         self.assertEqual(scanner.app_data['name'], 'tests_nanocoap_cli')
         self.assertIsInstance(scanner.riot_data, dict)
         self.assertEqual(len(scanner.external_module_data), 0)
         self.assertGreater(len(scanner.package_data), 0)
         self.assertGreater(len(scanner.file_data), 0)
+        with open('pkg.json', 'wt') as f:
+            json.dump(scanner.package_data, f, indent=2)
+        with open('file.json', 'wt') as f:
+            json.dump(scanner.file_data, f, indent=2)
 
 if __name__ == '__main__':
     unittest.main()
