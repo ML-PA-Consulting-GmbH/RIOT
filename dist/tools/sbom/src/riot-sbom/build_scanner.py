@@ -128,37 +128,37 @@ class BuildScanner(object):
                 {
                     'name': 'picolibc',
                     'matcher': re.compile(r'^(.*/picolibc)/.*$'),
-                    'url': None,
+                    'url': "https://github.com/picolibc/picolibc",
                     'version': None,
-                    'license': None
+                    'license': None # file dependent
                 },
                 {
                     'name': 'newlib',
                     'matcher': re.compile(r'^(.*/newlib)/.*$'),
-                    'url': None,
+                    'url': "https://sourceware.org/newlib/",
                     'version': None,
-                    'license': None
+                    'license': None # file dependent
                 },
                 {
                     'name': 'libgcc',
                     'matcher': re.compile(r'^(.*/lib/gcc)/.*$'),
-                    'url': None,
+                    'url': "https://gcc.gnu.org/",
                     'version': None,
-                    'license': None
+                    'license': "GPL-3.0-or-later WITH GCC-exception-3.1"
                 },
                 {
                     'name': 'clang',
-                    'matcher': re.compile(r'^(.*/lib/clang)/.*$'),
-                    'url': None,
+                    'matcher': re.compile(r'^(.*/lib/clang).*$'),
+                    'url': "https://clang.llvm.org/",
                     'version': None,
-                    'license': None
+                    'license': "Apache-2.0 WITH LLVM-exception"
                 },
                 {
-                    'name': 'linux-gnu',
-                    'matcher': re.compile(r'^(.*/[^/]*-linux-gnu)/.*$'),
-                    'url': None,
+                    'name': 'llvm',
+                    'matcher': re.compile(r'^(.*/lib/llvm).*$'),
+                    'url': "https://llvm.org/",
                     'version': None,
-                    'license': None
+                    'license': "Apache-2.0 WITH LLVM-exception"
                 }
             ]
             file_has_pkg = False
