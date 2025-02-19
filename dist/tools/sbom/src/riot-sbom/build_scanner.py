@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 class BuildScanner(object):
-    def __init__(self, app_dir):
+    def __init__(self, app_dir: pathlib.Path):
         self.__app_dir = app_dir
         self.__app_data = None
         self.__riot_data = None
@@ -19,13 +19,13 @@ class BuildScanner(object):
         self.__file_data = None
 
     def run(self):
-        sbom_input = BuildScanner._run_sbom_input(self.__app_dir)
+        sbom_input = BuildScanner._run_sbom_input(self.__app_dir.as_posix())
         self.__app_data = sbom_input['application']
         self.__riot_data = sbom_input['riot']
         self.__external_module_data = sbom_input['external_modules']
         with tempfile.TemporaryDirectory() as tempdir:
             trace_file = os.path.join(tempdir, 'trace.log')
-            BuildScanner._run_traced_build(self.__app_dir,
+            BuildScanner._run_traced_build(self.__app_dir.as_posix(),
                                            trace_file)
             file_paths = BuildScanner._parse_trace_file(trace_file)
         self.__package_data = BuildScanner._complete_package_data(
@@ -213,8 +213,8 @@ class BuildScanner(object):
 class BuildScannerTest(unittest.TestCase):
 
     def test_run(self):
-        riot_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', '..')
-        app_dir = os.path.join(riot_dir, 'tests', 'net', 'nanocoap_cli')
+        riot_dir = pathlib.Path(__file__).parents[5]
+        app_dir = riot_dir.joinpath('tests', 'net', 'nanocoap_cli')
         scanner = BuildScanner(app_dir)
         self.assertRaises(RuntimeError, lambda: scanner.app_data)
         self.assertRaises(RuntimeError, lambda: scanner.riot_data)
@@ -233,10 +233,6 @@ class BuildScannerTest(unittest.TestCase):
         self.assertEqual(len(scanner.external_module_data), 0)
         self.assertGreater(len(scanner.package_data), 0)
         self.assertGreater(len(scanner.file_data), 0)
-        with open('pkg.json', 'wt') as f:
-            json.dump(scanner.package_data, f, indent=2)
-        with open('file.json', 'wt') as f:
-            json.dump(scanner.file_data, f, indent=2)
 
 if __name__ == '__main__':
     unittest.main()
