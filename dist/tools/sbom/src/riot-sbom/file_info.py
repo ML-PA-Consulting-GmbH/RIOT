@@ -100,7 +100,7 @@ class FileInfo:
         return license
 
     @classmethod
-    def from_parsed_content_and_package(cls, path: str, package_data: dict):
+    def from_parsed_content_and_package(cls, path: str, package_data: dict | None):
         """
         Create a FileInfo object from parsed content and package data.
 
@@ -115,6 +115,7 @@ class FileInfo:
         spdx_license = None
         copyright = None
         license_info_snippets = []
+        package_name = package_data['name'] if package_data else None
         with open(path, 'rt') as f:
             while not copyright or not spdx_license:
                 line = f.readline()
@@ -127,7 +128,7 @@ class FileInfo:
             license = spdx_license
         else:
             license = cls._infer_license_from_snippets(license_info_snippets)
-        return cls(path, sha1, package_data['name'], license, copyright)
+        return cls(path, sha1, package_name, license, copyright)
 
     def __str__(self):
         return f'FileInfo(path={self.path}, sha1={self.sha1}, package={self.package}, license={self.license}, copyright={self.copyright})'

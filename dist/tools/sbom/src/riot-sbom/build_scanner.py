@@ -193,7 +193,7 @@ class BuildScanner(object):
     def _get_file_info(file_path, sbom_input, package_data):
         file_info = {
             'path': file_path,
-            'package': 'unknown'
+            'package': None
         }
         if file_path.startswith(sbom_input['riot']['source_dir']):
             file_info['package'] = "RIOT OS"

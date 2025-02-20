@@ -4,7 +4,7 @@ from .package_info import PackageInfo
 from .spdx_builder import SpdxBuilder
 import pathlib
 
-def create_spdx(app_dir: pathlib.Path, output_file: pathlib.Path):
+def create_spdx_for_build(app_dir: pathlib.Path, output_file: pathlib.Path):
     """
     Create a Software Bill of Materials (SBOM) for a RIOT application.
 
@@ -19,11 +19,17 @@ def create_spdx(app_dir: pathlib.Path, output_file: pathlib.Path):
     scanner.run()
     spdx = SpdxBuilder(scanner.app_data['name'])
     for pkg in scanner.package_data:
-        pkg_info = PackageInfo.from_package_data(scanner.package_data[pkg])
+        pkg_info = PackageInfo.from_package_data(pkg)
         spdx.add_package(pkg_info)
+    pkg_map = {pkg['name']: pkg for pkg in scanner.package_data}
+    pkg_map[scanner.app_data['name']] = scanner.app_data
+    pkg_map['RIOT OS'] = scanner.riot_data
+    pkg_map['RIOT OS']['name'] = 'RIOT OS'
+    pkg_map.update({module['name']: module
+                    for module in scanner.external_module_data})
     for file in scanner.file_data:
         file_info = FileInfo.from_parsed_content_and_package(
-            file['path'], scanner.package_data[file['package']])
+            file['path'], pkg_map.get(file['package'], None))
         spdx.add_file(file_info)
     with open(output_file, 'wt') as f:
         spdx.write(f)

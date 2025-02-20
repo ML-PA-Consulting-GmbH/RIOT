@@ -1,4 +1,4 @@
-from .wrappers import create_spdx
+from .wrappers import create_spdx_for_build
 from pathlib import Path
 
 def main():
@@ -7,7 +7,7 @@ def main():
     parser.add_argument('--app-dir', type=Path, help='Path to the directory of the application', required=True)
     parser.add_argument('--output-file', type=Path, help='Path to the output SPDX file', required=True)
     args = parser.parse_args()
-    create_spdx(args.app_dir, args.output_file)
+    create_spdx_for_build(args.app_dir, args.output_file)
 
 if __name__ == '__main__':
     main()
