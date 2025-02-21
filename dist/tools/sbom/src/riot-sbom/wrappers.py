@@ -8,6 +8,8 @@ def create_spdx_for_build(app_dir: pathlib.Path, output_file: pathlib.Path):
     """
     Create a Software Bill of Materials (SBOM) for a RIOT application.
 
+    :param app_dir: The directory of the RIOT application.
+    :param output_file: The file to write the SBOM to.
     """
     if not app_dir.is_dir():
         raise ValueError(f'{app_dir} is not a directory')

@@ -11,6 +11,11 @@ import unittest
 
 class BuildScanner(object):
     def __init__(self, app_dir: pathlib.Path):
+        """
+        Initialize the build scanner with the given application directory.
+        :param app_dir: The path to the application directory.
+        :type app_dir: pathlib.Path
+        """
         self.__app_dir = app_dir
         self.__app_data = None
         self.__riot_data = None
@@ -19,6 +24,15 @@ class BuildScanner(object):
         self.__file_data = None
 
     def run(self):
+        """
+        Executes the build scanning process.
+        This method performs the following steps:
+        1. Runs the SBOM input process to gather application, RIOT, and external module data.
+        2. Creates a temporary directory to store the trace log file.
+        3. Runs the traced build process and parses the trace file to get file paths.
+        4. Completes the package data using the SBOM input and file paths.
+        5. Builds the file data using the SBOM input, file paths, and package data.
+        """
         sbom_input = BuildScanner._run_sbom_input(self.__app_dir.as_posix())
         self.__app_data = sbom_input['application']
         self.__riot_data = sbom_input['riot']
@@ -33,19 +47,29 @@ class BuildScanner(object):
         self.__file_data = BuildScanner._build_file_data(
             sbom_input, file_paths, self.package_data)
 
-    def get_prop(self, prop_ref, prop_name):
+    def __get_prop(self, prop_ref, prop_name):
         if prop_ref is None:
             raise RuntimeError(f'Scanner must be run before retrieving "{prop_name}"')
         return prop_ref
 
-    app_data = property(lambda self: self.get_prop(self.__app_data, 'app_data'))
-    riot_data = property(lambda self: self.get_prop(self.__riot_data, 'riot_data'))
-    external_module_data = property(lambda self: self.get_prop(self.__external_module_data, 'external_module_data'))
-    package_data = property(lambda self: self.get_prop(self.__package_data, 'package_data'))
-    file_data = property(lambda self: self.get_prop(self.__file_data, 'file_data'))
+    app_data = property(lambda self: self.__get_prop(self.__app_data, 'app_data'))
+    riot_data = property(lambda self: self.__get_prop(self.__riot_data, 'riot_data'))
+    external_module_data = property(lambda self: self.__get_prop(self.__external_module_data, 'external_module_data'))
+    package_data = property(lambda self: self.__get_prop(self.__package_data, 'package_data'))
+    file_data = property(lambda self: self.__get_prop(self.__file_data, 'file_data'))
 
     @staticmethod
     def _run_sbom_input(app_dir):
+        """
+        Retrieve package information for build by running 'make info-sbom-input' in the specified application directory.
+        This function runs a subprocess to execute the 'make info-sbom-input' command in the given directory,
+        captures its output, and extracts the SBOM (Software Bill of Materials) input from the output.
+
+        :param str app_dir: The directory where the 'make info-sbom-input' command should be executed.
+        :returns: A dictionary containing the package information extracted from the SBOM input.
+        :rtype: dict
+        :raises RuntimeError: If the 'make info-sbom-input' command fails or if the SBOM input markers are not found in the output.
+        """
         logging.info('Retrieving package information for build')
         pkg_info_run = subprocess.run(['make', 'info-sbom-input'],
                                       cwd=app_dir,
@@ -66,6 +90,18 @@ class BuildScanner(object):
 
     @staticmethod
     def _run_traced_build(app_dir: str, trace_file: str):
+        """
+        Run a traced build of the application in the specified directory.
+
+        This function performs a clean build followed by a traced build using `strace`.
+        The traced build logs file access operations to the specified trace file.
+
+        :param app_dir: The directory of the application to build.
+        :type app_dir: str
+        :param trace_file: The file where the trace output will be saved.
+        :type trace_file: str
+        :raises RuntimeError: If the clean or build process fails.
+        """
         logging.info('Retrieving file information for build (this may take a while)')
         clean_cmd = ["make", "-j", "clean"]
         clean_run = subprocess.run(clean_cmd,
@@ -87,6 +123,19 @@ class BuildScanner(object):
 
     @staticmethod
     def _parse_trace_file(trace_file: str):
+        """
+        Parses a trace file to extract and resolve file paths.
+
+        This function reads a trace file line by line, looking for lines that contain
+        file open operations (`openat` or `open`). It extracts the file paths from these
+        lines, resolves them to absolute paths, and filters out temporary files and
+        non-regular files.
+
+        :param trace_file: The path to the trace file to be parsed.
+        :type trace_file: str
+        :return: A sorted list of unique file paths found in the trace file.
+        :rtype: list[str]
+        """
         logging.info('Parsing trace file')
         file_paths = set()
         path_matcher = re.compile(r'[^"]*"(.*)"[^"]*')
@@ -107,6 +156,20 @@ class BuildScanner(object):
 
     @staticmethod
     def _complete_package_data(sbom_input, file_paths: list):
+        """
+        Complete the package data by inferring package information from file paths.
+
+        This function takes an SBOM (Software Bill of Materials) input and a list of file paths,
+        and attempts to complete the package data by matching file paths to known package patterns.
+        If a file path does not match any known package, it is added to a set of unresolved packages.
+
+        :param sbom_input: The input SBOM data containing information about packages, application, and external modules.
+        :type sbom_input: dict
+        :param file_paths: A list of file paths to be checked against known package patterns.
+        :type file_paths: list
+        :return: A list of package data with inferred package information.
+        :rtype: list
+        """
         logging.info('Completing package data')
         package_data = [pkg for pkg in sbom_input['packages']]
         unresolved_packages = set()
@@ -182,15 +245,40 @@ class BuildScanner(object):
 
     @staticmethod
     def _build_file_data(sbom_input, file_paths, package_data: list):
+        """
+        Build file data for the given file paths.
+
+        :param sbom_input: The input data for the SBOM (Software Bill of Materials).
+        :type sbom_input: dict
+        :param file_paths: A list of file paths to process.
+        :type file_paths: list
+        :param package_data: A list of package data.
+        :type package_data: list
+        :return: A list of file data dictionaries.
+        :rtype: list
+        """
         logging.info('Building file data')
         file_data = []
         for file_path in file_paths:
-            file_info = BuildScanner._get_file_info(file_path, sbom_input, package_data)
+            file_info = BuildScanner._match_package_for_file(file_path, sbom_input, package_data)
             file_data.append(file_info)
         return file_data
 
     @staticmethod
-    def _get_file_info(file_path, sbom_input, package_data):
+    def _match_package_for_file(file_path, sbom_input, package_data):
+        """
+        Retrieve package name for a file, if possible.
+        This function attempts to match a file path to a known package source directory.
+
+        :param file_path: The path to the file being analyzed.
+        :type file_path: str
+        :param sbom_input: The input data containing information about RIOT, external modules, and the application.
+        :type sbom_input: dict
+        :param package_data: A list of package data dictionaries, each containing 'source_dir' and 'name' keys.
+        :type package_data: list of dict
+        :return: A dictionary containing the file path and the associated package name.
+        :rtype: dict
+        """
         file_info = {
             'path': file_path,
             'package': None

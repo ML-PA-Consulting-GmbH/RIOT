@@ -1,5 +1,6 @@
 import hashlib
 import re
+from typing import Dict
 
 __all__ = ['FileInfo']
 
@@ -7,17 +8,21 @@ class FileInfo:
     """
     SBOM information about a file.
 
-    Attributes:
-        path (str): Path to the file.
-        sha1 (str): SHA1 hash of the file.
-        package (str): Name of the package the file belongs to.
-        license (str): License of the file, if provided in the file.
-        copyright (str): Copyright of the file, if provided in the file.
+    :ivar path: Path to the file.
+    :vartype path: str
+    :ivar sha1: SHA1 hash of the file.
+    :vartype sha1: str
+    :ivar package: Name of the package the file belongs to.
+    :vartype package: str
+    :ivar license: License of the file, if provided in the file.
+    :vartype license: str
+    :ivar copyright: Copyright of the file, if provided in the file.
+    :vartype copyright: str
     """
 
-    def __init__(self, path: str, sha1: str, package: str | None, license: str | None, copyright: str | None):
+    def __init__(self, path: str, digests: Dict[str, str], package: str | None, license: str | None, copyright: str | None):
         self.path = path
-        self.sha1 = sha1
+        self.digests = digests
         self.package = package
         self.license = license
         self.copyright = copyright
@@ -35,7 +40,10 @@ class FileInfo:
     @staticmethod
     def _get_sha1(path):
         with open(path, 'rb') as f:
-            return hashlib.file_digest(f, 'sha1').hexdigest()
+            sha1 = hashlib.file_digest(f, 'sha1').hexdigest()
+            f.seek(0)
+            md5 = hashlib.file_digest(f, 'md5').hexdigest()
+        return {'sha1': sha1, 'md5': md5}
 
     @staticmethod
     def _get_spdx_license(line):
@@ -104,12 +112,12 @@ class FileInfo:
         """
         Create a FileInfo object from parsed content and package data.
 
-        Args:
-            path (str): Path to the file.
-            package_data (dict): Package data from the build scanner.
-
-        Returns:
-            FileInfo: A FileInfo object.
+        :param path: Path to the file.
+        :type path: str
+        :param package_data: Package data from the build scanner.
+        :type package_data: dict | None
+        :return: A FileInfo object.
+        :rtype: FileInfo
         """
         sha1 = cls._get_sha1(path)
         spdx_license = None
@@ -131,4 +139,4 @@ class FileInfo:
         return cls(path, sha1, package_name, license, copyright)
 
     def __str__(self):
-        return f'FileInfo(path={self.path}, sha1={self.sha1}, package={self.package}, license={self.license}, copyright={self.copyright})'
+        return f'FileInfo(path={self.path}, sha1={self.digests}, package={self.package}, license={self.license}, copyright={self.copyright})'
