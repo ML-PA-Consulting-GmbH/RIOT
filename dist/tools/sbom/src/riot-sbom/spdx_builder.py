@@ -1,5 +1,9 @@
+# SPDX-License-Identifier: MIT
+
 __all__ = ["SpdxBuilder"]
 
+import logging
+import os
 import pathlib
 from datetime import datetime
 from typing import List, Tuple
@@ -24,65 +28,14 @@ from spdx_tools.spdx.model import (
     Relationship,
     RelationshipType,
 )
+from spdx_tools.spdx.model.spdx_none import SpdxNone
+from spdx_tools.spdx.model.spdx_no_assertion import SpdxNoAssertion
 from spdx_tools.spdx.validation.document_validator import validate_full_spdx_document
 from spdx_tools.spdx.validation.validation_message import ValidationMessage
 from spdx_tools.spdx.writer.write_anything import write_file
 
-
-# Let's add two files. Have a look at the file class for all possible properties a file can have.
-file1 = File(
-    name="./package/file1.py",
-    spdx_id="SPDXRef-File1",
-    file_types=[FileType.SOURCE],
-    checksums=[
-        Checksum(ChecksumAlgorithm.SHA1, "d6a770ba38583ed4bb4525bd96e50461655d2758"),
-        Checksum(ChecksumAlgorithm.MD5, "624c1abb3664f4b35547e7c73864ad24"),
-    ],
-    license_concluded=spdx_licensing.parse("MIT"),
-    license_info_in_file=[spdx_licensing.parse("MIT")],
-    copyright_text="Copyright 2022 Jane Doe",
-)
-file2 = File(
-    name="./package/file2.py",
-    spdx_id="SPDXRef-File2",
-    checksums=[
-        Checksum(ChecksumAlgorithm.SHA1, "d6a770ba38583ed4bb4525bd96e50461655d2759"),
-    ],
-    license_concluded=spdx_licensing.parse("GPL-2.0-only"),
-)
-
-# Assuming the package contains those two files, we create two CONTAINS relationships.
-contains_relationship1 = Relationship("SPDXRef-Package", RelationshipType.CONTAINS, "SPDXRef-File1")
-contains_relationship2 = Relationship("SPDXRef-Package", RelationshipType.CONTAINS, "SPDXRef-File2")
-
-# This library uses run-time type checks when assigning properties.
-# Because in-place alterations like .append() circumvent these checks, we don't use them here.
-document.relationships += [contains_relationship1, contains_relationship2]
-document.files += [file1, file2]
-
-# We now have created a document with basic creation information, describing a package that contains two files.
-# You can also add Annotations, Snippets and ExtractedLicensingInfo to the document in an analogous manner to the above.
-# Have a look at their respective classes if you are unsure about their properties.
-
-
-# This library provides comprehensive validation against the SPDX specification.
-# Note that details of the validation depend on the SPDX version of the document.
-validation_messages: List[ValidationMessage] = validate_full_spdx_document(document)
-
-# You can have a look at each entry's message and context (like spdx_id, parent_id, full_element)
-# which will help you pinpoint the location of the invalidity.
-for message in validation_messages:
-    logging.warning(message.validation_message)
-    logging.warning(message.context)
-
-# If the document is valid, validation_messages will be empty.
-assert validation_messages == []
-
-# Finally, we can serialize the document to any of the five supported formats.
-# Using the write_file() method from the write_anything module,
-# the format will be determined by the file ending: .spdx (tag-value), .json, .xml, .yaml. or .rdf (or .rdf.xml)
 class SpdxBuilder:
-    def __init__(self, document_name: str, data_license: str,
+    def __init__(self, document_name: str, application_name: str,
                  document_namespace: str, creators: List[Tuple[str, str]]):
         """
         :param document_name: The name of the SPDX document.
@@ -90,12 +43,15 @@ class SpdxBuilder:
         :param document_namespace: The namespace of the SPDX document (URL-formatted).
         :param creators: A list of tuples containing the name and email of the creators of the SPDX document.
         """
+        self.__application_name = application_name
+        self.__document_ref = "SPDXRef-DOCUMENT"
+        self.__application_ref = "SPDXRef-Application"
         creation_info = CreationInfo(
             spdx_version="SPDX-2.3",
-            spdx_id="SPDXRef-DOCUMENT",
+            spdx_id=self.__document_ref,
             name=document_name,
             data_license="CC0-1.0",
-            document_namespace="https://some.namespace",
+            document_namespace=document_namespace,
             creators=[Actor(ActorType.PERSON, name, email) for name, email in creators],
             created=datetime.now(),
         )
@@ -103,51 +59,86 @@ class SpdxBuilder:
         self.__package_name_to_ref_map = {}
 
     def add_package(self, package_info: PackageInfo):
-        print(f"Adding package {package_info.name}")
-        package_ref = f"SPDXRef-package-{package_info.name}"
+        logging.debug(f"Adding package {package_info.name}")
+        package_ref = (self.__application_ref
+                       if self.__application_name == package_info.name
+                       else f"SPDXRef-Package-{len(self.__document.packages) + 1}")
         self.__package_name_to_ref_map[package_info.name] = package_ref
         package = Package(
             name=package_info.name,
             spdx_id=package_ref,
-            download_location=package_info.url or "",
-            version=package_info.version or "",
+            download_location=package_info.url if package_info.url else SpdxNoAssertion(),
+            version=package_info.version if package_info.version else None,
             file_name=package_info.source_dir,
-            supplier=Actor(ActorType.PERSON, "Jane Doe", "jane.doe@example.com"),
-            originator=Actor(ActorType.ORGANIZATION, "some organization", "contact@example.com"),
+            #supplier=Actor(ActorType.PERSON, "Jane Doe", "jane.doe@example.com"),
+            #originator=Actor(ActorType.ORGANIZATION, "some organization", "contact@example.com"),
             files_analyzed=True,
-            verification_code=PackageVerificationCode(
-                value="d6a770ba38583ed4bb4525bd96e50461655d2758", excluded_files=["./some.file"]
-            ),
-            checksums=[
-                Checksum(ChecksumAlgorithm.SHA1, "d6a770ba38583ed4bb4525bd96e50461655d2758"),
-                Checksum(ChecksumAlgorithm.MD5, "624c1abb3664f4b35547e7c73864ad24"),
-            ],
-            license_concluded=spdx_licensing.parse("GPL-2.0-only OR MIT"),
-            license_info_from_files=[spdx_licensing.parse("GPL-2.0-only"), spdx_licensing.parse("MIT")],
-            license_declared=spdx_licensing.parse("GPL-2.0-only AND MIT"),
-            license_comment="license comment",
-            copyright_text="Copyright 2022 Jane Doe",
-            description="package description",
-            attribution_texts=["package attribution"],
+            # verification_code=PackageVerificationCode(
+            #     value="d6a770ba38583ed4bb4525bd96e50461655d2758", excluded_files=["./some.file"]
+            # ),
+            # checksums=[
+            #     Checksum(ChecksumAlgorithm.SHA1, "d6a770ba38583ed4bb4525bd96e50461655d2758"),
+            #     Checksum(ChecksumAlgorithm.MD5, "624c1abb3664f4b35547e7c73864ad24"),
+            # ],
+            #license_concluded=spdx_licensing.parse("GPL-2.0-only OR MIT"),
+            #license_info_from_files=[spdx_licensing.parse("GPL-2.0-only"), spdx_licensing.parse("MIT")],
+            license_declared=spdx_licensing.parse(package_info.license) if package_info.license else SpdxNone(),
+            #license_comment=None,
+            copyright_text=package_info.copyright,
+            #description="package description",
+            #attribution_texts=["package attribution"],
             primary_package_purpose=PackagePurpose.LIBRARY,
-            release_date=datetime(2015, 1, 1),
-            external_references=[
-                ExternalPackageRef(
-                    category=ExternalPackageRefCategory.OTHER,
-                    reference_type="http://reference.type",
-                    locator="reference/locator",
-                    comment="external reference comment",
-                )
-            ],
+            #release_date=datetime(2015, 1, 1),
+            # external_references=[
+            #     ExternalPackageRef(
+            #         category=ExternalPackageRefCategory.OTHER,
+            #         reference_type="http://reference.type",
+            #         locator="reference/locator",
+            #         comment="external reference comment",
+            #     )
+            # ],
         )
         self.__document.packages.append(package)
-        relationship = Relationship("SPDXRef-DOCUMENT", RelationshipType.DESCRIBES, "SPDXRef-Package")
-        self.__document.relationships.append(relationship)
+        if self.__application_name == package_info.name:
+            relationship = Relationship(self.__document_ref, RelationshipType.DESCRIBES, package_ref)
+            self.__document.relationships.append(relationship)
+        else:
+            relationship = Relationship(self.__application_ref, RelationshipType.DEPENDS_ON, package_ref)
+            self.__document.relationships.append(relationship)
 
 
-    def add_file(self, file_info):
-        print(f"Adding file {file_info.path}")
+    def add_file(self, file_info: FileInfo, file_package_info: PackageInfo | None=None):
+        logging.debug(f"Adding file {file_info.path}")
+        file_ref = f"SPDXRef-File-{len(self.__document.files) + 1}"
+        file_package_ref = self.__package_name_to_ref_map.get(file_info.package, None)
+        file_name = (os.path.basename(file_info.path)
+                     if not file_package_info
+                     else os.path.relpath(file_info.path, file_package_info.source_dir))
+        file = File(
+            name=file_name,
+            spdx_id=file_ref,
+            file_types=[FileType.SOURCE],
+            checksums=[
+                Checksum(ChecksumAlgorithm.SHA1, file_info.digests["sha1"]),
+                Checksum(ChecksumAlgorithm.MD5, file_info.digests["md5"]),
+            ],
+            license_concluded=spdx_licensing.parse(file_package_info.license) if file_package_info else None,
+            license_info_in_file=[spdx_licensing.parse(file_info.license)] if file_info.license else None,
+            copyright_text=file_info.copyright,
+        )
+        self.__document.files.append(file)
+        if file_package_ref:
+            relationship = Relationship(file_package_ref, RelationshipType.CONTAINS, file_ref)
+            self.__document.relationships.append(relationship)
+        else:
+            relationship = Relationship(self.__application_ref, RelationshipType.DEPENDS_ON, file_ref)
+            self.__document.relationships.append(relationship)
+
 
     def write(self, file_path: pathlib.Path):
-        print(f"Writing SPDX file for {self.package_name}")
-        write_file(self.__document, file_path.as_posix())
+        logging.info(f"Writing SPDX file for {self.__application_name} to {file_path}")
+        write_file(self.__document, file_path.as_posix(), False)
+
+
+    def validate(self) -> List[ValidationMessage]:
+        return validate_full_spdx_document(self.__document)

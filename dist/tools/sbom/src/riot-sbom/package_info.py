@@ -1,4 +1,8 @@
+# SPDX-License-Identifier: MIT
+
 __all__ = ["PackageInfo"]
+
+from .spdx_license_matcher import spdx_license_matcher
 
 class PackageInfo:
     def __init__(self, name, version, source_dir, url, license, copyright):
@@ -28,11 +32,14 @@ class PackageInfo:
         :param data: The package data. Format as per the build scanner.
         :return: The PackageInfo object.
         """
+        if "license" in data and data["license"] == "PD":
+            data["license"] = None # change this in RIOT as on different legal terms
         return cls(
             name=data.get("name"),
             version=data.get("version"),
             source_dir=data.get("source_dir"),
             url=data.get("url", None),
-            license=data.get("license", None),
+            license=(spdx_license_matcher.get(data["license"].lower())
+                     if data.get("license", None) else None),
             copyright=data.get("copyright", None)
         )

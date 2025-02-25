@@ -1,6 +1,10 @@
+# SPDX-License-Identifier: MIT
+
 import hashlib
 import re
 from typing import Dict
+
+from .spdx_license_matcher import spdx_license_matcher
 
 __all__ = ['FileInfo']
 
@@ -38,7 +42,7 @@ class FileInfo:
                 copyright.strip(' \t*/')
 
     @staticmethod
-    def _get_sha1(path):
+    def _get_digests(path):
         with open(path, 'rb') as f:
             sha1 = hashlib.file_digest(f, 'sha1').hexdigest()
             f.seek(0)
@@ -69,41 +73,21 @@ class FileInfo:
 
     @staticmethod
     def _collect_license_information(line):
-        common_licenses = {
-            "MIT": "MIT",
-            "GNU General Public License v2.0": "GPL-2.0",
-            "GPL-2.0": "GPL-2.0",
-            "GNU General Public License v3.0": "GPL-3.0",
-            "GPL-3.0": "GPL-3.0",
-            "GNU Lesser General Public License v2.1": "LGPL-2.1",
-            "LGPL-2.1": "LGPL-2.1",
-            "GNU Lesser General Public License v3.0": "LGPL-3.0",
-            "LGPL-3.0": "LGPL-3.0",
-            "Apache License 2.0": "Apache-2.0",
-            "Apache-2.0": "Apache-2.0",
-            "BSD 2-Clause": "BSD-2-Clause",
-            "BSD-2-Clause": "BSD-2-Clause",
-            "BSD-3-Clause": "BSD-3-Clause",
-            "BSD 3-Clause": "BSD-3-Clause",
-            "Mozilla Public License 2.0": "MPL-2.0",
-            "MPL-2.0": "MPL-2.0",
-            "Common Development and Distribution License 1.0": "CDDL-1.0",
-            "CDDL-1.0": "CDDL-1.0",
-            "Eclipse Public License 2.0": "EPL-2.0",
-            "EPL-2.0": "EPL-2.0",
-            "GNU Affero General Public License v3.0": "AGPL-3.0",
-            "AGPL-3.0": "AGPL-3.0",
-            "Unlicense": "Unlicense"
-        }
         license_info_matches = set()
-        if 'license' in line.lower():
-            for license in common_licenses:
+        line = line.lower()
+        if 'license' in line:
+            for license in spdx_license_matcher:
                 if license in line:
-                    license_info_matches.add(common_licenses[license])
+                    inferred_license = spdx_license_matcher[license]
+                    if not inferred_license:
+                        continue
+                    license_info_matches.add(inferred_license)
         return list(license_info_matches)
 
     @staticmethod
     def _infer_license_from_snippets(license_info_snippets):
+        if not license_info_snippets:
+            return None
         license = " AND ".join(license_info_snippets)
         return license
 
@@ -119,7 +103,7 @@ class FileInfo:
         :return: A FileInfo object.
         :rtype: FileInfo
         """
-        sha1 = cls._get_sha1(path)
+        digests = cls._get_digests(path)
         spdx_license = None
         copyright = None
         license_info_snippets = []
@@ -136,7 +120,7 @@ class FileInfo:
             license = spdx_license
         else:
             license = cls._infer_license_from_snippets(license_info_snippets)
-        return cls(path, sha1, package_name, license, copyright)
+        return cls(path, digests, package_name, license, copyright)
 
     def __str__(self):
         return f'FileInfo(path={self.path}, sha1={self.digests}, package={self.package}, license={self.license}, copyright={self.copyright})'
