@@ -24,6 +24,7 @@
 
 #include "net/lora.h"
 #include "sx126x.h"
+#include "thread.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -243,6 +244,17 @@ static inline int _sx126x_lora_cr_to(sx126x_lora_cr_t cr)
             return -1;
     }
 }
+
+/**
+ * @name    Internal debug macros for sx126x identification
+ * @{
+ */
+#define SX126X_ID(d)                    thread_getpid()
+#define SX126X_DEBUG(d, msg, ...)       DEBUG("[sx126x %i] " msg, SX126X_ID(d), ##__VA_ARGS__)
+#define SX126X_LOG_INFO(d, msg, ...)    LOG_INFO("[sx126x %i] " msg, SX126X_ID(d), ##__VA_ARGS__)
+#define SX126X_LOG_WARNING(d, msg, ...) LOG_WARNING("[sx126x %i] " msg, SX126X_ID(d), ##__VA_ARGS__)
+#define SX126X_LOG_ERROR(d, msg, ...)   LOG_ERROR("[sx126x %i] " msg, SX126X_ID(d), ##__VA_ARGS__)
+/** @} */
 
 #ifdef __cplusplus
 }
