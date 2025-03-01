@@ -159,6 +159,10 @@ static int _set_state(sx126x_t *dev, sx126x_state_t state)
             }
         }
         else {
+            /* By default, the radio will always return in STDBY_RC
+               unless the configuration is changed by using this command.
+               Changing the default mode from STDBY_RC to STDBY_XOSC or FS
+               will only have an impact on the switching time of the radio */
             sx126x_set_rx_tx_fallback_mode(dev, SX126X_FALLBACK_FS);
             sx126x_set_rx_with_timeout_in_rtc_step(dev, SX126X_RX_CONTINUOUS);
         }
