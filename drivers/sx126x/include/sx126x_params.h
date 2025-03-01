@@ -156,20 +156,21 @@ extern "C" {
 #endif
 
 #ifndef SX126X_PARAMS
-#  define SX126X_PARAMS           { .spi = SX126X_PARAM_SPI,                \
-                                    .nss_pin = SX126X_PARAM_SPI_NSS,        \
-                                    .reset_pin = SX126X_PARAM_RESET,        \
-                                    .busy_pin = SX126X_PARAM_BUSY,          \
-                                    .dio1_pin = SX126X_PARAM_DIO1,          \
-                                    .type     = SX126X_PARAM_TYPE,          \
-                                    .regulator = SX126X_PARAM_REGULATOR,    \
-                                    SX126X_SET_RF_MODE                      \
-                                    SX126X_TX_PA_MODE                       \
-                                    SX126X_DIO2_MODE                        \
-                                    SX126X_DIO2_PIN                         \
-                                    SX126X_DIO3_MODE                        \
-                                    SX126X_DIO3_PIN                         \
-                                  }
+#  define SX126X_PARAMS           { .spi = SX126X_PARAM_SPI,                      \
+                                    .nss_pin = SX126X_PARAM_SPI_NSS,              \
+                                    .reset_pin = SX126X_PARAM_RESET,              \
+                                    .busy_pin = SX126X_PARAM_BUSY,                \
+                                    .dio1_pin = SX126X_PARAM_DIO1,                \
+                                    .dio1_irq_mask = SX126X_PARAM_DIO1_IRQ_MASK,  \
+                                    .type     = SX126X_PARAM_TYPE,                \
+                                    .regulator = SX126X_PARAM_REGULATOR,          \
+                                    SX126X_SET_RF_MODE                            \
+                                    SX126X_TX_PA_MODE                             \
+                                    SX126X_DIO2_MODE                              \
+                                    SX126X_DIO2_PIN                               \
+                                    SX126X_DIO3_MODE                              \
+                                    SX126X_DIO3_PIN                               \
+                                   }
 #endif
 
 /**@}*/
