@@ -1000,6 +1000,8 @@ int ieee802154_set_rx(ieee802154_submac_t *submac)
         }
         break;
     default:
+        DEBUG("IEEE802154 submac: ieee802154_set_rx(): Setting RX failed, currently in %s\n",
+              str_states[current_state]);
         break;
     }
 
