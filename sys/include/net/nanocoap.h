@@ -83,9 +83,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
+#include <stdint.h>
 #include <unistd.h>
 
-#ifdef RIOT_VERSION
 #include "bitarithm.h"
 #include "bitfield.h"
 #include "byteorder.h"
@@ -93,23 +93,15 @@
 #include "macros/utils.h"
 #include "modules.h"
 #include "net/coap.h"
+#include "net/sock/udp.h"
 #include "net/nanocoap_ws.h"
-#else
-#include "coap.h"
-#include <arpa/inet.h>
-#endif
 
-/* work around to get unit tests compiling without pulling in a network stack */
-#if defined(MODULE_SOCK_UDP) || defined(DOXYGEN)
+#if MODULE_NANOCOAP_UDP || MODULE_NANOCOAP_DTLS || DOXYGEN
 #  include "net/sock/udp.h"
-#else
-typedef void sock_udp_ep_t;
 #endif
 
-#if MODULE_SOCK_TCP || defined(DOXYGEN)
+#if MODULE_NANOCOAP_TCP || DOXYGEN
 #  include "net/sock/tcp.h"
-#elif !MODULE_GNRC_SOCK
-typedef void sock_tcp_ep_t;
 #endif
 
 #if defined(MODULE_NANOCOAP_RESOURCES)
