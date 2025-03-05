@@ -85,24 +85,14 @@
 #include <string.h>
 #include <unistd.h>
 
-#ifdef RIOT_VERSION
 #include "bitarithm.h"
 #include "bitfield.h"
 #include "byteorder.h"
 #include "iolist.h"
 #include "macros/utils.h"
-#include "net/coap.h"
 #include "modules.h"
-#else
-#include "coap.h"
-#include <arpa/inet.h>
-#endif
-
-#if defined(MODULE_SOCK_UDP) || defined(DOXYGEN)
+#include "net/coap.h"
 #include "net/sock/udp.h"
-#else
-typedef void sock_udp_ep_t;
-#endif
 
 #if defined(MODULE_NANOCOAP_RESOURCES)
 #include "xfa.h"
@@ -1788,6 +1778,22 @@ static inline size_t coap_opt_put_block2_control(uint8_t *buf, uint16_t lastonum
     /* block.more must be zero, so no need to 'or' it in */
     return coap_opt_put_uint(buf, lastonum, COAP_OPT_BLOCK2,
                              (block->blknum << 4) | block->szx);
+}
+
+/**
+ * @brief   Insert an CoAP Observe Option into the buffer
+ *
+ * @param[out]  buf         Buffer to write to
+ * @param[in]   lastonum    last option number (must be < 6)
+ * @param[in]   obs         observe number to write
+ *
+ * @returns     amount of bytes written to @p buf
+ */
+static inline size_t coap_opt_put_observe(uint8_t *buf, uint16_t lastonum,
+                                          uint32_t obs)
+{
+    obs &= COAP_OBS_MAX_VALUE_MASK; /* trim obs down to 24 bit */
+    return coap_opt_put_uint(buf, lastonum, COAP_OPT_OBSERVE, obs);
 }
 
 /**

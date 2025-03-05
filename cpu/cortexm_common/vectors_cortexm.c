@@ -197,12 +197,12 @@ void reset_handler_default(void)
     dbgpin_init();
 #endif
 
-#ifndef DISABLE_CPU_INIT
+#if !DISABLE_CPU_INIT
     /* initialize the CPU */
     extern void cpu_init(void);
     cpu_init();
 #endif
-#ifndef DISABLE_BOARD_INIT
+#if !DISABLE_BOARD_INIT
     /* initialize the board */
     board_init();
 #endif

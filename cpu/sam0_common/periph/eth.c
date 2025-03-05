@@ -161,6 +161,7 @@ void sam0_eth_poweron(void)
 
     /* if the PHY is not idle, it's likely broken */
     if (!(GMAC->NSR.reg & GMAC_NSR_IDLE)) {
+        DEBUG_PUTS("sam0_eth: PHY not IDLE, likely broken.");
         return;
     }
 
