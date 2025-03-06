@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 from . import build_scanner
 from . import file_info
 from . import package_info

@@ -4,7 +4,7 @@ import hashlib
 import re
 from typing import Dict
 
-from .spdx_license_matcher import spdx_license_matcher
+from .file_scanner import scan_files
 
 __all__ = ['FileInfo']
 

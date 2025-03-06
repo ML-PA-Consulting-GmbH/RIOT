@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+
 from .wrappers import create_spdx_for_build
 from pathlib import Path
 
