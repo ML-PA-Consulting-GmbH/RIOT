@@ -57,6 +57,18 @@
 #  define CONFIG_SX126X_RAMP_TIME_DEFAULT       (SX126X_RAMP_10_US)
 #endif
 
+#ifndef CONFIG_SX126X_LORA_BW_DEFAULT
+#  define CONFIG_SX126X_LORA_BW_DEFAULT         (CONFIG_LORA_BW_DEFAULT)
+#endif
+
+#ifndef CONFIG_SX126X_LORA_SF_DEFAULT
+#  define CONFIG_SX126X_LORA_SF_DEFAULT         (CONFIG_LORA_SF_DEFAULT)
+#endif
+
+#ifndef CONFIG_SX126X_LORA_CR_DEFAULT
+#  define CONFIG_SX126X_LORA_CR_DEFAULT         (CONFIG_LORA_CR_DEFAULT)
+#endif
+
 const sx126x_pa_cfg_params_t sx1268_pa_cfg = {
     .pa_duty_cycle = 0x04,
     .hp_max = 0x06,
@@ -177,9 +189,9 @@ static void sx126x_init_default_config(sx126x_t *dev)
 #endif
     sx126x_set_tx_params(dev, CONFIG_SX126X_TX_POWER_DEFAULT, CONFIG_SX126X_RAMP_TIME_DEFAULT);
 
-    dev->mod_params.bw = _sx126x_lora_bw_from(CONFIG_LORA_BW_DEFAULT);
-    dev->mod_params.sf = _sx126x_lora_sf_from(CONFIG_LORA_SF_DEFAULT);
-    dev->mod_params.cr = _sx126x_lora_cr_from(CONFIG_LORA_CR_DEFAULT);
+    dev->mod_params.bw = _sx126x_lora_bw_from(CONFIG_SX126X_LORA_BW_DEFAULT);
+    dev->mod_params.sf = _sx126x_lora_sf_from(CONFIG_SX126X_LORA_SF_DEFAULT);
+    dev->mod_params.cr = _sx126x_lora_cr_from(CONFIG_SX126X_LORA_CR_DEFAULT);
     dev->mod_params.ldro = _ldro(dev);
     sx126x_set_lora_mod_params(dev, &dev->mod_params);
 
