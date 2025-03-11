@@ -4,7 +4,7 @@ import hashlib
 import re
 from typing import Dict
 
-from .file_scanner import scan_files
+from .file_scanner import scan_files_scancode
 
 __all__ = ['FileInfo']
 
