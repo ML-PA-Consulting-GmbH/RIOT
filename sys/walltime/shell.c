@@ -13,7 +13,6 @@
  * @file
  * @brief       Wall-Clock time shell commands
  *
- * @author      Ludwig Knüpfer <ludwig.knuepfer@fu-berlin.de>#
  * @author      Benjamin Valentin <benjamin.valentin@ml-pa.com>
  *
  * @}
@@ -35,7 +34,7 @@ static int cmd_uptime(int argc, char **argv)
 
     printf("%"PRIu32" s", uptime_boot);
     if (uptime_boot != uptime_full) {
-        printf(" (%"PRIu32" s with hibernation)\n", uptime_full);
+        printf(" (%"PRIu32" s with hibernation)", uptime_full);
     }
     puts("");
 
@@ -101,18 +100,18 @@ static int _cmd_set_time(char **argv)
 
 static int cmd_walltime(int argc, char **argv)
 {
-    if (argc == 1 || strcmp(argv[1], "get") == 0) {
+    if (argc == 1) {
         struct tm now;
         walltime_get(&now, NULL);
         _print_time(&now);
-    } else if (strcmp(argv[1], "set") == 0) {
+    } else if (argc == 4 && strcmp(argv[1], "set") == 0) {
         return _cmd_set_time(argv + 2);
     } else {
-        printf("usage: %s <get|set>\n", argv[0]);
+        printf("usage: %s [set <date> <time>]\n", argv[0]);
     }
 
     return 0;
 }
 
 SHELL_COMMAND(uptime, "Seconds since the last reset", cmd_uptime);
-SHELL_COMMAND(walltime, "control system time", cmd_walltime);
+SHELL_COMMAND(walltime, "Read and control the system time", cmd_walltime);
