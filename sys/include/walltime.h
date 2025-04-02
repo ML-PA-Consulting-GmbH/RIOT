@@ -16,7 +16,7 @@
  *
  *              Use these functions to access system time, don't directly use the
  *              `periph_rtc` API.
- *              This allows to write applications that are independend of the RTC
+ *              This allows to write applications that are independent of the RTC
  *              peripheral and allows the implementation of on-time change callbacks.
  * @note
  * The values used for setting and getting the time/alarm should
