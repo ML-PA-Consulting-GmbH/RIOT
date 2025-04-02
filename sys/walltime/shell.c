@@ -104,9 +104,11 @@ static int cmd_walltime(int argc, char **argv)
         struct tm now;
         walltime_get(&now, NULL);
         _print_time(&now);
-    } else if (argc == 4 && strcmp(argv[1], "set") == 0) {
+    }
+    else if (argc == 4 && strcmp(argv[1], "set") == 0) {
         return _cmd_set_time(argv + 2);
-    } else {
+    }
+    else {
         printf("usage: %s [set <date> <time>]\n", argv[0]);
     }
 
