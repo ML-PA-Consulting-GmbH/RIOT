@@ -90,16 +90,6 @@ void walltime_get(struct tm *time, uint16_t *ms)
     }
 }
 
-static void auto_init_uptime(void)
-{
-    _boottime = walltime_get_riot(NULL);
-#ifdef BACKUP_RAM
-    if (!cpu_woke_from_backup()) {
-        _boottime_bkup = _boottime;
-    }
-#endif
-}
-
 uint32_t walltime_uptime(bool full)
 {
     uint32_t now = walltime_get_riot(NULL);
@@ -113,4 +103,13 @@ uint32_t walltime_uptime(bool full)
     return now - _boottime;
 }
 
+static void auto_init_uptime(void)
+{
+    _boottime = walltime_get_riot(NULL);
+#ifdef BACKUP_RAM
+    if (!cpu_woke_from_backup()) {
+        _boottime_bkup = _boottime;
+    }
+#endif
+}
 AUTO_INIT(auto_init_uptime, AUTO_INIT_PRIO_WDT_EVENT);
