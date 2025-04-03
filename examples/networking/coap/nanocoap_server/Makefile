@@ -7,13 +7,18 @@ BOARD ?= native
 # This has to be the absolute path to the RIOT base directory:
 RIOTBASE ?= $(CURDIR)/../../../..
 
+<<<<<<< HEAD
 # use GNRC by default
 LWIP_IPV4 ?= 0
 LWIP_IPV6 ?= 0
+=======
+NETWORK_STACK ?= gnrc
+>>>>>>> maribu/sys/net/nanocoap/transport-tcp
 
 # Include packages that pull up and auto-init the link layer.
 # NOTE: 6LoWPAN will be included if IEEE802.15.4 devices are present
 USEMODULE += netdev_default
+<<<<<<< HEAD
 
 ifeq (,$(filter 1, $(LWIP_IPV4) $(LWIP_IPV6)))
   USEMODULE += auto_init_gnrc_netif
@@ -47,7 +52,25 @@ endif
 USEMODULE += sock_udp
 
 USEMODULE += nanocoap_sock
+=======
+USEMODULE += sock_udp
+USEMODULE += ipv6_addr
+>>>>>>> maribu/sys/net/nanocoap/transport-tcp
 USEMODULE += nanocoap_resources
+USEMODULE += nanocoap_sock
+USEMODULE += nanocoap_udp
+
+ifeq ($(NETWORK_STACK),gnrc)
+  USEMODULE += auto_init_gnrc_netif
+  # Specify the mandatory networking modules for IPv6
+  USEMODULE += gnrc_ipv6_default
+  # Additional networking modules that can be dropped if not needed
+  USEMODULE += gnrc_icmpv6_echo
+endif
+ifeq ($(NETWORK_STACK),lwip)
+  USEMODULE += auto_init_lwip_netif
+  USEMODULE += lwip_ipv6 lwip_ipv6_autoconfig
+endif
 
 USEMODULE += ztimer_msec
 
@@ -72,8 +95,13 @@ ifneq (,$(filter $(BOARD),$(LOW_MEMORY_BOARDS)))
   USEMODULE += prng_minstd
 endif
 
+<<<<<<< HEAD
 # Enable fileserver for boards with plenty of memory
 HIGH_MEMORY_BOARDS := native native32 native64 same54-xpro mcb2388
+=======
+# Enable fileserver and TCP for boards with plenty of memory
+HIGH_MEMORY_BOARDS := native native64 same54-xpro mcb2388
+>>>>>>> maribu/sys/net/nanocoap/transport-tcp
 
 ifneq (,$(filter $(BOARD),$(HIGH_MEMORY_BOARDS)))
   # enable separate response
@@ -92,6 +120,20 @@ ifneq (,$(filter $(BOARD),$(HIGH_MEMORY_BOARDS)))
   ifneq (,$(filter native native32 native64,$(BOARD)))
     USEMODULE += vfs_auto_format
   endif
+
+  USEMODULE += nanocoap_server_ws
+  USEMODULE += nanocoap_ws_udp_yolo
+
+  # async TCP is not supported on GNRC yet
+  ifeq ($(NETWORK_STACK),lwip)
+    USEMODULE += nanocoap_server_tcp
+  endif
+endif
+
+# if nanocaop_server_tcp is used: This app makes use of event_thread
+# to run the TCP server
+ifneq (,$(filter nanocoap_server_tcp,$(USEMODULE)))
+  USEMODULE += event_thread
 endif
 
 # Change this to 0 show compiler invocation lines by default:
