@@ -113,8 +113,8 @@ static void _dump_rtr_adv(const ndp_rtr_adv_t *rtr_adv, size_t payload_len)
             print_str("}");
             break;
         case NDP_OPT_RI:
-            const ndp_opt_ri_t *rio = (void *)opt;
             print_str("\n\t  route=");
+            const ndp_opt_ri_t *rio = (void *)opt;
             ipv6_prefix_print(&rio->prefix, rio->prefix_len);
             print_str(" ltime=");
             print_u32_dec(byteorder_ntohl(rio->route_ltime));
