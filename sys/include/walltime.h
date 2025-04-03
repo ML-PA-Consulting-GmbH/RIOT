@@ -49,7 +49,7 @@ void walltime_set(struct tm *time);
  *
  * @param[out] time current time output
  * @param[out] ms   current milliseconds output, may be NULL
- *                  resolution depends on the backend, may always be 0
+ *                  always returns 0 if the backend supports no millisecond resolution
  */
 void walltime_get(struct tm *time, uint16_t *ms);
 
@@ -57,7 +57,7 @@ void walltime_get(struct tm *time, uint16_t *ms);
  * @brief   Get the current system time in seconds since @ref RIOT_EPOCH
  *
  * @param[out] ms   current milliseconds output, may be NULL
- *                  resolution depends on the backend, may always be 0
+ *                  always returns 0 if the backend supports no millisecond resolution
  *
  * @returns seconds since `RIOT_EPOCH`
  */
@@ -67,7 +67,7 @@ uint32_t walltime_get_riot(uint16_t *ms);
  * @brief   Get the current system time in seconds since 01.01.1970
  *
  * @param[out] ms   current milliseconds output, may be NULL
- *                  resolution depends on the backend, may always be 0
+ *                  always returns 0 if the backend supports no millisecond resolution
  *
  * @returns seconds since 01.01.1970
  */
@@ -76,7 +76,7 @@ time_t walltime_get_unix(uint16_t *ms);
 /**
  * @brief   Get seconds elapsed since last reset
  *
- * @note    The @p full option will only have an effect if @see BACKUP_RAM
+ * @note    The @p full option will only have an effect if @ref BACKUP_RAM
  *          is available.
  *
  * @param[in] full  set to false to get seconds since last (warm) boot / wake-up
