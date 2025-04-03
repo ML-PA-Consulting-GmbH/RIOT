@@ -565,9 +565,9 @@ void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pi
     }
 #if IS_USED(MODULE_GNRC_IPV6_AUTO_SUBNETS_EUI)
     static event_deferred_callback_t event;
-    event_deferred_callback_start(&event, EVENT_PRIO_MEDIUM,
-                                  ZTIMER_MSEC, 1 + (random_uint32() & 0x3FF),
-                                  _deferred_config, NULL);
+    event_deferred_callback_post(&event, EVENT_PRIO_MEDIUM,
+                                 ZTIMER_MSEC, 1 + (random_uint32() & 0x3FF),
+                                 _deferred_config, NULL);
 #else
     /* start advertising by sending timeout message to the server thread */
     msg_t m = {
