@@ -16,6 +16,7 @@ git merge --no-edit maribu/tests/unittests/out-of-tree-tests
 git merge --no-edit benpicco/gnrc/ipv6/nib-abr_run-time
 git merge --no-edit benpicco/gnrc_ipv6_auto_subnets-auto_6ctx
 git merge --no-edit benpicco/gnrc_ipv6_auto_subnets-deferred-send
+git merge --no-edit benpicco/ipv6_auto_subnets-removal
 git merge --no-edit benpicco/gnrc_netapi-warn
 git merge --no-edit benpicco/riotboot/minimal
 git merge --no-edit benpicco/gnrc_pktdump2
