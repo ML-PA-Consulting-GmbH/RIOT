@@ -318,7 +318,7 @@ static void _print_coap_format(unsigned format)
 static bool _dump_coap(const void *buf, size_t len)
 {
     coap_pkt_t pkt;
-    if (coap_parse(&pkt, (void *)buf, len)) {
+    if (coap_parse(&pkt, (void *)buf, len) < 0) {
         return false;
     }
 
