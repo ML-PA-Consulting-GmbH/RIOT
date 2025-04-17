@@ -1,4 +1,2 @@
 USEMODULE += nanocoap
-USEMODULE += nanocoap_udp
-USEMODULE += nanocoap_tcp
 USEMODULE += nanocoap_token_ext
