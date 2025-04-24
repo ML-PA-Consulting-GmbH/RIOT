@@ -37,6 +37,47 @@ extern "C" {
 #endif
 
 /**
+ * @brief   Time change notification callback
+ *
+ * @param[in, out]  ctx User supplied context
+ * @param[in]   diff_sec    seconds portion of the time change
+ * @param[in]   diff_ms     millisecond portion of the time change
+ *
+ */
+typedef void (*walltime_change_cb_t)(void *ctx, int32_t diff_sec, int16_t diff_ms);
+
+/**
+ * @brief   Time change notification subscription
+ * @{
+ */
+typedef struct {
+    void *next;                 /**< next pointer, internal use only */
+    walltime_change_cb_t cb;    /**< time change callback function   */
+    void *ctx;                  /**< callback function context       */
+} walltime_change_sub_t;
+/** @} */
+
+/**
+ * @brief   Add a time change notification subscription
+ *          This will be called whenever the system time changes
+ *
+ * @note    @p sub must remain valid as long as the subscription is active.
+ *
+ * @param[in] sub   The time change notify subscription to add
+ */
+void walltime_change_subscribe(walltime_change_sub_t *sub);
+
+/**
+ * @brief   Remove a time change notification subscription
+ *
+ * @param[in] sub   The time change notify subscription to remove
+ *
+ * @retval  true  The subscription was removed
+ * @retval  false The subscription could not be found
+ */
+bool walltime_change_unsubscribe(walltime_change_sub_t *sub);
+
+/**
  * @brief   Set the system date / time
  *
  * @param[in] time  The current data / time to set

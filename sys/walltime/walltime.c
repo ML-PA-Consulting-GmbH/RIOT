@@ -42,6 +42,36 @@ static uint32_t _boottime_bkup BACKUP_RAM;
 uint32_t ztimer_offset;
 #endif
 
+static void *subscriber;
+
+void walltime_change_subscribe(walltime_change_sub_t *sub)
+{
+    assert(sub->cb);
+    sub->next = NULL;
+
+    void **tail = &subscriber;
+    while (*tail) {
+        tail = &((walltime_change_sub_t *)*tail)->next;
+    }
+    *tail = sub;
+}
+
+bool walltime_change_unsubscribe(walltime_change_sub_t *sub)
+{
+    void **tail = &subscriber;
+    void **prev = tail;
+    while (*tail) {
+        if (*tail == sub) {
+            *prev = sub->next;
+            return true;
+        }
+        prev = tail;
+        tail = &((walltime_change_sub_t *)*tail)->next;
+    }
+
+    return false;
+}
+
 uint32_t walltime_get_riot(uint16_t *ms)
 {
 #ifdef ZTIMER_FALLBACK
@@ -77,6 +107,12 @@ void walltime_set(struct tm *time)
 #else
     rtc_set_time(time);
 #endif
+
+    walltime_change_sub_t *tail = subscriber;
+    while (tail) {
+        tail->cb(tail->ctx, diff, 0);
+        tail = tail->next;
+    }
 }
 
 void walltime_get(struct tm *time, uint16_t *ms)
