@@ -100,7 +100,9 @@ endif
 
 ifneq (,$(filter printf_float,$(USEMODULE)))
   ifneq (,$(filter newlib_nano,$(USEMODULE)))
-    LINKFLAGS += -u _printf_float
+    ifeq (,$(filter mpaland-printf,$(USEPKG)))
+      LINKFLAGS += -u _printf_float
+    endif
   endif
 endif
 
