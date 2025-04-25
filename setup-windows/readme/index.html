@@ -1,0 +1,569 @@
+<!DOCTYPE html><html lang="en" dir="ltr" data-theme="dark" data-has-toc data-has-sidebar class="astro-bguv2lll"> <head><meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/><title>Getting Started with RIOT on Windows | Riot Documentation</title><link rel="canonical" href="https://guide.riot-os.org/setup-windows/readme/"/><link rel="sitemap" href="/sitemap-index.xml"/><link rel="shortcut icon" href="/favicon.svg" type="image/svg+xml"/><meta name="generator" content="Astro v5.6.1"/><meta name="generator" content="Starlight v0.33.1"/><meta property="og:title" content="Getting Started with RIOT on Windows"/><meta property="og:type" content="article"/><meta property="og:url" content="https://guide.riot-os.org/setup-windows/readme/"/><meta property="og:locale" content="en"/><meta property="og:description" content="This guide will help you to set up RIOT on Windows using WSL"/><meta property="og:site_name" content="Riot Documentation"/><meta name="twitter:card" content="summary_large_image"/><meta name="description" content="This guide will help you to set up RIOT on Windows using WSL"/><script>
+	window.StarlightThemeProvider = (() => {
+		const storedTheme =
+			typeof localStorage !== 'undefined' && localStorage.getItem('starlight-theme');
+		const theme =
+			storedTheme ||
+			(window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+		document.documentElement.dataset.theme = theme === 'light' ? 'light' : 'dark';
+		return {
+			updatePickers(theme = storedTheme || 'auto') {
+				document.querySelectorAll('starlight-theme-select').forEach((picker) => {
+					const select = picker.querySelector('select');
+					if (select) select.value = theme;
+					/** @type {HTMLTemplateElement | null} */
+					const tmpl = document.querySelector(`#theme-icons`);
+					const newIcon = tmpl && tmpl.content.querySelector('.' + theme);
+					if (newIcon) {
+						const oldIcon = picker.querySelector('svg.label-icon');
+						if (oldIcon) {
+							oldIcon.replaceChildren(...newIcon.cloneNode(true).childNodes);
+						}
+					}
+				});
+			},
+		};
+	})();
+</script><template id="theme-icons"><svg aria-hidden="true" class="light astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M5 12a1 1 0 0 0-1-1H3a1 1 0 0 0 0 2h1a1 1 0 0 0 1-1Zm.64 5-.71.71a1 1 0 0 0 0 1.41 1 1 0 0 0 1.41 0l.71-.71A1 1 0 0 0 5.64 17ZM12 5a1 1 0 0 0 1-1V3a1 1 0 0 0-2 0v1a1 1 0 0 0 1 1Zm5.66 2.34a1 1 0 0 0 .7-.29l.71-.71a1 1 0 1 0-1.41-1.41l-.66.71a1 1 0 0 0 0 1.41 1 1 0 0 0 .66.29Zm-12-.29a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.71-.71a1.004 1.004 0 1 0-1.43 1.41l.73.71ZM21 11h-1a1 1 0 0 0 0 2h1a1 1 0 0 0 0-2Zm-2.64 6A1 1 0 0 0 17 18.36l.71.71a1 1 0 0 0 1.41 0 1 1 0 0 0 0-1.41l-.76-.66ZM12 6.5a5.5 5.5 0 1 0 5.5 5.5A5.51 5.51 0 0 0 12 6.5Zm0 9a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Zm0 3.5a1 1 0 0 0-1 1v1a1 1 0 0 0 2 0v-1a1 1 0 0 0-1-1Z"/></svg><svg aria-hidden="true" class="dark astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.64 13a1 1 0 0 0-1.05-.14 8.049 8.049 0 0 1-3.37.73 8.15 8.15 0 0 1-8.14-8.1 8.59 8.59 0 0 1 .25-2A1 1 0 0 0 8 2.36a10.14 10.14 0 1 0 14 11.69 1 1 0 0 0-.36-1.05Zm-9.5 6.69A8.14 8.14 0 0 1 7.08 5.22v.27a10.15 10.15 0 0 0 10.14 10.14 9.784 9.784 0 0 0 2.1-.22 8.11 8.11 0 0 1-7.18 4.32v-.04Z"/></svg><svg aria-hidden="true" class="auto astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg></template><link rel="stylesheet" href="/_astro/print.BJ0teN4y.css" media="print"><link rel="stylesheet" href="/_astro/index.DpajNGI-.css"><script type="module" src="/_astro/page.7qqag-5g.js"></script></head> <body class="astro-bguv2lll"> <a href="#_top" class="astro-7q3lir66">Skip to content</a>  <div class="page sl-flex astro-vrdttmbt"> <header class="header astro-vrdttmbt"><div class="header sl-flex astro-kmkmnagf"> <div class="title-wrapper sl-flex astro-kmkmnagf"> <a href="/" class="site-title sl-flex astro-m46x6ez3">  <img class="astro-m46x6ez3" alt src="/_astro/riot-logo.DB44Jy2T.svg" width="101" height="55">  <span class="sr-only astro-m46x6ez3" translate="no"> Riot Documentation </span> </a>  </div> <div class="sl-flex print:hidden astro-kmkmnagf"> <site-search class="astro-kmkmnagf astro-v37mnknz" data-translations="{&#34;placeholder&#34;:&#34;Search&#34;}"> <button data-open-modal disabled aria-label="Search" aria-keyshortcuts="Control+K" class="astro-v37mnknz"> <svg aria-hidden="true" class="astro-v37mnknz astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21.71 20.29 18 16.61A9 9 0 1 0 16.61 18l3.68 3.68a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.39ZM11 18a7 7 0 1 1 0-14 7 7 0 0 1 0 14Z"/></svg> <span class="sl-hidden md:sl-block astro-v37mnknz" aria-hidden="true">Search</span> <kbd class="sl-hidden md:sl-flex astro-v37mnknz" style="display: none;"> <kbd class="astro-v37mnknz">Ctrl</kbd><kbd class="astro-v37mnknz">K</kbd> </kbd> </button> <dialog style="padding:0" aria-label="Search" class="astro-v37mnknz"> <div class="dialog-frame sl-flex astro-v37mnknz">  <button data-close-modal class="sl-flex md:sl-hidden astro-v37mnknz"> Cancel </button> <div class="search-container astro-v37mnknz"> <div id="starlight__search" class="astro-v37mnknz"></div> </div> </div> </dialog> </site-search>  <script>
+	(() => {
+		const openBtn = document.querySelector('button[data-open-modal]');
+		const shortcut = openBtn?.querySelector('kbd');
+		if (!openBtn || !(shortcut instanceof HTMLElement)) return;
+		const platformKey = shortcut.querySelector('kbd');
+		if (platformKey && /(Mac|iPhone|iPod|iPad)/i.test(navigator.platform)) {
+			platformKey.textContent = '⌘';
+			openBtn.setAttribute('aria-keyshortcuts', 'Meta+K');
+		}
+		shortcut.style.display = '';
+	})();
+</script> <script type="module" src="/_astro/Search.astro_astro_type_script_index_0_lang.18-vQxR-.js"></script>   </div> <div class="sl-hidden md:sl-flex print:hidden right-group astro-kmkmnagf"> <div class="sl-flex social-icons astro-kmkmnagf"> <a href="https://github.com/riot-os/riot" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a><a href="https://fosstodon.org/@RIOT_OS" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">Mastodon</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M16.45 17.77c2.77-.33 5.18-2.03 5.49-3.58.47-2.45.44-5.97.44-5.97 0-4.77-3.15-6.17-3.15-6.17-1.58-.72-4.3-1.03-7.13-1.05h-.07c-2.83.02-5.55.33-7.13 1.05 0 0-3.14 1.4-3.14 6.17v.91c-.01.88-.02 1.86 0 2.88.12 4.67.87 9.27 5.2 10.4 2 .53 3.72.64 5.1.57 2.51-.14 3.92-.9 3.92-.9l-.08-1.8s-1.8.56-3.8.5c-2-.08-4.1-.22-4.43-2.66a4.97 4.97 0 0 1-.04-.68s1.96.48 4.44.59c1.51.07 2.94-.09 4.38-.26Zm2.22-3.4h-2.3v-5.6c0-1.19-.5-1.79-1.5-1.79-1.1 0-1.66.71-1.66 2.12v3.07h-2.3V9.1c0-1.4-.55-2.12-1.65-2.12-1 0-1.5.6-1.5 1.78v5.61h-2.3V8.6c0-1.18.3-2.12.9-2.81a3.17 3.17 0 0 1 2.47-1.05c1.18 0 2.07.45 2.66 1.35l.57.96.58-.96a2.97 2.97 0 0 1 2.66-1.35c1.01 0 1.83.36 2.46 1.05.6.7.9 1.63.9 2.81v5.78Z"/></svg></a><a href="https://matrix.to/#/#riot-os:matrix.org" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">Matrix</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M22.5 1.5v21h-2.25V24H24V0h-3.75v1.5h2.25ZM7.46 7.95V9.1h.04a3.02 3.02 0 0 1 2.61-1.39c.54 0 1.03.1 1.48.32.44.2.78.58 1.01 1.1.26-.37.6-.7 1.03-.99.44-.28.95-.43 1.55-.43.45 0 .87.06 1.26.17.38.11.71.29.99.53.27.24.49.56.64.95.15.4.23.86.23 1.42v5.72h-2.34v-4.85c0-.29-.01-.56-.04-.8a1.73 1.73 0 0 0-.18-.67 1.1 1.1 0 0 0-.44-.45 1.6 1.6 0 0 0-.78-.16c-.33 0-.6.06-.8.19-.2.12-.37.29-.48.5a2 2 0 0 0-.23.69c-.04.26-.06.52-.06.78v4.77H10.6v-4.8l-.01-.75a2.29 2.29 0 0 0-.14-.69c-.08-.2-.23-.38-.42-.5a1.5 1.5 0 0 0-.85-.2c-.15.01-.3.04-.44.08-.19.06-.37.15-.52.28-.18.14-.32.34-.44.6-.12.26-.18.6-.18 1.02v4.96H5.25V7.94h2.21ZM1.5 1.5v21h2.25V24H0V0h3.75v1.5H1.5Z"/></svg></a> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select value="auto" autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label>  </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script> <script type="module">const r="starlight-theme",o=e=>e==="auto"||e==="dark"||e==="light"?e:"auto",c=()=>o(typeof localStorage<"u"&&localStorage.getItem(r));function n(e){typeof localStorage<"u"&&localStorage.setItem(r,e==="light"||e==="dark"?e:"")}const l=()=>matchMedia("(prefers-color-scheme: light)").matches?"light":"dark";function t(e){StarlightThemeProvider.updatePickers(e),document.documentElement.dataset.theme=e==="auto"?l():e,n(e)}matchMedia("(prefers-color-scheme: light)").addEventListener("change",()=>{c()==="auto"&&t("auto")});class s extends HTMLElement{constructor(){super(),t(c()),this.querySelector("select")?.addEventListener("change",a=>{a.currentTarget instanceof HTMLSelectElement&&t(o(a.currentTarget.value))})}}customElements.define("starlight-theme-select",s);</script> <script type="module">class s extends HTMLElement{constructor(){super();const e=this.querySelector("select");e&&(e.addEventListener("change",t=>{t.currentTarget instanceof HTMLSelectElement&&(window.location.pathname=t.currentTarget.value)}),window.addEventListener("pageshow",t=>{if(!t.persisted)return;const n=e.querySelector("option[selected]")?.index;n!==e.selectedIndex&&(e.selectedIndex=n??0)}))}}customElements.define("starlight-lang-select",s);</script> </div> </div> </header> <nav class="sidebar print:hidden astro-vrdttmbt" aria-label="Main"> <starlight-menu-button class="print:hidden astro-jif73yzw"> <button aria-expanded="false" aria-label="Menu" aria-controls="starlight__sidebar" class="sl-flex md:sl-hidden astro-jif73yzw"> <svg aria-hidden="true" class="open-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M3 8h18a1 1 0 1 0 0-2H3a1 1 0 0 0 0 2Zm18 8H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Zm0-5H3a1 1 0 0 0 0 2h18a1 1 0 0 0 0-2Z"/></svg> <svg aria-hidden="true" class="close-menu astro-jif73yzw astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="m13.41 12 6.3-6.29a1.004 1.004 0 1 0-1.42-1.42L12 10.59l-6.29-6.3a1.004 1.004 0 0 0-1.42 1.42l6.3 6.29-6.3 6.29a1 1 0 0 0 0 1.42.998.998 0 0 0 1.42 0l6.29-6.3 6.29 6.3a.999.999 0 0 0 1.42 0 1 1 0 0 0 0-1.42L13.41 12Z"/></svg> </button> </starlight-menu-button> <script type="module">class s extends HTMLElement{constructor(){super(),this.btn=this.querySelector("button"),this.btn.addEventListener("click",()=>this.toggleExpanded());const t=this.closest("nav");t&&t.addEventListener("keyup",e=>this.closeOnEscape(e))}setExpanded(t){this.setAttribute("aria-expanded",String(t)),document.body.toggleAttribute("data-mobile-menu-expanded",t)}toggleExpanded(){this.setExpanded(this.getAttribute("aria-expanded")!=="true")}closeOnEscape(t){t.code==="Escape"&&(this.setExpanded(!1),this.btn.focus())}}customElements.define("starlight-menu-button",s);</script>   <div id="starlight__sidebar" class="sidebar-pane astro-vrdttmbt"> <div class="sidebar-content sl-flex astro-vrdttmbt"> <sl-sidebar-state-persist data-hash="15ln6o8" class="astro-kku4brbg"> <script aria-hidden="true">
+		(() => {
+			try {
+				if (!matchMedia('(min-width: 50em)').matches) return;
+				/** @type {HTMLElement | null} */
+				const target = document.querySelector('sl-sidebar-state-persist');
+				const state = JSON.parse(sessionStorage.getItem('sl-sidebar-state') || '0');
+				if (!target || !state || target.dataset.hash !== state.hash) return;
+				window._starlightScrollRestore = state.scroll;
+				customElements.define(
+					'sl-sidebar-restore',
+					class SidebarRestore extends HTMLElement {
+						connectedCallback() {
+							try {
+								const idx = parseInt(this.dataset.index || '');
+								const details = this.closest('details');
+								if (details && typeof state.open[idx] === 'boolean') details.open = state.open[idx];
+							} catch {}
+						}
+					}
+				);
+			} catch {}
+		})();
+	</script>  <ul class="top-level astro-3ii7xxms"> <li class="astro-3ii7xxms"> <details open class="astro-3ii7xxms"> <sl-sidebar-restore data-index="0"></sl-sidebar-restore> <summary class="astro-3ii7xxms"> <div class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">External Documentation</span>  </div> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="https://doc.riot-os.org" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">API Documentation</span> <span class="sl-badge tip small  astro-3ii7xxms astro-avdet4wd">Doxygen</span> </a> </li><li class="astro-3ii7xxms"> <a href="https://doc.riot-os.org/rustdoc/latest/riot_doc_helpers/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Rust Documentation</span> <span class="sl-badge tip small  astro-3ii7xxms astro-avdet4wd">Rustdoc</span> </a> </li> </ul>  </details> </li><li class="astro-3ii7xxms"> <details open class="astro-3ii7xxms"> <sl-sidebar-restore data-index="1"></sl-sidebar-restore> <summary class="astro-3ii7xxms"> <div class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">RIOT in a Nutshell</span>  </div> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Introduction</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/general/structure/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Structure</span>  </a> </li> </ul>  </details> </li><li class="astro-3ii7xxms"> <details open class="astro-3ii7xxms"> <sl-sidebar-restore data-index="2"></sl-sidebar-restore> <summary class="astro-3ii7xxms"> <div class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">Build System</span>  </div> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/build-system/build_system/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">The Build System</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/build-system/build_system_basics/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Build System Basics</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/build-system/build-in-docker/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Build in Docker</span>  </a> </li><li class="astro-3ii7xxms"> <a href="/build-system/advanced_build_system_tricks/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Advanced Build System Tricks</span>  </a> </li> </ul>  </details> </li><li class="astro-3ii7xxms"> <details open class="astro-3ii7xxms"> <sl-sidebar-restore data-index="3"></sl-sidebar-restore> <summary class="astro-3ii7xxms"> <div class="group-label astro-3ii7xxms"> <span class="large astro-3ii7xxms">Miscellaneous</span>  </div> <svg aria-hidden="true" class="caret astro-3ii7xxms astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.25rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg> </summary> <ul class="astro-3ii7xxms"> <li class="astro-3ii7xxms"> <a href="/misc/how_to_doc/" aria-current="false" class="astro-3ii7xxms"> <span class="astro-3ii7xxms">Creating Guides &amp; How Starlight Works</span>  </a> </li> </ul>  </details> </li> </ul>   <script aria-hidden="true">
+		(() => {
+			const scroller = document.getElementById('starlight__sidebar');
+			if (!window._starlightScrollRestore || !scroller) return;
+			scroller.scrollTop = window._starlightScrollRestore;
+			delete window._starlightScrollRestore;
+		})();
+	</script> </sl-sidebar-state-persist>  <div class="md:sl-hidden"> <div class="mobile-preferences sl-flex astro-wu23bvmt"> <div class="sl-flex social-icons astro-wu23bvmt"> <a href="https://github.com/riot-os/riot" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">GitHub</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.12.83-.26.83-.57L9 21.07c-3.34.72-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.08-.74.09-.73.09-.73 1.2.09 1.83 1.24 1.83 1.24 1.08 1.83 2.81 1.3 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.14-.3-.54-1.52.1-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6 0c2.28-1.55 3.29-1.23 3.29-1.23.64 1.66.24 2.88.12 3.18a4.65 4.65 0 0 1 1.23 3.22c0 4.61-2.8 5.63-5.48 5.92.42.36.81 1.1.81 2.22l-.01 3.29c0 .31.2.69.82.57A12 12 0 0 0 12 .3Z"/></svg></a><a href="https://fosstodon.org/@RIOT_OS" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">Mastodon</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M16.45 17.77c2.77-.33 5.18-2.03 5.49-3.58.47-2.45.44-5.97.44-5.97 0-4.77-3.15-6.17-3.15-6.17-1.58-.72-4.3-1.03-7.13-1.05h-.07c-2.83.02-5.55.33-7.13 1.05 0 0-3.14 1.4-3.14 6.17v.91c-.01.88-.02 1.86 0 2.88.12 4.67.87 9.27 5.2 10.4 2 .53 3.72.64 5.1.57 2.51-.14 3.92-.9 3.92-.9l-.08-1.8s-1.8.56-3.8.5c-2-.08-4.1-.22-4.43-2.66a4.97 4.97 0 0 1-.04-.68s1.96.48 4.44.59c1.51.07 2.94-.09 4.38-.26Zm2.22-3.4h-2.3v-5.6c0-1.19-.5-1.79-1.5-1.79-1.1 0-1.66.71-1.66 2.12v3.07h-2.3V9.1c0-1.4-.55-2.12-1.65-2.12-1 0-1.5.6-1.5 1.78v5.61h-2.3V8.6c0-1.18.3-2.12.9-2.81a3.17 3.17 0 0 1 2.47-1.05c1.18 0 2.07.45 2.66 1.35l.57.96.58-.96a2.97 2.97 0 0 1 2.66-1.35c1.01 0 1.83.36 2.46 1.05.6.7.9 1.63.9 2.81v5.78Z"/></svg></a><a href="https://matrix.to/#/#riot-os:matrix.org" rel="me" class="sl-flex astro-wy4te6ga"><span class="sr-only astro-wy4te6ga">Matrix</span><svg aria-hidden="true" class="astro-wy4te6ga astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M22.5 1.5v21h-2.25V24H24V0h-3.75v1.5h2.25ZM7.46 7.95V9.1h.04a3.02 3.02 0 0 1 2.61-1.39c.54 0 1.03.1 1.48.32.44.2.78.58 1.01 1.1.26-.37.6-.7 1.03-.99.44-.28.95-.43 1.55-.43.45 0 .87.06 1.26.17.38.11.71.29.99.53.27.24.49.56.64.95.15.4.23.86.23 1.42v5.72h-2.34v-4.85c0-.29-.01-.56-.04-.8a1.73 1.73 0 0 0-.18-.67 1.1 1.1 0 0 0-.44-.45 1.6 1.6 0 0 0-.78-.16c-.33 0-.6.06-.8.19-.2.12-.37.29-.48.5a2 2 0 0 0-.23.69c-.04.26-.06.52-.06.78v4.77H10.6v-4.8l-.01-.75a2.29 2.29 0 0 0-.14-.69c-.08-.2-.23-.38-.42-.5a1.5 1.5 0 0 0-.85-.2c-.15.01-.3.04-.44.08-.19.06-.37.15-.52.28-.18.14-.32.34-.44.6-.12.26-.18.6-.18 1.02v4.96H5.25V7.94h2.21ZM1.5 1.5v21h2.25V24H0V0h3.75v1.5H1.5Z"/></svg></a> </div> <starlight-theme-select>  <label style="--sl-select-width: 6.25em" class="astro-4yphtoen"> <span class="sr-only astro-4yphtoen">Select theme</span> <svg aria-hidden="true" class="icon label-icon astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M21 14h-1V7a3 3 0 0 0-3-3H7a3 3 0 0 0-3 3v7H3a1 1 0 0 0-1 1v2a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-2a1 1 0 0 0-1-1ZM6 7a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v7H6V7Zm14 10a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-1h16v1Z"/></svg> <select value="auto" autocomplete="off" class="astro-4yphtoen"> <option value="dark" class="astro-4yphtoen">Dark</option><option value="light" class="astro-4yphtoen">Light</option><option value="auto" selected class="astro-4yphtoen">Auto</option> </select> <svg aria-hidden="true" class="icon caret astro-4yphtoen astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1em;"><path d="M17 9.17a1 1 0 0 0-1.41 0L12 12.71 8.46 9.17a1 1 0 1 0-1.41 1.42l4.24 4.24a1.002 1.002 0 0 0 1.42 0L17 10.59a1.002 1.002 0 0 0 0-1.42Z"/></svg> </label>  </starlight-theme-select>  <script>
+	StarlightThemeProvider.updatePickers();
+</script>   </div>  </div> </div> </div> </nav> <div class="main-frame astro-vrdttmbt">  <script type="module">const a=document.getElementById("starlight__sidebar"),n=a?.querySelector("sl-sidebar-state-persist"),o="sl-sidebar-state",i=()=>{let t=[];const e=n?.dataset.hash||"";try{const s=sessionStorage.getItem(o),r=JSON.parse(s||"{}");Array.isArray(r.open)&&r.hash===e&&(t=r.open)}catch{}return{hash:e,open:t,scroll:a?.scrollTop||0}},c=t=>{try{sessionStorage.setItem(o,JSON.stringify(t))}catch{}},d=()=>c(i()),l=(t,e)=>{const s=i();s.open[e]=t,c(s)};n?.addEventListener("click",t=>{if(!(t.target instanceof Element))return;const e=t.target.closest("summary")?.closest("details");if(!e)return;const s=e.querySelector("sl-sidebar-restore"),r=parseInt(s?.dataset.index||"");isNaN(r)||l(!e.open,r)});addEventListener("visibilitychange",()=>{document.visibilityState==="hidden"&&d()});addEventListener("pageHide",d);</script> <div class="lg:sl-flex astro-67yu43on"> <aside class="right-sidebar-container print:hidden astro-67yu43on"> <div class="right-sidebar astro-67yu43on"> <div class="lg:sl-hidden astro-pb3aqygn"><mobile-starlight-toc data-min-h="2" data-max-h="3" class="astro-doynk5tl"><nav aria-labelledby="starlight__on-this-page--mobile" class="astro-doynk5tl"><details id="starlight__mobile-toc" class="astro-doynk5tl"><summary id="starlight__on-this-page--mobile" class="sl-flex astro-doynk5tl"><div class="toggle sl-flex astro-doynk5tl">On this page<svg aria-hidden="true" class="caret astro-doynk5tl astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1rem;"><path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"/></svg></div><span class="display-current astro-doynk5tl"></span></summary><div class="dropdown astro-doynk5tl"><ul class="isMobile astro-g2bywc46" style="--depth: 0;"> <li class="astro-g2bywc46" style="--depth: 0;"> <a href="#_top" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#install-ubuntu-lts" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Install Ubuntu LTS</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#enabling-wsl" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Enabling WSL</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#setup-ubuntu-lts" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Setup Ubuntu LTS</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#installation-of-the-required-software-packages-in-ubuntu" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Installation of the required software packages in Ubuntu</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#installing-vs-code" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Installing VS Code</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#cloning-the-riot-repository-and-first-steps-in-the-terminal" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Cloning the RIOT Repository and First Steps in the Terminal</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#using-vs-code-for-development" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Using VS Code for Development</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#installing-usbipd-win" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Installing usbipd-win</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#attach-a-usb-device-to-wsl" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Attach a USB device to WSL</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#flash-an-esp32-development-board" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Flash an ESP32 Development Board</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#known-issues" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Known Issues</span> </a> <ul class="isMobile astro-g2bywc46" style="--depth: 1;"> <li class="astro-g2bywc46" style="--depth: 1;"> <a href="#flashing-fails-with-programmers-using-hid" class="astro-g2bywc46" style="--depth: 1;"> <span class="astro-g2bywc46" style="--depth: 1;">Flashing Fails with Programmers using HID</span> </a>  </li> </ul>  </li> </ul> </div></details></nav></mobile-starlight-toc><script type="module" src="/_astro/MobileTableOfContents.astro_astro_type_script_index_0_lang.C181hMzK.js"></script></div><div class="right-sidebar-panel sl-hidden lg:sl-block astro-pb3aqygn"><div class="sl-container astro-pb3aqygn"><starlight-toc data-min-h="2" data-max-h="3"><nav aria-labelledby="starlight__on-this-page"><h2 id="starlight__on-this-page">On this page</h2><ul class="astro-g2bywc46" style="--depth: 0;"> <li class="astro-g2bywc46" style="--depth: 0;"> <a href="#_top" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Overview</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#install-ubuntu-lts" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Install Ubuntu LTS</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#enabling-wsl" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Enabling WSL</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#setup-ubuntu-lts" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Setup Ubuntu LTS</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#installation-of-the-required-software-packages-in-ubuntu" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Installation of the required software packages in Ubuntu</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#installing-vs-code" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Installing VS Code</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#cloning-the-riot-repository-and-first-steps-in-the-terminal" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Cloning the RIOT Repository and First Steps in the Terminal</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#using-vs-code-for-development" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Using VS Code for Development</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#installing-usbipd-win" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Installing usbipd-win</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#attach-a-usb-device-to-wsl" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Attach a USB device to WSL</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#flash-an-esp32-development-board" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Flash an ESP32 Development Board</span> </a>  </li><li class="astro-g2bywc46" style="--depth: 0;"> <a href="#known-issues" class="astro-g2bywc46" style="--depth: 0;"> <span class="astro-g2bywc46" style="--depth: 0;">Known Issues</span> </a> <ul class="astro-g2bywc46" style="--depth: 1;"> <li class="astro-g2bywc46" style="--depth: 1;"> <a href="#flashing-fails-with-programmers-using-hid" class="astro-g2bywc46" style="--depth: 1;"> <span class="astro-g2bywc46" style="--depth: 1;">Flashing Fails with Programmers using HID</span> </a>  </li> </ul>  </li> </ul> </nav></starlight-toc><script type="module" src="/_astro/TableOfContents.astro_astro_type_script_index_0_lang.CKWWgpjV.js"></script></div></div> </div> </aside> <div class="main-pane astro-67yu43on">  <main data-pagefind-body class="astro-bguv2lll" lang="en" dir="ltr">    <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <h1 id="_top" class="astro-j6tvhyss">Getting Started with RIOT on Windows</h1>  </div> </div>  <div class="content-panel astro-7nkwcw3z"> <div class="sl-container astro-7nkwcw3z"> <div class="sl-markdown-content"> <h1 id="getting-started-on-windows">Getting Started on Windows</h1>
+<blockquote>
+<p>[!NOTE]
+The documentation is quite verbose: The process is documented down to every
+click. Because of this verbosity the setup may appear complex and long, but
+in fact is rather straight forward. A novice user should be able to complete
+all steps in less than 30 minutes.</p>
+</blockquote>
+<blockquote>
+<p>[!NOTE]
+Do not be afraid to ask for help e.g. in <a href="https://forum.riot-os.org/">our forum</a></p>
+</blockquote>
+<h2 id="install-ubuntu-lts">Install Ubuntu LTS</h2>
+<p><img alt="Searching Ubuntu LTS in the Windows Store" width="1920" height="1080" loading="lazy" decoding="async" src="/_astro/00-Install_Ubuntu-00.B5e9qzTd_6rsQI.webp" ></p>
+<ol>
+<li>Open the Windows Store</li>
+<li>Type “Ubuntu LTS” in the search bar</li>
+<li>Click on the most recent version (highest number) of Ubuntu LTS found.
+As of February 2024, this is version Ubuntu 22.04.3 LTS.</li>
+</ol>
+<p><img alt="The Ubuntu LTS page in the Windows Store" width="1202" height="966" loading="lazy" decoding="async" src="/_astro/00-Install_Ubuntu-01.D9_026_P_19zXLY.webp" ></p>
+<ol>
+<li>Click on the button labeled “Get”</li>
+</ol>
+<p><img alt="The Windows Store App is installing Ubuntu LTS" width="1202" height="966" loading="lazy" decoding="async" src="/_astro/00-Install_Ubuntu-02.DMTskAA2_Za7axo.webp" ></p>
+<p>It will take a while for Ubuntu LTS to be installed.</p>
+<p><img alt="The Windows Store App has completed installing Ubuntu LTS" width="1202" height="966" loading="lazy" decoding="async" src="/_astro/00-Install_Ubuntu-03.C0FRagRJ_Zj2tGL.webp" ></p>
+<p>Eventually, the installation completes.</p>
+<ol>
+<li>Click on the button labeled “Open”</li>
+</ol>
+<blockquote>
+<p>[!WARNING]
+If the Windows Subsystem for Linux (WSL) has not yet been enabled, an error
+such as below will show. Not to worry, the next section got you covered.</p>
+</blockquote>
+<p><img alt="Error message because WSL is not enabled" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/00-Install_Ubuntu-04.B9b5Uxjk_CdYJN.webp" ></p>
+<h2 id="enabling-wsl">Enabling WSL</h2>
+<blockquote>
+<p>[!NOTE]
+If an Ubuntu terminal opened just fine, proceed directly to the next section.
+This section will show how to enable WSL for those who hit the error.</p>
+</blockquote>
+<p><img alt="Opening the PowerShell as administrator" width="1920" height="1080" loading="lazy" decoding="async" src="/_astro/01-Install_WSL-00.BlAggm-f_MtX1r.webp" ></p>
+<ol>
+<li>Search for “powershell” in the search field of the task bar</li>
+<li><em><strong>Right</strong></em>-click on the hit “Windows PowerShell”</li>
+<li>Click “Run as administrator”</li>
+</ol>
+<p><img alt="Prompt asking for confirmation to run PowerShell as admin" width="1920" height="1080" loading="lazy" decoding="async" src="/_astro/01-Install_WSL-01.DizYKHLD_1CKyXF.webp" ></p>
+<ol>
+<li>Click “Yes” to confirm running the PowerShell as administrator</li>
+</ol>
+<p><img alt="PowerShell terminal opened as administrator" width="979" height="512" loading="lazy" decoding="async" src="/_astro/01-Install_WSL-02.DOPgkrpp_Zd06Hq.webp" ></p>
+<ul>
+<li>Type <code dir="auto">wsl --install</code> and confirm with the return-key.</li>
+<li>After a while, the following message should appear:</li>
+</ul>
+<p><img alt="PowerShell after WSL has been enabled" width="979" height="512" loading="lazy" decoding="async" src="/_astro/01-Install_WSL-03.C4D4f_CH_Z1mauJ5.webp" ></p>
+<ul>
+<li>Now reboot Windows to complete the installation</li>
+</ul>
+<p><img alt="Windows installing WSL during reboot" width="1920" height="1080" loading="lazy" decoding="async" src="/_astro/01-Install_WSL-04.EpyusHCl_Z2ijcRe.webp" ></p>
+<p>The reboot will take longer than usual due to the installation of WSL. You
+may see a screen like above for some time. Once the reboot is completed,
+an Ubuntu terminal should open automatically.</p>
+<h2 id="setup-ubuntu-lts">Setup Ubuntu LTS</h2>
+<p>You should now see an Ubuntu terminal such as:</p>
+<p><img alt="An Ubuntu terminal when first started" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/02-Setup_Ubuntu-00.B_pWCF4e_1OGeLx.webp" ></p>
+<details><summary>If no Ubuntu terminal has opened, click here to see how to open it</summary>
+<p><img alt="Open Ubuntu in the start menu" width="1920" height="1080" loading="lazy" decoding="async" src="/_astro/02-Setup_Ubuntu-01.hxf-8MD3_20TnMn.webp" ></p>
+<ol>
+<li>Click on the Start / Windows button in the task bar</li>
+<li>Click on the “Ubuntu” entry</li>
+</ol>
+</details>
+<ul>
+<li>Enter a user name of your choice, memorize it, and confirm with the return-key</li>
+<li>Enter a password of your choice, memorize it, and confirm with the return-key</li>
+<li>Repeat the password and confirm with the return-key</li>
+</ul>
+<blockquote>
+<p>[!WARNING]
+When typing passwords in the Ubuntu terminal, the chars entered will not
+appear on the screen and neither will appear <code dir="auto">*</code>. You will have to type
+“blindly”. This is an intentional security feature.</p>
+</blockquote>
+<blockquote>
+<p>[!NOTE]
+If you fail to repeat the password correctly, the setup will just again. So
+no need to worry.</p>
+</blockquote>
+<ul>
+<li>Once you successfully have entered user name and password, you should see
+something like this:</li>
+</ul>
+<p><img alt="Ubuntu terminal after username and password are configured" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/02-Setup_Ubuntu-02.B-8ZUwZa_Z1tmP8u.webp" ></p>
+<ul>
+<li>now type (without quotation signs) “sudo apt update” and confirm with the return-key</li>
+<li>you will be asked for you password. Enter it and confirm with the return key</li>
+</ul>
+<blockquote>
+<p>[!WARNING]
+When typing the password, you will no get any visible feedback such as the
+typed password or <code dir="auto">*</code> chars. This is an intentional security feature.</p>
+</blockquote>
+<ul>
+<li>Once you successfully entered the password, something like this will show up:</li>
+</ul>
+<p><img alt="Ubuntu terminal after running apt update" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/02-Setup_Ubuntu-03.BlUtcN8k_1KNQTU.webp" ></p>
+<blockquote>
+<p>[!NOTE]
+The command <code dir="auto">sudo apt update</code> only updates the list of available software
+packages in Ubuntu. Updating the installed software requires to additionally
+run <code dir="auto">sudo apt upgrade</code></p>
+</blockquote>
+<ul>
+<li>Now type <code dir="auto">sudo apt upgrade</code> and confirm with the return-key</li>
+</ul>
+<blockquote>
+<p>[!NOTE]
+This time you likely will not need to confirm with your password again. The
+<code dir="auto">sudo</code> command that allows you to run administrative commands such as
+<code dir="auto">apt update</code> will skip the password entry, when heuristics indicate that
+you have not left your machine since you last confirmed a command with your
+password.</p>
+</blockquote>
+<ul>
+<li>This command will list which packages are about to be updated. Confirm with
+with the return-key</li>
+<li>Eventually after all software packages in Ubuntu have been updated, you will
+see something like this:</li>
+</ul>
+<p><img alt="Ubuntu terminal after updating software" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/02-Setup_Ubuntu-05.A6s_PEeK_Z2m6DH.webp" ></p>
+<blockquote>
+<p>[!NOTE]
+It is recommended to regularly update the installed software in Ubuntu
+using <code dir="auto">sudo apt update</code> followed by <code dir="auto">sudo apt upgrade</code></p>
+</blockquote>
+<h2 id="installation-of-the-required-software-packages-in-ubuntu">Installation of the required software packages in Ubuntu</h2>
+<ul>
+<li>Now, install the required software by typing the following and confirming it
+with a return-key</li>
+</ul>
+<div class="expressive-code"><link rel="stylesheet" href="/_astro/ec.tm3va.css"><script type="module" src="/_astro/ec.8zarh.js"></script><figure class="frame not-content"><figcaption class="header"></figcaption><pre data-language="plaintext"><code><div class="ec-line"><div class="code"><span style="--0:#d6deeb;--1:#403f53">sudo apt install make gcc-multilib python3-serial wget unzip git openocd gdb-multiarch esptool podman-docker clangd clang</span></div></div></code></pre><div class="copy"><button title="Copy to clipboard" data-copied="Copied!" data-code="sudo apt install make gcc-multilib python3-serial wget unzip git openocd gdb-multiarch esptool podman-docker clangd clang"><div></div></button></div></figure></div>
+<ul>
+<li>This will show something like this:</li>
+</ul>
+<p><img alt="Ubuntu terminal waiting for confirmation for installation" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/03-Install_Base_Packages-01.BcLEZZH6_1m8qr5.webp" ></p>
+<ul>
+<li>Confirm the installation by hitting the return-key</li>
+<li>The installation process will take some time</li>
+<li>Eventually the output will look like below (except for the <code dir="auto">exit</code>)</li>
+</ul>
+<p><img alt="Ubuntu terminal after installation completed" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/03-Install_Base_Packages-02.BDd4KdxH_Z1lmHJd.webp" ></p>
+<ul>
+<li>Type <code dir="auto">exit</code> and confirm with the return-key to close the Ubuntu terminal</li>
+<li>The window should close</li>
+</ul>
+<h2 id="installing-vs-code">Installing VS Code</h2>
+<p><img alt="Windows Store page of VS Code" width="1920" height="1081" loading="lazy" decoding="async" src="/_astro/04-Install_VS_Code-00.DvYAusmj_ZEUw5H.webp" ></p>
+<ol>
+<li>Click on the Windows Store icon to open the Windows store</li>
+<li>Type <code dir="auto">vs code</code> in the search bar</li>
+<li>Click on the “Visual Studio Code by Microsoft Corporation” search result
+(not shown in the screenshot above)</li>
+<li>In the Windows Store page of VS Code (as shown in the screenshot above),
+click on the button labeled “Install”</li>
+</ol>
+<p><img alt="Windows Store installing VS Code" width="1202" height="965" loading="lazy" decoding="async" src="/_astro/04-Install_VS_Code-01.DQ5NwrFf_Z1mkyhn.webp" ></p>
+<ul>
+<li>Downloading and installing VS Code by the Store App may take some time</li>
+<li>Eventually, it should show something like this:</li>
+</ul>
+<p><img alt="Windows Store completed installing VS Code" width="1202" height="965" loading="lazy" decoding="async" src="/_astro/04-Install_VS_Code-02.BWixJenG_1usse4.webp" ></p>
+<ul>
+<li>Now, launch VS Code via the start menu</li>
+<li>On the first launch, VS code will look similar to this:</li>
+</ul>
+<p><img alt="First Launch page of VS Code" width="1024" height="768" loading="lazy" decoding="async" src="/_astro/04-Install_VS_Code-03.TLEVQ94__Z2nk8u5.webp" ></p>
+<ul>
+<li>You can select a theme of you liking</li>
+<li>You might want to dial back the data collection by Microsoft by clicking on “opt out”</li>
+</ul>
+<p><img alt="Installation of the WSL extension for VS Code" width="1024" height="768" loading="lazy" decoding="async" src="/_astro/04-Install_VS_Code-04.CL4x8q1u_1J0mNu.webp" ></p>
+<ol>
+<li>Open the extension marketplace by clicking on the extensions icon in the
+left menu bar</li>
+<li>Search for <code dir="auto">wsl</code> in the search field</li>
+<li>Click on the “Install” button for the “WSL” extension by “Microsoft”</li>
+</ol>
+<blockquote>
+<p>[!NOTE]
+The installation of the WSL extension will complete the next time you open
+Ubuntu terminal. If the Ubuntu terminal was still open, close it using the
+<code dir="auto">exit</code> comment and launch it again.</p>
+</blockquote>
+<h2 id="cloning-the-riot-repository-and-first-steps-in-the-terminal">Cloning the RIOT Repository and First Steps in the Terminal</h2>
+<blockquote>
+<p>[!NOTE]
+Even if you subsequently work only via VS Code, do <strong>NOT</strong> skip this step.
+You will still need a “clone” of the RIOT Repository to work with.</p>
+</blockquote>
+<p><img alt="Cloning of the RIOT Repo in the Ubuntu terminal" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/05-First_Steps-00.cavjLuXL_ZHG3Jx.webp" ></p>
+<ul>
+<li>Open the Ubuntu terminal.</li>
+<li>(It may show some output regarding the VS Code WSL extension being installed.
+Just wait for this to complete.)</li>
+<li>Type <code dir="auto">git clone https://github.com/RIOT-OS/RIOT</code> and confirm with the return-key</li>
+<li>This may take some time. Eventually, it will print <code dir="auto">done.</code> when it completed</li>
+<li>Type <code dir="auto">cd RIOT/examples/basic/hello-world</code> and confirm with the return-key to enter
+the folder <code dir="auto">hello-world</code> example app in the RIOT repo</li>
+<li>Type <code dir="auto">make</code> and confirm with the return key to build the app for the board
+<code dir="auto">native</code></li>
+</ul>
+<blockquote>
+<p>[!NOTE]
+The <code dir="auto">native</code> board is a virtual board that will run an RIOT application as
+regular Linux process. This can be useful for testing or during development.
+The app should behave the same when run on real hardware.</p>
+</blockquote>
+<p><img alt="The hello-world app running on the virtual native board" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/05-First_Steps-01.Ce3C2psx_1BCBaa.webp" ></p>
+<ul>
+<li>Now run the application by executing <code dir="auto">make term</code></li>
+<li>The output should look similar to the screenshot above</li>
+<li>You can close the terminal by:
+<ol>
+<li>Press and hold the <code dir="auto">Ctrl</code>-key</li>
+<li>With the <code dir="auto">Ctrl</code>-key still held, press the <code dir="auto">C</code>-key</li>
+<li>Release both keys</li>
+</ol>
+</li>
+</ul>
+<h2 id="using-vs-code-for-development">Using VS Code for Development</h2>
+<p><img alt="Ubuntu terminal running make compile-commands in the hello-world app" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-00.DtYvaojR_TROqC.webp" ></p>
+<ul>
+<li>If not already open, open the Ubuntu terminal</li>
+<li>Confirm that the terminal is pointed to the folder <code dir="auto">~/RIOT/examples/basic/hello-world</code>
+<ul>
+<li>The blue part left of the prompt (the <code dir="auto">$</code> sign in the terminal) shows
+the current working directory for the terminal</li>
+<li>If the blue string is not <code dir="auto">~/RIOT/examples/basic/hello-world</code>, type
+<code dir="auto">cd ~/RIOT/examples/basic/hello-world</code> to enter that path</li>
+</ul>
+</li>
+<li>Inside <code dir="auto">~/RIOT/examples/basic/hello-world</code> run the command <code dir="auto">make compile-commands</code></li>
+<li>The output should look like above</li>
+</ul>
+<p><img alt="Launching VS Code from Ubuntu" width="1115" height="628" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-01.CbQlsyi4_1tn2TF.webp" ></p>
+<ul>
+<li>Navigate back to <code dir="auto">~/RIOT</code> using the command <code dir="auto">cd ~/RIOT</code></li>
+<li>run <code dir="auto">code .</code> to launch VS Code
+<ul>
+<li>This will take a bit longer on the first launch</li>
+</ul>
+</li>
+<li>Eventually, a VS Code Window should pop up that looks like this:</li>
+</ul>
+<p><img alt="VS Code as opened from WSL" width="1024" height="768" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-02.D2obGX8w_Z1NJVgY.webp" ></p>
+<ol>
+<li>Click on “Yes, I trust the authors”</li>
+</ol>
+<ul>
+<li>Now, use the tree view in the left and open the <code dir="auto">examples</code> folder</li>
+<li>Open the <code dir="auto">hello-world</code> folder inside the <code dir="auto">examples</code> folder</li>
+<li>Open the <code dir="auto">main.c</code> file in the <code dir="auto">hello-world</code> folder within <code dir="auto">examples</code></li>
+<li>The file should open and look like this:</li>
+</ul>
+<p><img alt="VS Code asking to install C/C++ Extension" width="1024" height="768" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-03.BQ1El4K9_Z1HM0fo.webp" ></p>
+<ol>
+<li>Click on the “Install” button when prompted to install the C/C++ Extension.</li>
+</ol>
+<blockquote>
+<p>[!NOTE]
+You can also install that extension via the extension marketplace just like
+the WSL extension was installed, if that pop up does not show up.</p>
+</blockquote>
+<p><img alt="VS Code asking to configure RIOT as CMake project" width="1024" height="768" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-04.CL9SNx7D_Z1x1vOv.webp" ></p>
+<blockquote>
+<p>[!WARNING]
+Do <strong>NOT</strong> configure RIOT as CMake project. VS Code will incorrectly detect
+RIOT as CMake project, because it contains external packages that indeed are
+using CMake.</p>
+</blockquote>
+<ol>
+<li>Click on “Not now” to not configure RIOT as CMake project</li>
+<li>Click on “Never” to never ask again whether RIOT should be configured as
+CMake project (not shown in screenshot)</li>
+</ol>
+<p><img alt="IntelliSense showing that RIOT_BOARD is &quot;native&quot;" width="1920" height="1033" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-05.BzhDV__h_1LuoDB.webp" ></p>
+<ul>
+<li>Confirm that when hovering over <code dir="auto">RIOT_BOARD</code> in the source code, IntelliSense
+shows that it expands to <code dir="auto">"native"</code>.</li>
+</ul>
+<blockquote>
+<p>[!NOTE]
+IntelliSense depends on information how to compile the source code to work
+correctly, which is provided in the file <code dir="auto">compile_commands.json</code>. You can
+regenerate this file by running <code dir="auto">make compile-commands</code> in the app you are
+working on.</p>
+</blockquote>
+<blockquote>
+<p>[!WARNING]
+Re-run <code dir="auto">make compile-commands</code> when:</p>
+<ol>
+<li>You create, delete or rename source files</li>
+<li>You change the set of modules or packages used</li>
+<li>You have updated the RIOT repository</li>
+<li>You are switching the board to compile for</li>
+</ol>
+</blockquote>
+<p><img alt="Compiling via the Terminal in VS Code" width="1920" height="1033" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-06.BXAapEeF_1hAn8c.webp" ></p>
+<ul>
+<li>Extend the message to be printed, e.g. by adding a <code dir="auto">puts("...");</code> statement
+in the source code</li>
+<li>Save the modified source code (e.g. <code dir="auto">Ctrl</code>+<code dir="auto">S</code>)</li>
+<li>Open the integrated terminal by clicking on the terminal tab at the bottom</li>
+<li>Navigate to <code dir="auto">~/RIOT/examples/basic/hello-world</code> using <code dir="auto">cd ~/RIOT/examples/basic/hello-world</code></li>
+<li>Run the <code dir="auto">make</code> command to build the code</li>
+<li>Run make <code dir="auto">make term</code> to launch the application</li>
+<li>The result should look like:</li>
+</ul>
+<p><img alt="Running the app in VS Code" width="1921" height="1033" loading="lazy" decoding="async" src="/_astro/06-Use_VS_Code-07.Sq8o4xoY_Z8dioK.webp" ></p>
+<p>Congratulations! You just compiled your first RIOT application. To run RIOT
+on real hardware, proceed with the next to sections.</p>
+<h2 id="installing-usbipd-win">Installing <code dir="auto">usbipd-win</code></h2>
+<p><img alt="Release Page of usbipd-win" width="1262" height="902" loading="lazy" decoding="async" src="/_astro/07-Install_USBIPd-01.pJpUTCMl_ZPzMfJ.webp" ></p>
+<ol start="0">
+<li>Open the <a href="https://github.com/dorssel/usbipd-win/releases">release page of <code dir="auto">usbipd-win</code></a></li>
+<li>Download the installer (file extension <code dir="auto">.msi</code>) of the most recent release</li>
+</ol>
+<p><img alt="Download of usbipd-win completed" width="1262" height="902" loading="lazy" decoding="async" src="/_astro/07-Install_USBIPd-02.Q1uNgyZa_1GNTlu.webp" ></p>
+<p>Once the download is completed:</p>
+<ol>
+<li>Open the downloaded installer</li>
+</ol>
+<p><img alt="Confirmation to open the installer" width="1262" height="902" loading="lazy" decoding="async" src="/_astro/07-Install_USBIPd-03.Bd6i9b-D_1fJe5Y.webp" ></p>
+<ol>
+<li>Confirm that you indeed want to execute the installer by clicking “OK”.</li>
+</ol>
+<p><img alt="Setup of usbipd-win" width="495" height="387" loading="lazy" decoding="async" src="/_astro/07-Install_USBIPd-04.CRQodh9N_ZmrFGu.webp" ></p>
+<p>The setup of <code dir="auto">usbipd-win</code> opens.</p>
+<ol>
+<li>Click on the “Install” button to proceed with the installation.</li>
+</ol>
+<p><img alt="Confirmation of installation" width="1920" height="1080" loading="lazy" decoding="async" src="/_astro/07-Install_USBIPd-05.DPMbwsJ9_Z13BUR7.webp" ></p>
+<ol>
+<li>Confirm the installation by clicking on “Yes”.</li>
+</ol>
+<p><img alt="Completion of the usbipd-win setup" width="495" height="387" loading="lazy" decoding="async" src="/_astro/07-Install_USBIPd-06.DWzgqZIE_ZGPgX3.webp" ></p>
+<p>Eventually, the setup will inform you of the completion of the installation.</p>
+<ol>
+<li>Click the “Close” button to acknowledge.</li>
+</ol>
+<h2 id="attach-a-usb-device-to-wsl">Attach a USB device to WSL</h2>
+<blockquote>
+<p>[!NOTE]
+Attaching a USB device to WSL needs to be repeated after any of the following
+happens:</p>
+<ol>
+<li>Windows has been restarted (or hibernated)</li>
+<li>WSL (the Ubuntu terminal window) has been restarted</li>
+<li>The USB device has been lost (e.g. unplugging and plugging back in)</li>
+</ol>
+</blockquote>
+<blockquote>
+<p>[!NOTE]
+You do not need to install the Windows USB drivers, Linux will use its own
+anyway. All supported board run on Linux out of the box without the need of
+drivers to be installed.</p>
+</blockquote>
+<p><img alt="Running PowerShell as admin" width="1920" height="1080" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-00.DFUx4P8E_Z1M81hd.webp" ></p>
+<ol>
+<li>Search for <code dir="auto">powershell</code> in search field in the task bar</li>
+<li><em><strong>Right</strong></em>-click on the search result “Windows PowerShell”</li>
+<li>Select “Run as administrator”</li>
+</ol>
+<p><img alt="Confirmation to run PowerShell as admin" width="456" height="374" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-01.C__JWDiG_22o4pE.webp" ></p>
+<ol>
+<li>Click on “Yes” to confirm running the PowerShell as admin</li>
+</ol>
+<p><img alt="PowerShell terminal" width="980" height="512" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-02.BqxVE3kR_Z2vuUDI.webp" ></p>
+<ol>
+<li>Type the command <code dir="auto">usbipd list</code> and confirm with the return-key</li>
+<li>Identify the USB device to share. In this guide we use an ESP32 development
+board, which almost all use an USB to UART bridge (here the CP2104).</li>
+<li>Run <code dir="auto">usbipd bin --busid &#x3C;BUSID></code>, but replace <code dir="auto">&#x3C;BUSID></code> with the correct
+BUSID. E.g. <code dir="auto">2-5</code> for the CP2104 identified in step 2.</li>
+<li>Run <code dir="auto">usbipd attach --wsl --busid &#x3C;BUSID></code>
+<ul>
+<li>If an error (such as above in red) is shown that WSL is not running, just
+start the Ubuntu terminal now and repeat (step 5.). If it worked the first
+time, no need to run it again.</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>[!NOTE]
+If you have trouble identifying the USB device to attach, unplug before
+running <code dir="auto">usbipd list</code>. Run it again with the USB device plugged in. The new
+entry in the list is the device you want to attach to WSL.</p>
+</blockquote>
+<h2 id="flash-an-esp32-development-board">Flash an ESP32 Development Board</h2>
+<p>After all of the previous sections are completed, we can finally flash some
+real hardware. In this case, we use an <code dir="auto">esp32-mh-et-live-minikit</code> development
+board. The guide should mostly apply to all other boards as well.</p>
+<blockquote>
+<p>[!NOTE]
+Some boards require extra steps to be flashed, such as pressing a button
+to enter a bootloader or attaching an external programmer. Refer to the
+documentation of the board to check if extra steps are required.</p>
+</blockquote>
+<p>This assumes that the USB UART bridge of the ESP32 development board has
+been attached to WSL and VS Code has been launched from within WSL by running
+<code dir="auto">code .</code> inside the RIOT repository from the Ubuntu terminal.</p>
+<p><img alt="VS Code in WSL" width="1920" height="1033" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-03.DBd2BBq7_Z2v2u8w.webp" ></p>
+<ol>
+<li>Open the <code dir="auto">examples</code> folder</li>
+<li>Open the <code dir="auto">default</code> folder within <code dir="auto">examples</code></li>
+<li>Open the <code dir="auto">main.c</code> file in the <code dir="auto">default</code> folder</li>
+<li>Select the “Terminal” tab at the bottom</li>
+<li>Enter <code dir="auto">cd ~/RIOT/examples/basic/default</code> to enter the <code dir="auto">default</code> folder also in the terminal</li>
+<li>Run <code dir="auto">make BOARD=esp32-mh-et-live-minikit compile-commands</code>
+<ul>
+<li>You can replace <code dir="auto">esp32-mh-et-live-minikit</code> with the name of any other supported board</li>
+</ul>
+</li>
+</ol>
+<blockquote>
+<p>[!NOTE]
+Did you notice that IntelliSense did not find headers in <code dir="auto">main.c</code> when you
+opened it? This should be fixed after the command in 6 has completed.</p>
+</blockquote>
+<p><img alt="Flashing from VS Code" width="1920" height="1032" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-04.B8LWR9UB_Z1ip7JT.webp" ></p>
+<ol>
+<li>Now run <code dir="auto">make BOARD=esp32-mh-et-live-minikit BUILD_IN_DOCKER=1 flash term</code></li>
+</ol>
+<blockquote>
+<p>[!NOTE]
+Tired of typing <code dir="auto">BOARD=&#x3C;NAME_OF_THE_BOARD></code> and <code dir="auto">BUILD_IN_DOCKER=1</code>? You can
+add those to the <code dir="auto">Makefile</code> of your app or run
+<code dir="auto">export BOARD=BUILD_IN_DOCKER=1</code> in the shell. The <code dir="auto">export</code> will not persist
+needs to be repeated for every new terminal window.</p>
+</blockquote>
+<p><img alt="Pulling docker image" width="1920" height="1032" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-05.B4yxGLTl_Z5SJTM.webp" ></p>
+<p>When compiling with <code dir="auto">BUILD_IN_DOCKER=1</code>, the toolchains distributed in the
+<a href="https://hub.docker.com/r/riot/riotbuild/"><code dir="auto">riot/riotbuild</code></a> docker image will
+be used for compilation. This image contains toolchains for all supported RIOT
+board and is extensively tested in our CI.</p>
+<p>The first time you build with <code dir="auto">BUILD_IN_DOCKER=1</code>, the image is pulled
+automatically.</p>
+<p><img alt="Still pulling docker image" width="1920" height="1032" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-06.C_XDGtdz_3OAck.webp" ></p>
+<p>This may take a while …</p>
+<p><img alt="Building the firmware" width="1920" height="1032" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-07.DM_kfRBC_ZY5zYp.webp" ></p>
+<p>… until eventually the docker image is pulled and the build will start.
+Subsequent builds will no longer need to download the toolchain and be a lot
+quicker.</p>
+<p><img alt="Interacting with the firmware" width="1920" height="1061" loading="lazy" decoding="async" src="/_astro/08-Flash_Real_Hardware-08.CgaSwJMA_ZrItut.webp" ></p>
+<p>After building and flashing the firmware has succeeded, a shell will open.</p>
+<ol>
+<li>Wait for the boot message to appear.
+<ul>
+<li>The board may boot faster than your PC is able to connect to the serial.
+If you see nothing after “Welcome to pyterm!” for 5 seconds, try hitting
+the reset button on the board to boot it again.</li>
+</ul>
+</li>
+<li>You are now connected to the RIOT shell running on the board. Try running
+the <code dir="auto">help</code> command to get a list of commands supported by the board.</li>
+<li>You can drop out of the RIOT serial by pressing <code dir="auto">Ctrl</code> + <code dir="auto">C</code> and return
+to the Linux shell.</li>
+</ol>
+<h2 id="known-issues">Known Issues</h2>
+<h3 id="flashing-fails-with-programmers-using-hid">Flashing Fails with Programmers using HID</h3>
+<p>The Linux Kernel in WSL currently has
+<a href="https://github.com/microsoft/WSL/issues/10581"><code dir="auto">CONFIG_USB_HIDDEV</code> disabled</a>. Hence, programmers using HID
+as transport do not work for now. The (non-conclusive) list of affected
+programmers is:</p>
+<ul>
+<li>Atmel/Microchip eDBG</li>
+<li>Atmel/Microchip ICE</li>
+<li>Any ARM CMSIS DAP compatible programmers</li>
+</ul>
+<blockquote>
+<p>[!NOTE]
+It is possible to install a native Windows flash application and invoke that
+from within WSL.</p>
+</blockquote>
+<p>The (non-conclusive) list of programmers that work with WSL out of the box is:</p>
+<ul>
+<li>ST-Link (any version), including <a href="https://www.aliexpress.com/wholesale?SearchText=ST-Link+V2">cheap clones</a></li>
+<li>Segger J-Link, including the <a href="https://www.segger.com/products/debug-probes/j-link/models/j-link-edu-mini/">J-Link EDU Mini</a></li>
+<li>Any serial based bootloader (e.g. ESP boards, Arduino Bootloaders, …)</li>
+<li><a href="https://black-magic.org">Black Magic Probe</a></li>
+<li><a href="https://flirc.com/more/flirc-jeff-probe-bmp-jtag-black-magic-probe">Jeff Probe</a></li>
+<li>Any other non HID USB programmer</li>
+</ul> </div> <footer class="sl-flex astro-3yyafb3n"> <div class="meta sl-flex astro-3yyafb3n"> <a href="https://github.com/RIOT-OS/RIOT/tree/master/doc/guides/setup-windows/README.md" class="sl-flex print:hidden astro-eez2twj6"><svg aria-hidden="true" class="astro-eez2twj6 astro-c6vsoqas" width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="--sl-icon-size: 1.2em;"><path d="M22 7.24a1 1 0 0 0-.29-.71l-4.24-4.24a1 1 0 0 0-1.1-.22 1 1 0 0 0-.32.22l-2.83 2.83L2.29 16.05a1 1 0 0 0-.29.71V21a1 1 0 0 0 1 1h4.24a1 1 0 0 0 .76-.29l10.87-10.93L21.71 8c.1-.1.17-.2.22-.33a1 1 0 0 0 0-.24v-.14l.07-.05ZM6.83 20H4v-2.83l9.93-9.93 2.83 2.83L6.83 20ZM18.17 8.66l-2.83-2.83 1.42-1.41 2.82 2.82-1.41 1.42Z"/></svg>Edit page</a>  </div> <div class="pagination-links print:hidden astro-u2l5gyhi" dir="ltr">   </div>   </footer>  </div> </div>   </main> </div> </div>  </div> </div>  </body></html>
