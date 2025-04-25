@@ -588,6 +588,8 @@ static const ieee802154_radio_ops_t _sx126x_ops = {
 
 #endif /* IS_USED(MODULE_SX126X_IEEE802154) */
 
+extern const netdev_driver_t sx126x_driver;
+
 void sx126x_hal_setup(sx126x_t *dev, const sx126x_params_t *params, uint8_t index,
                       ieee802154_dev_t *hal, void (*event_cb)(void *arg), void *arg)
 {
@@ -597,6 +599,10 @@ void sx126x_hal_setup(sx126x_t *dev, const sx126x_params_t *params, uint8_t inde
     (void)index;
     (void)event_cb;
     (void)arg;
+    /* legacy */
+    memset((uint8_t *)dev + sizeof(dev->netdev), 0, sizeof(*dev) - sizeof(dev->netdev));
+    netdev_t *netdev = &dev->netdev;
+    netdev->driver = &sx126x_driver;
 #if IS_USED(MODULE_SX126X_IEEE802154)
     dev->params = (sx126x_params_t *)params;
     dev->ack_filter = false;
