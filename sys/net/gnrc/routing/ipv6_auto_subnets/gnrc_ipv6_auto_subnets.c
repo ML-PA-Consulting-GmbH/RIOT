@@ -537,6 +537,7 @@ static void _configure_subnets(uint8_t subnets, uint8_t start_idx, gnrc_netif_t 
     }
 }
 
+#if IS_USED(MODULE_GNRC_IPV6_AUTO_SUBNETS_EUI)
 static void _deferred_config(void *ctx)
 {
     (void)ctx;
@@ -544,6 +545,7 @@ static void _deferred_config(void *ctx)
     unsigned subnets = gnrc_netif_numof() - 1;
     _process_pio_cache(subnets, 0, _upstream);
 }
+#endif
 
 void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pio,
                                   const ipv6_addr_t *src)
