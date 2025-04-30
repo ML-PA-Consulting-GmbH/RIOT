@@ -37,8 +37,7 @@ class BuildScanner(object):
         1. Runs the SBOM input process to gather application, RIOT, and external module data.
         2. Creates a temporary directory to store the trace log file.
         3. Runs the traced build process and parses the trace file to get file paths.
-        4. Completes the package data using the SBOM input and file paths.
-        5. Builds the file data using the SBOM input, file paths, and package data.
+        4. Builds the application information data using the SBOM input, file paths, and package data.
         """
         sbom_input = BuildScanner._run_sbom_input(self.__app_dir.as_posix())
         self.__app_data = sbom_input['application']
@@ -49,10 +48,26 @@ class BuildScanner(object):
             BuildScanner._run_traced_build(self.__app_dir.as_posix(),
                                            trace_file)
             file_paths = BuildScanner._parse_trace_file(trace_file)
-        self.__package_data = BuildScanner._complete_package_data(
-            sbom_input, file_paths)
         self.__file_data = BuildScanner._build_file_data(
             sbom_input, file_paths, self.package_data)
+
+
+    def get_app_info(self):
+        """
+        Retrieve the application information.
+        This method returns a dictionary containing the application data, RIOT data,
+        external module data, package data, and file data.
+
+        :return: A dictionary containing the application information.
+        :rtype: dict
+        """
+        return {
+            'app_data': self.app_data,
+            'riot_data': self.riot_data,
+            'external_module_data': self.external_module_data,
+            'package_data': self.package_data,
+            'file_data': self.file_data
+        }
 
     def __get_prop(self, prop_ref, prop_name):
         if prop_ref is None:
@@ -160,95 +175,6 @@ class BuildScanner(object):
                                 and os.path.isfile(path)):
                                 file_paths.add(path)
         return sorted(file_paths)
-
-    @staticmethod
-    def _complete_package_data(sbom_input, file_paths: list):
-        """
-        Complete the package data by inferring package information from file paths.
-
-        This function takes an SBOM (Software Bill of Materials) input and a list of file paths,
-        and attempts to complete the package data by matching file paths to known package patterns.
-        If a file path does not match any known package, it is added to a set of unresolved packages.
-
-        :param sbom_input: The input SBOM data containing information about packages, application, and external modules.
-        :type sbom_input: dict
-        :param file_paths: A list of file paths to be checked against known package patterns.
-        :type file_paths: list
-        :return: A list of package data with inferred package information.
-        :rtype: list
-        """
-        logging.info('Completing package data')
-        package_data = [pkg for pkg in sbom_input['packages']]
-        unresolved_packages = set()
-        for file in file_paths:
-            if (
-                file.startswith(sbom_input['application']['source_dir'])
-                or file.startswith(sbom_input['application']['build_dir'])
-                or file.startswith(sbom_input['riot']['source_dir'])
-                or any(file.startswith(package['source_dir'])
-                       for package in package_data)
-                or any(file.startswith(ext_mod['source_dir'])
-                       for ext_mod in sbom_input['external_modules'])
-                ):
-                continue
-            # package not known, try to infer from path
-            # NOTE this is an ugly temporary solution
-            packag_reg = [
-                # TODO complete the information below
-                {
-                    'name': 'picolibc',
-                    'matcher': re.compile(r'^(.*/picolibc)/.*$'),
-                    'url': "https://github.com/picolibc/picolibc",
-                    'version': None,
-                    'license': None # file dependent
-                },
-                {
-                    'name': 'newlib',
-                    'matcher': re.compile(r'^(.*/newlib)/.*$'),
-                    'url': "https://sourceware.org/newlib/",
-                    'version': None,
-                    'license': None # file dependent
-                },
-                {
-                    'name': 'libgcc',
-                    'matcher': re.compile(r'^(.*/lib/gcc)/.*$'),
-                    'url': "https://gcc.gnu.org/",
-                    'version': None,
-                    'license': "GPL-3.0-or-later WITH GCC-exception-3.1"
-                },
-                {
-                    'name': 'clang',
-                    'matcher': re.compile(r'^(.*/lib/clang).*$'),
-                    'url': "https://clang.llvm.org/",
-                    'version': None,
-                    'license': "Apache-2.0 WITH LLVM-exception"
-                },
-                {
-                    'name': 'llvm',
-                    'matcher': re.compile(r'^(.*/lib/llvm).*$'),
-                    'url': "https://llvm.org/",
-                    'version': None,
-                    'license': "Apache-2.0 WITH LLVM-exception"
-                }
-            ]
-            file_has_pkg = False
-            for reg in packag_reg:
-                match = reg['matcher'].match(file)
-                if match:
-                    package_data.append({
-                        'name': reg['name'],
-                        'source_dir': match.group(1),
-                        'url': reg['url'],
-                        'version': reg['version'],
-                        'license': reg['license']
-                    })
-                    file_has_pkg = True
-                    break
-            if not file_has_pkg:
-                unresolved_packages.add(os.path.dirname(file))
-        if unresolved_packages:
-            logging.warning(f'Unresolved packages for files in: {unresolved_packages}')
-        return package_data
 
     @staticmethod
     def _build_file_data(sbom_input, file_paths, package_data: list):

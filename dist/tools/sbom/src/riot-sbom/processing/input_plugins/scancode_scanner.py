@@ -78,7 +78,8 @@ def scan_files_with_scancode(
         file_paths: List[Path],
         n_procs=os.cpu_count()) -> Dict[Path, FileScanResult]:
     # the way scancode is built, we have to pass the files individually
-    # and not as a list of paths
+    # and not as a list of paths as these will always be reduced to a common
+    # prefix, resulting in many redundant scans
     logging.debug("Scanning files with scancode")
     author_matcher = re.compile(r'([^<]*)? *(<.*>)?')
     with multiprocessing.Pool(n_procs) as pool:
@@ -87,22 +88,15 @@ def scan_files_with_scancode(
                 [(str(pth), ) for pth in file_paths])
     scan_results = {}
     for pth, scan_result in file_scan_result:
-        if not scan_result[0]:
-            file_result = FileScanResult(
-                    file_path=pth,
-                    scan_success=False,
-                    licenses=None,
-                    copyrights=None,
-                    spdx_license_identifier=None,
-                    authors=None)
-        else:
-            file_result = FileScanResult(
-                    file_path=pth,
-                    scan_success=True,
-                    licenses=None,
-                    copyrights=None,
-                    spdx_license_identifier=None,
-                    authors=None)
+        file_result = FileScanResult(
+                file_path=pth,
+                scan_success=False,
+                licenses=None,
+                copyrights=None,
+                spdx_license_identifier=None,
+                authors=None)
+        if scan_result[0]:
+            file_result.scan_success = True
             scan_result = scan_result[1]
             if (scan_result.get('files') and
                     scan_result.get('files')[0].get('copyrights')):
@@ -140,7 +134,6 @@ def scan_files_with_scancode(
 
 _statics.scanners['scancode'] = scan_files_with_scancode
 
-
 def scan_files(file_paths: List[Path],
                n_procs=os.cpu_count()) -> Dict[Path, FileScanResult]:
     return _statics.scanners[_statics.selected_scanner_name](
@@ -148,7 +141,6 @@ def scan_files(file_paths: List[Path],
             n_procs)
 
 def find_system_packages_for_files(file_paths: List[Path]):
-
     pass
 
 if __name__ == "__main__":

@@ -11,8 +11,6 @@ import hashlib
 import re
 from typing import Dict
 
-from .file_scanner import scan_files_scancode
-
 __all__ = ['FileInfo']
 
 class FileInfo:
@@ -37,16 +35,6 @@ class FileInfo:
         self.package = package
         self.license = license
         self.copyright = copyright
-
-    @staticmethod
-    def _get_copyright(line):
-        copyright = None
-        if 'copyright' in line.lower():
-            copyright_matcher = re.compile(r'[Cc]opyright[ \t]*\([cC]\)[ \t]*([0-9]{4})(.*)')
-            m = copyright_matcher.search(line)
-            if m:
-                copyright = m.group(1) + m.group(2)
-                copyright.strip(' \t*/')
 
     @staticmethod
     def _get_digests(path):
@@ -76,26 +64,6 @@ class FileInfo:
                 else:
                     break
             license = ' '.join(license_parts)
-        return license
-
-    @staticmethod
-    def _collect_license_information(line):
-        license_info_matches = set()
-        line = line.lower()
-        if 'license' in line:
-            for license in spdx_license_matcher:
-                if license in line:
-                    inferred_license = spdx_license_matcher[license]
-                    if not inferred_license:
-                        continue
-                    license_info_matches.add(inferred_license)
-        return list(license_info_matches)
-
-    @staticmethod
-    def _infer_license_from_snippets(license_info_snippets):
-        if not license_info_snippets:
-            return None
-        license = " AND ".join(license_info_snippets)
         return license
 
     @classmethod

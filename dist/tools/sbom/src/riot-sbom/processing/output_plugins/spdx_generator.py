@@ -14,8 +14,8 @@ import os
 import pathlib
 from datetime import datetime
 from typing import List, Tuple
-from .package_info import PackageInfo
-from .file_info import FileInfo
+from ...package_info import PackageInfo
+from ...file_info import FileInfo
 
 from spdx_tools.common.spdx_licensing import spdx_licensing
 from spdx_tools.spdx.model import (
