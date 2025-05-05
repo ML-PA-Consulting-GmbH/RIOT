@@ -196,16 +196,28 @@ extern "C" {
 #  define SX126X_TX_PA_MODE
 #endif
 
-#if IS_USED(MODULE_SX126X_DIO2)
+#if IS_USED(MODULE_SX126X_DIO2) || defined(DOXYGEN)
+/**
+ * @brief   DIO2 pin mode
+ */
 #define SX126X_DIO2_MODE        .dio2_mode = SX126X_PARAM_DIO2_MODE,
+/**
+ * @brief   DIO2 pin argument
+ */
 #define SX126X_DIO2_PIN         .u_dio2_arg = SX126X_PARAM_DIO2_ARG,
 #else
 #define SX126X_DIO2_MODE
 #define SX126X_DIO2_PIN
 #endif
 
-#if IS_USED(MODULE_SX126X_DIO3)
+#if IS_USED(MODULE_SX126X_DIO3) || defined(DOXYGEN)
+/**
+ * @brief   DIO3 pin mode
+ */
 #define SX126X_DIO3_MODE        .dio3_mode = SX126X_PARAM_DIO3_MODE,
+/**
+ * @brief   DIO3 pin argument
+ */
 #define SX126X_DIO3_PIN         .u_dio3_arg = SX126X_PARAM_DIO3_ARG,
 #else
 #define SX126X_DIO3_MODE
