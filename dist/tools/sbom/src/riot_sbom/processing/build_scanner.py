@@ -16,6 +16,8 @@ import subprocess
 import tempfile
 import unittest
 
+from ..data.app_info import AppInfo
+
 class BuildScanner(object):
     def __init__(self, app_dir: pathlib.Path):
         """
@@ -52,7 +54,7 @@ class BuildScanner(object):
             sbom_input, file_paths, self.package_data)
 
 
-    def get_app_info(self):
+    def get_app_info(self) -> AppInfo:
         """
         Retrieve the application information.
         This method returns a dictionary containing the application data, RIOT data,

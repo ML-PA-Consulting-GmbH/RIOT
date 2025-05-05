@@ -149,3 +149,40 @@ class SpdxBuilder:
 
     def validate(self) -> List[ValidationMessage]:
         return validate_full_spdx_document(self.__document)
+
+
+def create_spdx_document_from_app_info(app_info: dict, output_file: pathlib.Path):
+    """
+    Create an SPDX document from the application information.
+
+    :param app_info: The application information to process.
+    :param output_file: The file to write the SPDX document to.
+    """
+    if not app_info['app_dir'].is_dir():
+        raise ValueError(f'{app_info["app_dir"]} is not a directory')
+    if not app_info['app_dir'].joinpath('Makefile').is_file():
+        raise ValueError(f'{app_info["app_dir"]} does not contain a Makefile')
+    if not output_file.parent.is_dir():
+        raise ValueError(f'{output_file.parent} is not a directory. Cannot create output file.')
+
+    spdx = SpdxBuilder(
+            f'Automatically generated SBOM for RIOT APPLICATION "{scanner.app_data['name']}"',
+            scanner.app_data['name'],
+            'https://riot-os.org',
+            [('RIOT SBOM Tool', '')]
+    )
+    for pkg, pkg_info in pkg_map.values():
+        spdx.add_package(pkg_info)
+    for file in scanner.file_data:
+        file_pkg_info = pkg_map.get(file['package'], (None, None))
+        file_info = FileInfo.from_parsed_content_and_package(
+                file['path'], file_pkg_info[0])
+        spdx.add_file(file_info, file_pkg_info[1])
+    print('Validating SPDX document...')
+    validation_messages = spdx.validate()
+    for message in validation_messages:
+        print("======= VALIDATION MESSAGE =======")
+        print(message.validation_message)
+        print(message.context)
+    spdx.write(output_file)
+    print(f'Wrote SPDX file to {output_file}')

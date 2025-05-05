@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "riot-sbom"
+name = "riot_sbom"
 version = "0.1.0"
 description = "Create an sbom for a RIOT application"
 authors = ["Daniel Lockau <daniel.lockau@ml-pa.com>"]
