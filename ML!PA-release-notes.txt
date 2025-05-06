@@ -22,4 +22,5 @@ git merge --no-edit benpicco/gnrc_pktdump2
 git merge --no-edit benpicco/walltime
 git merge --no-edit maribu/sys/newlib/fix-stdio
 git merge --no-edit benpicco/sock_util-fix
+git merge --no-edit maribu/sys/embunit/fix-return-value
 ```
