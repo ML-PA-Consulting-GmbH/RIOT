@@ -7,12 +7,13 @@ Authors:
     Daniel Lockau <daniel.lockau@ml-pa.com>
 """
 
-__all__ = ["LicenseInfo"]
+__all__ = ["LicenseDeclarationType", "LicenseInfo"]
 
 from dataclasses import dataclass
 from enum import Enum
+from checked_url import CheckedUrl
 
-class DeclarationType(Enum):
+class LicenseDeclarationType(Enum):
     """
     Different types of declarations for a license.
     A package or file can contain the license text, reference a license by
@@ -20,18 +21,14 @@ class DeclarationType(Enum):
     a license can still be derived for a file from the package license or
     for a package from its contained files.
     """
-    CONTAINED = 0
-    REFERENCED = 1
-    MATCHED = 2
-    DERIVED = 3
+    TEXT_CONTAINED = "text_contained"
+    EXACT_REFERENCE = "exact_reference"
+    INEXACT_MATCH = "inexact_match"
+    DERIVED = "derived"
 
 @dataclass
 class LicenseInfo:
     name: str
-    supplier: str | None
-    authors: List[Tuple[str, str]] | None
-    version: str | None
-    source_dir: Path | None
-    url: str | None
-    licenses: List[str] | None
-    copyrights: List[str] | None
+    declaration_type: LicenseDeclarationType
+    text: str | None
+    url: CheckedUrl | None

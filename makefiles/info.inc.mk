@@ -266,6 +266,7 @@ info-sbom-input:
 	  riot_remote_name=$$(git branch -r --color=never --no-column --no-format --contains $${riot_version} | head -n1 | cut -d / -f1 | sed -E 's/^\s*//'); \
 	  riot_or_fork_url=$$(git remote get-url $${riot_remote_name}); \
 	  echo "  \"riot\": {\"source_dir\": \"$(RIOTBASE)\", \"url\": \"$${riot_or_fork_url}\", \"version\": \"$${riot_version}\", \"license\": \"LGPL-2.1\"},"
+	@echo "  \"board\": {\"name\": \"$(BOARD)\", \"source_dir\": \"$(BOARDDIR)\"},"
 	@echo "  \"external_modules\": ["
 	@imod=0; for module_path in $(EXTERNAL_MODULE_PATHS); \
 	do \

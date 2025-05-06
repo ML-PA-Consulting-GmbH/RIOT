@@ -8,7 +8,21 @@ Authors:
 """
 
 from dataclasses import dataclass
+from pathlib import Path
+from typing import List
+
+from file_info import FileInfo
+from package_info import PackageInfo
+
 
 @dataclass
 class AppInfo:
-    pass
+    """
+    Application information for a RIOT application.
+    """
+    build_dir: Path
+    app_package: PackageInfo
+    riot_package: PackageInfo
+    board_package: PackageInfo
+    packages: List[PackageInfo]
+    files: List[FileInfo]

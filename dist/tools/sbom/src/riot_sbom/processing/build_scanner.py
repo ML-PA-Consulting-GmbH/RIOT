@@ -17,6 +17,12 @@ import tempfile
 import unittest
 
 from ..data.app_info import AppInfo
+from ..data.package_info import PackageInfo
+from ..data.file_info import FileInfo
+from ..data.checked_url import CheckedUrl
+from ..data.license_info import LicenseInfo, LicenseDeclarationType
+
+__all__ = ["BuildScanner"]
 
 class BuildScanner(object):
     def __init__(self, app_dir: pathlib.Path):
@@ -32,6 +38,18 @@ class BuildScanner(object):
         self.__package_data = None
         self.__file_data = None
 
+    def __get_prop(self, prop_ref, prop_name):
+        if prop_ref is None:
+            raise RuntimeError(f'Scanner must be run before retrieving "{prop_name}"')
+        return prop_ref
+
+    app_data = property(lambda self: self.__get_prop(self.__app_data, 'app_data'))
+    riot_data = property(lambda self: self.__get_prop(self.__riot_data, 'riot_data'))
+    board_data = property(lambda self: self.__get_prop(self.__board_data, 'board_data'))
+    external_module_data = property(lambda self: self.__get_prop(self.__external_module_data, 'external_module_data'))
+    package_data = property(lambda self: self.__get_prop(self.__package_data, 'package_data'))
+    file_data = property(lambda self: self.__get_prop(self.__file_data, 'file_data'))
+
     def run(self):
         """
         Executes the build scanning process.
@@ -44,7 +62,16 @@ class BuildScanner(object):
         sbom_input = BuildScanner._run_sbom_input(self.__app_dir.as_posix())
         self.__app_data = sbom_input['application']
         self.__riot_data = sbom_input['riot']
+        self.__board_data = sbom_input['board']
         self.__external_module_data = sbom_input['external_modules']
+        names = set()
+        names.add(self.__app_data['name'])
+        names.add(self.__board_data['name'])
+        names.update([mod['name'] for mod in self.__external_module_data])
+        if len(names) != len(self.__external_module_data) + 2:
+            logging.info('Duplicate names found in set of application, board and external modules. Prepending board name to application name.')
+            self.__app_data['name'] = f"APPLICATION_{self.__app_data['name']}"
+            self.__board_data['name'] = f"BOARD_{self.__board_data['name']}"
         with tempfile.TemporaryDirectory() as tempdir:
             trace_file = os.path.join(tempdir, 'trace.log')
             BuildScanner._run_traced_build(self.__app_dir.as_posix(),
@@ -53,34 +80,87 @@ class BuildScanner(object):
         self.__file_data = BuildScanner._build_file_data(
             sbom_input, file_paths, self.package_data)
 
-
     def get_app_info(self) -> AppInfo:
         """
-        Retrieve the application information.
-        This method returns a dictionary containing the application data, RIOT data,
-        external module data, package data, and file data.
+        Build and return an AppInfo object which can be used in follow-up
+        processing steps.
 
         :return: A dictionary containing the application information.
-        :rtype: dict
+        :rtype: AppInfo
         """
-        return {
-            'app_data': self.app_data,
-            'riot_data': self.riot_data,
-            'external_module_data': self.external_module_data,
-            'package_data': self.package_data,
-            'file_data': self.file_data
-        }
-
-    def __get_prop(self, prop_ref, prop_name):
-        if prop_ref is None:
-            raise RuntimeError(f'Scanner must be run before retrieving "{prop_name}"')
-        return prop_ref
-
-    app_data = property(lambda self: self.__get_prop(self.__app_data, 'app_data'))
-    riot_data = property(lambda self: self.__get_prop(self.__riot_data, 'riot_data'))
-    external_module_data = property(lambda self: self.__get_prop(self.__external_module_data, 'external_module_data'))
-    package_data = property(lambda self: self.__get_prop(self.__package_data, 'package_data'))
-    file_data = property(lambda self: self.__get_prop(self.__file_data, 'file_data'))
+        app_info = AppInfo(
+            build_dir=self.app_data['build_dir'],
+            app_package=PackageInfo(
+                name=self.app_data['name'],
+                source_dir=self.app_data['source_dir'],
+                version=None,
+                licenses=None,
+                download_url=None,
+                copyrights=None,
+                authors=None,
+                supplier=None
+            ),
+            riot_package=PackageInfo(
+                name=self.riot_data['name'],
+                source_dir=self.riot_data['source_dir'],
+                version=self.riot_data['version'],
+                licenses=[LicenseInfo(name=self.riot_data['license'],
+                    declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
+                    text=None,
+                    url=None)],
+                download_url=CheckedUrl(self.riot_data['url']),
+                copyrights=None,
+                authors=None,
+                supplier=None
+            ),
+            board_package=PackageInfo(
+                name=self.board_data['name'],
+                source_dir=self.board_data['source_dir'],
+                version=None,
+                licenses=None,
+                download_url=None,
+                copyrights=None,
+                authors=None,
+                supplier=None),
+            packages=[],
+            files=[]
+        )
+        app_info.packages.append(app_info.app_package)
+        app_info.packages.append(app_info.riot_package)
+        app_info.packages.append(app_info.board_package)
+        for ext_mod in self.external_module_data:
+            app_info.packages.append(PackageInfo(
+                name=ext_mod['name'],
+                source_dir=ext_mod['source_dir'],
+                version=None,
+                licenses=None,
+                download_url=None,
+                copyrights=None,
+                authors=None,
+                supplier=None
+            ))
+        for ext_pkg in self.package_data:
+            app_info.packages.append(PackageInfo(
+                name=ext_pkg['name'],
+                source_dir=ext_pkg['source_dir'],
+                version=ext_pkg['version'],
+                licenses=[LicenseInfo(name=ext_pkg['license'],
+                                      declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
+                                      text=None,
+                                      url=None)],
+                download_url=CheckedUrl(ext_pkg['url']),
+                copyrights=None,
+                authors=None,
+                supplier=None
+            ))
+        for file in self.file_data:
+            app_info.files.append(FileInfo(
+                path=file['path'],
+                package=file['package'],
+                licenses=None,
+                copyrights=None,
+                authors=None))
+        return app_info
 
     @staticmethod
     def _run_sbom_input(app_dir):
@@ -109,8 +189,7 @@ class BuildScanner(object):
         if start_idx == -1 or end_idx == -1:
             raise RuntimeError('Failed to find SBOM input markers')
         sbom_input = output[start_idx + len(start_marker):end_idx]
-        pkg_info = json.loads(sbom_input)
-        return pkg_info
+        return json.loads(sbom_input)
 
     @staticmethod
     def _run_traced_build(app_dir: str, trace_file: str):
@@ -233,14 +312,15 @@ class BuildScanner(object):
             file_info['package'] = sbom_input['application']['name']
         return file_info
 
-class BuildScannerTest(unittest.TestCase):
 
+class BuildScannerTest(unittest.TestCase):
     def test_run(self):
         riot_dir = pathlib.Path(__file__).parents[5]
         app_dir = riot_dir.joinpath('tests', 'net', 'nanocoap_cli')
         scanner = BuildScanner(app_dir)
         self.assertRaises(RuntimeError, lambda: scanner.app_data)
         self.assertRaises(RuntimeError, lambda: scanner.riot_data)
+        self.assertRaises(RuntimeError, lambda: scanner.board_data)
         self.assertRaises(RuntimeError, lambda: scanner.external_module_data)
         self.assertRaises(RuntimeError, lambda: scanner.package_data)
         self.assertRaises(RuntimeError, lambda: scanner.file_data)
@@ -252,10 +332,12 @@ class BuildScannerTest(unittest.TestCase):
         else:
             del os.environ['BOARD']
         self.assertEqual(scanner.app_data['name'], 'tests_nanocoap_cli')
+        self.assertEqual(scanner.board_data['name'], 'native64')
         self.assertIsInstance(scanner.riot_data, dict)
         self.assertEqual(len(scanner.external_module_data), 0)
         self.assertGreater(len(scanner.package_data), 0)
         self.assertGreater(len(scanner.file_data), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
