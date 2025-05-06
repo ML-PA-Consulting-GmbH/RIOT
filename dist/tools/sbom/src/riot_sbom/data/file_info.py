@@ -60,11 +60,12 @@ class FileInfo:
         if not self.path.is_file():
             raise ValueError(f"Path {self.path} is not a file.")
         self.digests = {
-            digest_type: self.get_digest(digest_type) for digest_type in DigestType
+            digest_type: FileInfo.get_digest(self.path, digest_type) for digest_type in DigestType
         }
 
-    def get_digest(self, digest_type: DigestType) -> str:
-        with open(self.path, 'rb') as f:
+    @staticmethod
+    def get_digest(path: Path, digest_type: DigestType) -> str:
+        with open(path, 'rb') as f:
             return hashlib.file_digest(f, digest_type.value).hexdigest()
 
 
@@ -74,11 +75,8 @@ class TestFileInfo(unittest.TestCase):
         # Create a FileInfo object
         file_info = FileInfo(path=file, package=PackageRef(), licenses=[], copyrights=None, authors=None)
         for digest_type in DigestType:
-            # Calculate the digest using the get_digest method
-            digest = file_info.get_digest(digest_type)
-            # Calculate the expected digest using hashlib
             expected_digest = hashlib.new(digest_type.value, file.read_bytes()).hexdigest()
-            self.assertEqual(digest, expected_digest, f"Digest mismatch for {digest_type.value}")
+            self.assertEqual(file_info.digests[digest_type], expected_digest, f"Digest mismatch for {digest_type.value}")
 
 
 if __name__ == '__main__':
