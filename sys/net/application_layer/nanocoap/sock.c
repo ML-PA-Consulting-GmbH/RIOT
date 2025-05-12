@@ -30,7 +30,6 @@
 #include "net/credman.h"
 #include "net/nanocoap.h"
 #include "net/nanocoap_sock.h"
-#include "net/sock/udp.h"
 #include "net/sock/util.h"
 #include "random.h"
 #include "sys/uio.h" /* IWYU pragma: keep (exports struct iovec) */
@@ -43,6 +42,10 @@
 
 #if MODULE_NANOCOAP_UDP || MODULE_NANOCOAP_TCP
 #  include "net/sock/util.h"
+#endif
+
+#if MODULE_NANOCOAP_UDP
+#  include "net/sock/udp.h"
 #endif
 
 #if MODULE_NANOCOAP_TCP
