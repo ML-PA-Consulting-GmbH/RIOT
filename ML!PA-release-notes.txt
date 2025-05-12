@@ -23,4 +23,5 @@ git merge --no-edit benpicco/walltime
 git merge --no-edit maribu/sys/newlib/fix-stdio
 git merge --no-edit benpicco/sock_util-fix
 git merge --no-edit maribu/sys/embunit/fix-return-value
+git cherry-pick 05fd0b996b4bb0e1231d01942d17f226157e7778 # (hot fix for maribu/sys/net/nanocoap/transport-tcp, not needed in next branch)
 ```
