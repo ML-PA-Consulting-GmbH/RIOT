@@ -139,19 +139,21 @@ class BuildScanner(object):
                 authors=None,
                 supplier=None
             ))
-        for ext_pkg in self.package_data:
+        for pkg in self.package_data:
             app_info.packages.append(PackageInfo(
-                name=ext_pkg['name'],
-                source_dir=ext_pkg['source_dir'],
-                version=ext_pkg['version'],
-                licenses=[LicenseInfo(name=ext_pkg['license'],
+                name=pkg['name'],
+                source_dir=pkg['source_dir'],
+                version=pkg['version'],
+                licenses=[LicenseInfo(name=pkg['license'],
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
                                       text=None,
                                       url=None)],
-                download_url=CheckedUrl(ext_pkg['url']),
+                download_url=CheckedUrl(pkg['url']),
                 copyrights=None,
                 authors=None,
-                supplier=None
+                supplier=("RIOT OS"
+                          if pkg['source_dir'].startswith(self.riot_data['source_dir'])
+                          else None)
             ))
         for file in self.file_data:
             app_info.files.append(FileInfo(
