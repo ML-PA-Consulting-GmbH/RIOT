@@ -57,7 +57,7 @@ def save_app_info(app_info: AppInfo, file: pathlib.Path) -> None:
         logging.info(f'Saving application information to {file}')
         pickle.dump(app_info, f)
 
-def run_plugin(app_info, plugin: str, output_file_prefix: pathlib.Path) -> AppInfo:
+def run_plugin(plugin: str, app_info: AppInfo, output_file_prefix: pathlib.Path | None) -> AppInfo:
     """
     Run a processing plugin plugin on the application information.
 

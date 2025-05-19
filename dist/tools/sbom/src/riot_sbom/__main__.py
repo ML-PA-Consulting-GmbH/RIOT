@@ -99,7 +99,7 @@ def main() -> int:
     logging.info(f"Running plugins: {args.plugin_pipeline}")
     for plugin in args.plugin_pipeline:
         logging.info(f"Running input plugin {plugin}")
-        new_app_info = run_plugin(app_info, plugin)
+        new_app_info = run_plugin(plugin, app_info, args.output_file_prefix)
         if not new_app_info:
             logging.warning(f"Plugin {plugin} does not conform to output spec.")
         elif args.save_app_info and new_app_info != app_info:

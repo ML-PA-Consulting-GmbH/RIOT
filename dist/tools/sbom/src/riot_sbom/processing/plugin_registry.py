@@ -17,7 +17,7 @@ from typing import Dict, List, TextIO
 from types import ModuleType
 import unittest
 
-from plugin_type import Plugin
+from .plugin_type import Plugin
 
 __all__ = ["load_plugins_from_directory", "print_plugin_list",
               "get_plugin_names", "get_plugin", "register_plugin"]
@@ -43,13 +43,17 @@ def _load_modules_from_directory(directory: Path, add_to_search_path=True) -> Li
                 sys.path.append(directory.absolute().as_posix())
             module_name = filename[:-3]
             module_path = os.path.join(directory, filename)
-            spec = importlib.util.spec_from_file_location(module_name, module_path)
-            if spec is None or spec.loader is None:
-                logging.warning(f"Could not load module {module_name} from {module_path}")
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, module_path)
+                if spec is None or spec.loader is None:
+                    logging.warning(f"Could not load module {module_name} from {module_path}")
+                    continue
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                modules.append(module)
+            except Exception as e:
+                logging.warning(f"Failed to load module {module_name} from {module_path}: {e}")
                 continue
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            modules.append(module)
             logging.debug(f"Loaded module: {module_name} from {module_path}")
     return modules
 

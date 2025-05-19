@@ -11,7 +11,8 @@ __all__ = ["LicenseDeclarationType", "LicenseInfo"]
 
 from dataclasses import dataclass
 from enum import Enum
-from checked_url import CheckedUrl
+
+from .checked_url import CheckedUrl
 
 class LicenseDeclarationType(Enum):
     """

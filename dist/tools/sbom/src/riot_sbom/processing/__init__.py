@@ -7,10 +7,10 @@ Authors:
     Daniel Lockau <daniel.lockau@ml-pa.com>
 """
 
-import plugin_registry
-import plugin_type
-import input_plugins
-import output_plugins
+from . import plugin_registry
+from . import plugin_type
+from . import input_plugins
+from . import output_plugins
 
 __all__ = [
     'plugin_registry',

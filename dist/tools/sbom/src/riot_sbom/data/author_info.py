@@ -18,7 +18,8 @@ class AuthorDeclarationType(Enum):
     A file can contain the author details in its text or they can be derived
     for from the package details.
     """
-    TEXT_CONTAINED = "text_contained"
+    TEXT_TAGGED = "text_tagged"
+    TEXT_MATCHED = "text_contained"
     DERIVED = "derived"
 
 @dataclass

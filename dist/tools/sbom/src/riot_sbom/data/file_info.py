@@ -14,10 +14,11 @@ from pathlib import Path
 from typing import List
 import unittest
 import weakref
-from package_info import PackageInfo
-from copyright_info import CopyrightInfo
-from license_info import LicenseInfo
-from author_info import AuthorInfo
+
+from .package_info import PackageInfo
+from .copyright_info import CopyrightInfo
+from .license_info import LicenseInfo
+from .author_info import AuthorInfo
 
 __all__ = ['DigestType', 'FileInfo', 'PackageRef']
 

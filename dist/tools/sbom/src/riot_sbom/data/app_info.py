@@ -11,8 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
-from file_info import FileInfo
-from package_info import PackageInfo
+from .file_info import FileInfo
+from .package_info import PackageInfo
 
 
 @dataclass

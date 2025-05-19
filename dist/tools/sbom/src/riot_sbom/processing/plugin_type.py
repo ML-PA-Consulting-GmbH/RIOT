@@ -32,18 +32,21 @@ class Plugin:
         """
         raise NotImplementedError("Subclasses must implement this method")
 
-    def run(self, app_info: AppInfo, output_file_prefix: Path) -> AppInfo:
+    def run(self, app_info: AppInfo, output_file_prefix: Path | None) -> AppInfo:
         """
         Runs the plugin on the given app_info and output_file_prefix.
         This method should be overridden by subclasses to implement the
         plugin's functionality.
 
-        For any plugins altering the app_info, the plugin should return
-        a modified deep copy of the app_info. Otherwise, the original
-        app_info should be returned.
+        Implementations may choose to operate on a deep copy of the provided
+        AppInfo object. Normally, the modified original app_info should be
+        returned. Subsequent plugins should always receive the returned
+        AppInfo object.
 
         :param app_info: The application information to process.
+        :type app_info: AppInfo
         :param output_file_prefix: The prefix for the output files.
+        :type output_file_prefix: Path | None
         :return: The processed application information.
         """
         raise NotImplementedError("Subclasses must implement this method")

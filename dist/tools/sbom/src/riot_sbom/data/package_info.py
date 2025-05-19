@@ -12,10 +12,11 @@ __all__ = ["PackageInfo"]
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
-from author_info import AuthorInfo
-from copyright_info import CopyrightInfo
-from license_info import LicenseInfo
-from checked_url import CheckedUrl
+
+from .author_info import AuthorInfo
+from .copyright_info import CopyrightInfo
+from .license_info import LicenseInfo
+from .checked_url import CheckedUrl
 
 @dataclass
 class PackageInfo:

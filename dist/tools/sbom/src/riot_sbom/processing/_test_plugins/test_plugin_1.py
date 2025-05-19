@@ -7,9 +7,9 @@ Authors:
     Daniel Lockau <daniel.lockau@ml-pa.com>
 """
 
-import riot_sbom.processing.plugin_registry as plugin_registry
+from riot_sbom.processing.plugin_type import Plugin
 
-class TestPlugin1_1(plugin_registry.Plugin):
+class TestPlugin1_1(Plugin):
     """
     Plugin subclass for testing purposes.
     """
