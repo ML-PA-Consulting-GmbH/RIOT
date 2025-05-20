@@ -30,7 +30,7 @@ class PackageRef:
         self._package = weakref.ref(package) if package else None
 
     @property
-    def package(self) -> PackageInfo | None:
+    def resolve(self) -> PackageInfo | None:
         return self._package() if self._package else None
 
 

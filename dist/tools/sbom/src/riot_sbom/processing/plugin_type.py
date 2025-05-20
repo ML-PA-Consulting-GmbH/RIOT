@@ -7,8 +7,41 @@ Authors:
     Daniel Lockau <daniel.lockau@ml-pa.com>
 """
 
+import contextlib
 from pathlib import Path
+import sys
+
 from ..data.app_info import AppInfo
+
+__all__ = ["Plugin", "FileOrStdoutResource"]
+
+class FileOrStdoutResource(contextlib.AbstractContextManager):
+    """
+    A context manager that provides a file or stdout resource.
+    If the output_file_prefix is None, it uses stdout.
+    Otherwise, it creates a file with the given prefix.
+    """
+
+    def __init__(self, output_file_prefix: Path | None, output_file_suffix: str = ".txt"):
+        self.output_file_prefix = output_file_prefix
+        self.output_file_suffix = output_file_suffix
+        if self.output_file_prefix is not None:
+            self.output_file_name = self.output_file_prefix.with_suffix(self.output_file_suffix)
+        else:
+            self.output_file_name = None
+        self.output_file = None
+
+    def __enter__(self):
+        if self.output_file is not None:
+            raise RuntimeError("Output file already opened")
+        if self.output_file_name is None:
+            return sys.stdout
+        self.output_file = self.output_file_name.open('wt')
+        return self.output_file
+
+    def __exit__(self, *_):
+        if self.output_file is not None:
+            self.output_file.close()
 
 class Plugin:
     """
