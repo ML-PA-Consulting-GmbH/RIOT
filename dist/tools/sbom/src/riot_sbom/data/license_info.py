@@ -29,7 +29,7 @@ class LicenseDeclarationType(Enum):
 
 @dataclass
 class LicenseInfo:
-    name: str
+    declaration_text: str
     declaration_type: LicenseDeclarationType
-    text: str | None
+    license_text: str | None
     url: CheckedUrl | None

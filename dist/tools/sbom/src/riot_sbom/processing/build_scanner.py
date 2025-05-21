@@ -16,11 +16,24 @@ import subprocess
 import tempfile
 import unittest
 
-from ..data.app_info import AppInfo
-from ..data.package_info import PackageInfo
-from ..data.file_info import FileInfo
-from ..data.checked_url import CheckedUrl
-from ..data.license_info import LicenseInfo, LicenseDeclarationType
+
+if __name__ == "__main__":
+    # update search path for local testing
+    import pathlib
+    import sys
+    pkg_path = pathlib.Path(__file__).absolute().parents[2].as_posix()
+    sys.path.insert(0, pkg_path)
+    from riot_sbom.data.app_info import AppInfo
+    from riot_sbom.data.package_info import PackageInfo
+    from riot_sbom.data.file_info import FileInfo
+    from riot_sbom.data.checked_url import CheckedUrl
+    from riot_sbom.data.license_info import LicenseInfo, LicenseDeclarationType
+else:
+    from ..data.app_info import AppInfo
+    from ..data.package_info import PackageInfo
+    from ..data.file_info import FileInfo
+    from ..data.checked_url import CheckedUrl
+    from ..data.license_info import LicenseInfo, LicenseDeclarationType
 
 __all__ = ["BuildScanner"]
 
@@ -34,6 +47,7 @@ class BuildScanner(object):
         self.__app_dir = app_dir
         self.__app_data = None
         self.__riot_data = None
+        self.__board_data = None
         self.__external_module_data = None
         self.__package_data = None
         self.__file_data = None
@@ -63,6 +77,7 @@ class BuildScanner(object):
         self.__app_data = sbom_input['application']
         self.__riot_data = sbom_input['riot']
         self.__board_data = sbom_input['board']
+        self.__package_data = sbom_input['packages']
         self.__external_module_data = sbom_input['external_modules']
         names = set()
         names.add(self.__app_data['name'])
@@ -104,9 +119,9 @@ class BuildScanner(object):
                 name=self.riot_data['name'],
                 source_dir=self.riot_data['source_dir'],
                 version=self.riot_data['version'],
-                licenses=[LicenseInfo(name=self.riot_data['license'],
+                licenses=[LicenseInfo(declaration_text=self.riot_data['license'],
                     declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                    text=None,
+                    license_text=None,
                     url=None)],
                 download_url=CheckedUrl(self.riot_data['url']),
                 copyrights=None,
@@ -144,9 +159,9 @@ class BuildScanner(object):
                 name=pkg['name'],
                 source_dir=pkg['source_dir'],
                 version=pkg['version'],
-                licenses=[LicenseInfo(name=pkg['license'],
+                licenses=[LicenseInfo(declaration_text=pkg['license'],
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                                      text=None,
+                                      license_text=None,
                                       url=None)],
                 download_url=CheckedUrl(pkg['url']),
                 copyrights=None,
@@ -316,9 +331,11 @@ class BuildScanner(object):
 
 
 class BuildScannerTest(unittest.TestCase):
-    def test_run(self):
-        riot_dir = pathlib.Path(__file__).parents[5]
+    def test_all(self):
+        riot_dir = pathlib.Path(__file__).parents[6]
         app_dir = riot_dir.joinpath('tests', 'net', 'nanocoap_cli')
+        if not app_dir.exists() or not app_dir.is_dir():
+            self.skipTest(f"Application directory {app_dir} does not exist or is not a directory.")
         scanner = BuildScanner(app_dir)
         self.assertRaises(RuntimeError, lambda: scanner.app_data)
         self.assertRaises(RuntimeError, lambda: scanner.riot_data)
@@ -339,7 +356,14 @@ class BuildScannerTest(unittest.TestCase):
         self.assertEqual(len(scanner.external_module_data), 0)
         self.assertGreater(len(scanner.package_data), 0)
         self.assertGreater(len(scanner.file_data), 0)
-
+        app_info = scanner.get_app_info()
+        self.assertIsInstance(app_info, AppInfo)
+        self.assertEqual(app_info.app_package.name, 'tests_nanocoap_cli')
+        self.assertEqual(app_info.riot_package.name, 'RIOT OS')
+        self.assertEqual(app_info.board_package.name, 'native64')
+        self.assertEqual(len(app_info.packages), len(scanner.package_data)
+                         + len(scanner.external_module_data) + 3)
+        self.assertEqual(len(app_info.files), len(scanner.file_data))
 
 if __name__ == '__main__':
     unittest.main()

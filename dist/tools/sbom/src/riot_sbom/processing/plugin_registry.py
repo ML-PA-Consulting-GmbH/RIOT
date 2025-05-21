@@ -17,7 +17,18 @@ from typing import Dict, List, TextIO
 from types import ModuleType
 import unittest
 
-from .plugin_type import Plugin
+if __name__ == "__main__":
+    # update search path for local testing
+    import pathlib
+    import os
+    import sys
+    pkg_path = pathlib.Path(__file__).absolute().parents[2].as_posix()
+    os.environ["PYTHONPATH"] = ":".join(
+        [pkg_path, os.environ.get("PYTHONPATH", "")]).strip(":")
+    sys.path.insert(0, pkg_path)
+    from riot_sbom.processing.plugin_type import Plugin
+else:
+    from .plugin_type import Plugin
 
 __all__ = ["load_plugins_from_directory", "print_plugin_list",
               "get_plugin_names", "get_plugin", "register_plugin"]

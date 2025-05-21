@@ -7,8 +7,15 @@ Authors:
     Daniel Lockau <daniel.lockau@ml-pa.com>
 """
 
+if __name__ == "__main__":
+    # update search path for local testing
+    import sys
+    import pathlib
+    sys.path.insert(0,pathlib.Path(__file__).absolute().parents[3].as_posix())
+
 import logging
 import re
+from typing import List
 import unittest
 
 from riot_sbom.processing.plugin_type import Plugin
@@ -35,7 +42,7 @@ class AuthorsScanner(Plugin):
     def run(self, app_info, _):
         for file in app_info.files:
             if file.path.exists():
-                authors = []
+                authors: List[AuthorInfo] = []
                 with file.path.open("rt") as f:
                     for line in f:
                         m = _author_matcher.search(line)
@@ -60,7 +67,7 @@ class AuthorsScanner(Plugin):
                             authors.append(author_info)
                             logging.debug(f"Found author: \"{author}\" <{email}> in file: {file.path}")
                 if authors:
-                    file.authors = list(authors)
+                    file.authors = authors
         return app_info
 
 
@@ -100,8 +107,6 @@ class TestAuthorMatcher(unittest.TestCase):
                                  f"Expected name for line: {t} (groups: {m.groups()})")
                 self.assertIsNotNone(m.group("email"),
                                  f"Expected email for line: {t} (groups: {m.groups()})")
-                if m.group("name") is None or m.group("email") is None:
-                    continue # skip the rest of the test to make linter happy
                 self.assertEqual(_strip_author_name(m.group("name")), a[0],
                                  f"Expected name: {a[0]} for line: {t} (groups: {m.groups()})")
                 self.assertEqual(m.group("email"), a[1],

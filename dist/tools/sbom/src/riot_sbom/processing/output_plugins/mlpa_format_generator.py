@@ -7,6 +7,12 @@ Authors:
     Daniel Lockau <daniel.lockau@ml-pa.com>
 """
 
+if __name__ == "__main__":
+    # update search path for local testing
+    import sys
+    import pathlib
+    sys.path.insert(0,pathlib.Path(__file__).absolute().parents[3].as_posix())
+
 import json
 import jsonschema
 import logging
@@ -51,7 +57,7 @@ class MlpaJsonGenerator(Plugin):
             if not licenses:
                 return ""
             chosen_license = licenses[0]
-            return chosen_license.name
+            return chosen_license.declaration_text
         json_output = {}
         json_output["packageName"] = app_info.app_package.name
         json_output["packageVersion"] = app_info.app_package.version
@@ -185,9 +191,9 @@ class TestMlpaJsonGenerator(unittest.TestCase):
             app_package=PackageInfo(
                 name="example-app",
                 version="1.0.0",
-                licenses=[LicenseInfo(name="MIT",
+                licenses=[LicenseInfo(declaration_text="MIT",
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                                      text=None, url=None)],
+                                      license_text=None, url=None)],
                 copyrights=[CopyrightInfo(holder="Example Holder",
                                           years="2025",
                                           declaration_type=CopyrightDeclarationType.TEXT_CONTAINED,
@@ -202,9 +208,9 @@ class TestMlpaJsonGenerator(unittest.TestCase):
             riot_package=PackageInfo(
                 name="example-riot",
                 version="1.0.0",
-                licenses=[LicenseInfo(name="MIT",
+                licenses=[LicenseInfo(declaration_text="MIT",
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                                      text=None, url=None)],
+                                      license_text=None, url=None)],
                 copyrights=[CopyrightInfo(holder="Example Holder",
                                           years="2025",
                                           declaration_type=CopyrightDeclarationType.TEXT_CONTAINED,
@@ -219,9 +225,9 @@ class TestMlpaJsonGenerator(unittest.TestCase):
             board_package=PackageInfo(
                 name="example-board",
                 version="1.0.0",
-                licenses=[LicenseInfo(name="MIT",
+                licenses=[LicenseInfo(declaration_text="MIT",
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                                      text=None, url=None)],
+                                      license_text=None, url=None)],
                 copyrights=[CopyrightInfo(holder="Example Holder",
                                           years="2025",
                                           declaration_type=CopyrightDeclarationType.TEXT_CONTAINED,
@@ -236,9 +242,9 @@ class TestMlpaJsonGenerator(unittest.TestCase):
             packages=[PackageInfo(
                 name="example-pkg1",
                 version="1.0.0",
-                licenses=[LicenseInfo(name="MIT",
+                licenses=[LicenseInfo(declaration_text="MIT",
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                                      text=None, url=None)],
+                                      license_text=None, url=None)],
                 copyrights=[CopyrightInfo(holder="Example Holder",
                                           years="2025",
                                           declaration_type=CopyrightDeclarationType.TEXT_CONTAINED,
@@ -252,9 +258,9 @@ class TestMlpaJsonGenerator(unittest.TestCase):
             ),PackageInfo(
                 name="example-pkg2",
                 version="1.0.0",
-                licenses=[LicenseInfo(name="MIT",
+                licenses=[LicenseInfo(declaration_text="MIT",
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                                      text=None, url=None)],
+                                      license_text=None, url=None)],
                 copyrights=[CopyrightInfo(holder="Example Holder",
                                           years="2025",
                                           declaration_type=CopyrightDeclarationType.TEXT_CONTAINED,
