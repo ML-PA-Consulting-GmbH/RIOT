@@ -18,7 +18,8 @@ class CopyrightDeclarationType(Enum):
     A file can contain the copyright text or it can be derived for
     a file from the package copyright.
     """
-    TEXT_CONTAINED = "text_contained"
+    TEXT_TAGGED = "text_tagged"
+    TEXT_MATCHED = "text_matched"
     DERIVED = "derived"
 
 @dataclass

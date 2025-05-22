@@ -116,7 +116,7 @@ class BuildScanner(object):
                 supplier=None
             ),
             riot_package=PackageInfo(
-                name=self.riot_data['name'],
+                name='RIOT OS',
                 source_dir=self.riot_data['source_dir'],
                 version=self.riot_data['version'],
                 licenses=[LicenseInfo(declaration_text=self.riot_data['license'],

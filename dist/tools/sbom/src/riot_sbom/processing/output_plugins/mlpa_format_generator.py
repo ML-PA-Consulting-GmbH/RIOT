@@ -14,7 +14,6 @@ if __name__ == "__main__":
     sys.path.insert(0,pathlib.Path(__file__).absolute().parents[3].as_posix())
 
 import json
-import jsonschema
 import logging
 import pathlib
 import tempfile
@@ -319,7 +318,14 @@ class TestMlpaJsonGenerator(unittest.TestCase):
                 self.assertEqual(json_data["dependencies"][pkg.name]["license"], "MIT")
                 self.assertEqual(json_data["dependencies"][pkg.name]["copyright"], "Example Holder 2025")
                 self.assertEqual(json_data["dependencies"][pkg.name]["checksum"], None)
-            self.assertIsNone(jsonschema.validate(json_data, json.loads(schema)))
+            has_jsonschema = False
+            try:
+                import jsonschema
+                has_jsonschema = True
+            except ImportError:
+                self.skipTest("jsonschema module not available, skipping schema validation test")
+            if has_jsonschema:
+                self.assertIsNone(jsonschema.validate(json_data, json.loads(schema)))
 
 
 if __name__ == "__main__":

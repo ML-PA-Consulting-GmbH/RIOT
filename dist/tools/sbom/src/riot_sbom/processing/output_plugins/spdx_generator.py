@@ -14,8 +14,8 @@ import os
 import pathlib
 from datetime import datetime
 from typing import List, Tuple
-from ...package_info import PackageInfo
-from ...file_info import FileInfo
+from riot_sbom.data.package_info import PackageInfo
+from riot_sbom.data.file_info import FileInfo
 
 from spdx_tools.common.spdx_licensing import spdx_licensing
 from spdx_tools.spdx.model import (
@@ -89,7 +89,8 @@ class SpdxBuilder:
             # ],
             #license_concluded=spdx_licensing.parse("GPL-2.0-only OR MIT"),
             #license_info_from_files=[spdx_licensing.parse("GPL-2.0-only"), spdx_licensing.parse("MIT")],
-            license_declared=spdx_licensing.parse(package_info.license) if package_info.license else SpdxNone(),
+            license_declared=(spdx_licensing.parse(package_info.license)
+                              if package_info.license else SpdxNone()),
             #license_comment=None,
             copyright_text=package_info.copyright,
             #description="package description",

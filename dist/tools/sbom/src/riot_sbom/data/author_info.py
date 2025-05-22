@@ -19,7 +19,7 @@ class AuthorDeclarationType(Enum):
     for from the package details.
     """
     TEXT_TAGGED = "text_tagged"
-    TEXT_MATCHED = "text_contained"
+    TEXT_MATCHED = "text_matched"
     DERIVED = "derived"
 
 @dataclass

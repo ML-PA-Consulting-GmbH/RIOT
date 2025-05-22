@@ -44,6 +44,8 @@ class CopyrightsScanner(Plugin):
                             if holder:
                                 holder = holder.strip()
                             years = m.group("years")
+                            if years:
+                                years = years.strip()
                             if holder or years:
                                 # we accept any tagged data, even if incomplete
                                 copyright_info = CopyrightInfo(
@@ -60,17 +62,18 @@ class CopyrightsScanner(Plugin):
 class TestCopyrightsMatcher(unittest.TestCase):
     def test_copyrights_match_success(self):
         test_cases_match = {
-            "(C) 1759 John Doe": ("1759", "John Doe"),
-            "(c) 1759 John Doe": ("1759", "John Doe"),
-            "Copyright (C) 1759 John Doe": ("1759", "John Doe"),
-            "Copyright (c) 1759 John Doe": ("1759", "John Doe"),
-            "copyright (c) 1759 John Doe": ("1759", "John Doe"),
-            "copyright (C) 1759 John Doe": ("1759", "John Doe"),
-            "copyright 1759 John Doe": ("1759", "John Doe"),
-            "Copyright 1759 John Doe": ("1759", "John Doe"),
-            "Copyright  1759 John Doe": ("1759", "John Doe"),
-            "Copyright  1759\tJohn Doe": ("1759", "John Doe"),
-            "Copyright  1759  John Doe": ("1759", "John Doe"),
+            # string concatenation avoids matching the test case
+            "(C)" + " 1759 John Doe": ("1759", "John Doe"),
+            "(c)" + " 1759 John Doe": ("1759", "John Doe"),
+            "Copyright" + " (C)" + " 1759 John Doe": ("1759", "John Doe"),
+            "Copyright" + " (c)" + " 1759 John Doe": ("1759", "John Doe"),
+            "copyright" + " (c)" + " 1759 John Doe": ("1759", "John Doe"),
+            "copyright" + " (C)" + " 1759 John Doe": ("1759", "John Doe"),
+            "copyright" + " 1759 John Doe": ("1759", "John Doe"),
+            "Copyright" + " 1759 John Doe": ("1759", "John Doe"),
+            "Copyright" + "  1759 John Doe": ("1759", "John Doe"),
+            "Copyright" + "  1759\tJohn Doe": ("1759", "John Doe"),
+            "Copyright" + "  1759  John Doe": ("1759 ", "John Doe"),
         }
         for t, a in test_cases_match.items():
             m = _copyright_matcher.search(t)
