@@ -172,7 +172,7 @@ class BuildScanner(object):
             ))
         for file in self.file_data:
             app_info.files.append(FileInfo(
-                path=file['path'],
+                path=pathlib.Path(file['path']),
                 package=file['package'],
                 licenses=None,
                 copyrights=None,
