@@ -50,7 +50,7 @@ class CopyrightsScanner(Plugin):
                                 # we accept any tagged data, even if incomplete
                                 copyright_info = CopyrightInfo(
                                     holder=holder, years=years,
-                                    declaration_type=CopyrightDeclarationType.TEXT_CONTAINED,
+                                    declaration_type=CopyrightDeclarationType.TEXT_TAGGED,
                                     url=None)
                                 copyrights.append(copyright_info)
                             logging.debug(f"Found copyright: {years} {holder} in file: {file.path}")

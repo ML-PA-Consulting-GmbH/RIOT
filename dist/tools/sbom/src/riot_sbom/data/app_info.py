@@ -10,9 +10,10 @@ Authors:
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List
+from typing import Dict
 
 from .file_info import FileInfo
-from .package_info import PackageInfo
+from .package_info import PackageInfo, PackageReference
 
 
 @dataclass
@@ -21,8 +22,8 @@ class AppInfo:
     Application information for a RIOT application.
     """
     build_dir: Path
-    app_package: PackageInfo
-    riot_package: PackageInfo
-    board_package: PackageInfo
-    packages: List[PackageInfo]
+    app_package_ref: PackageReference
+    riot_package_ref: PackageReference
+    board_package_ref: PackageReference
+    packages: Dict[PackageReference, PackageInfo]
     files: List[FileInfo]

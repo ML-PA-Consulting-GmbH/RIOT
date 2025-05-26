@@ -15,23 +15,12 @@ from typing import List
 import unittest
 import weakref
 
-from .package_info import PackageInfo
+from .package_info import PackageReference
 from .copyright_info import CopyrightInfo
 from .license_info import LicenseInfo
 from .author_info import AuthorInfo
 
-__all__ = ['DigestType', 'FileInfo', 'PackageRef']
-
-class PackageRef:
-    """
-    A weak reference to a PackageInfo object.
-    """
-    def __init__(self, package: PackageInfo | None = None):
-        self._package = weakref.ref(package) if package else None
-
-    @property
-    def resolve(self) -> PackageInfo | None:
-        return self._package() if self._package else None
+__all__ = ['DigestType', 'FileInfo']
 
 
 class DigestType(Enum):
@@ -50,7 +39,7 @@ class DigestType(Enum):
 @dataclass
 class FileInfo:
     path: Path # path to the file
-    package: PackageRef # holds a weak reference to the package
+    package: PackageReference | None # identifying data which references the package this file belongs to
     licenses: List[LicenseInfo] | None # none means no license, empty list means unknown
     copyrights: List[CopyrightInfo] | None # none means no copyright, empty list means unknown
     authors: List[AuthorInfo] | None # none means no author (e.g. auto-generated), empty list means unknown
@@ -74,7 +63,8 @@ class TestFileInfo(unittest.TestCase):
     def test_get_digest(self):
         file = Path(__file__)
         # Create a FileInfo object
-        file_info = FileInfo(path=file, package=PackageRef(), licenses=[], copyrights=None, authors=None)
+        file_info = FileInfo(path=file, package=None,
+                             licenses=[], copyrights=None, authors=None)
         for digest_type in DigestType:
             expected_digest = hashlib.new(digest_type.value, file.read_bytes()).hexdigest()
             self.assertEqual(file_info.digests[digest_type], expected_digest, f"Digest mismatch for {digest_type.value}")

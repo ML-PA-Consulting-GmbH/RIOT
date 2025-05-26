@@ -24,13 +24,13 @@ if __name__ == "__main__":
     pkg_path = pathlib.Path(__file__).absolute().parents[2].as_posix()
     sys.path.insert(0, pkg_path)
     from riot_sbom.data.app_info import AppInfo
-    from riot_sbom.data.package_info import PackageInfo
+    from riot_sbom.data.package_info import PackageInfo, PackageReference
     from riot_sbom.data.file_info import FileInfo
     from riot_sbom.data.checked_url import CheckedUrl
     from riot_sbom.data.license_info import LicenseInfo, LicenseDeclarationType
 else:
     from ..data.app_info import AppInfo
-    from ..data.package_info import PackageInfo
+    from ..data.package_info import PackageInfo, PackageReference
     from ..data.file_info import FileInfo
     from ..data.checked_url import CheckedUrl
     from ..data.license_info import LicenseInfo, LicenseDeclarationType
@@ -103,61 +103,64 @@ class BuildScanner(object):
         :return: A dictionary containing the application information.
         :rtype: AppInfo
         """
-        app_info = AppInfo(
-            build_dir=self.app_data['build_dir'],
-            app_package=PackageInfo(
-                name=self.app_data['name'],
-                source_dir=self.app_data['source_dir'],
-                version=None,
-                licenses=None,
-                download_url=None,
-                copyrights=None,
-                authors=None,
-                supplier=None
-            ),
-            riot_package=PackageInfo(
-                name='RIOT OS',
-                source_dir=self.riot_data['source_dir'],
-                version=self.riot_data['version'],
-                licenses=[LicenseInfo(declaration_text=self.riot_data['license'],
-                    declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
-                    license_text=None,
-                    url=None)],
-                download_url=CheckedUrl(self.riot_data['url']),
-                copyrights=None,
-                authors=None,
-                supplier=None
-            ),
-            board_package=PackageInfo(
-                name=self.board_data['name'],
-                source_dir=self.board_data['source_dir'],
-                version=None,
-                licenses=None,
-                download_url=None,
-                copyrights=None,
-                authors=None,
-                supplier=None),
-            packages=[],
-            files=[]
+        app_package=PackageInfo(
+            name=self.app_data['name'],
+            source_dir=pathlib.Path(self.app_data['source_dir']).absolute(),
+            version=None,
+            licenses=None,
+            download_url=None,
+            copyrights=None,
+            authors=None,
+            supplier=None
         )
-        app_info.packages.append(app_info.app_package)
-        app_info.packages.append(app_info.riot_package)
-        app_info.packages.append(app_info.board_package)
+        riot_package=PackageInfo(
+            name='RIOT OS',
+            source_dir=pathlib.Path(self.riot_data['source_dir']).absolute(),
+            version=self.riot_data['version'],
+            licenses=[LicenseInfo(declaration_text=self.riot_data['license'],
+                declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
+                license_text=None,
+                url=None)],
+            download_url=CheckedUrl(self.riot_data['url']),
+            copyrights=None,
+            authors=None,
+            supplier=None
+        )
+        board_package=PackageInfo(
+            name=self.board_data['name'],
+            source_dir=pathlib.Path(self.board_data['source_dir']).absolute(),
+            version=None,
+            licenses=None,
+            download_url=None,
+            copyrights=None,
+            authors=None,
+            supplier=None)
+        app_info = AppInfo(self.app_data['build_dir'],
+                           PackageReference.from_package_info(app_package),
+                           PackageReference.from_package_info(riot_package),
+                           PackageReference.from_package_info(board_package),
+                           {}, [])
+        app_info.packages[app_info.app_package_ref] = app_package
+        app_info.packages[app_info.riot_package_ref] = riot_package
+        app_info.packages[app_info.board_package_ref] = board_package
+        # add external modules
         for ext_mod in self.external_module_data:
-            app_info.packages.append(PackageInfo(
+            pkg = PackageInfo(
                 name=ext_mod['name'],
-                source_dir=ext_mod['source_dir'],
+                source_dir=pathlib.Path(ext_mod['source_dir']).absolute(),
                 version=None,
                 licenses=None,
                 download_url=None,
                 copyrights=None,
                 authors=None,
                 supplier=None
-            ))
+            )
+            app_info.packages[PackageReference.from_package_info(pkg)] = pkg
+        # add RIOT included packages
         for pkg in self.package_data:
-            app_info.packages.append(PackageInfo(
+            pkg = PackageInfo(
                 name=pkg['name'],
-                source_dir=pkg['source_dir'],
+                source_dir=pathlib.Path(pkg['source_dir']).absolute(),
                 version=pkg['version'],
                 licenses=[LicenseInfo(declaration_text=pkg['license'],
                                       declaration_type=LicenseDeclarationType.EXACT_REFERENCE,
@@ -169,11 +172,14 @@ class BuildScanner(object):
                 supplier=("RIOT OS"
                           if pkg['source_dir'].startswith(self.riot_data['source_dir'])
                           else None)
-            ))
+            )
+            app_info.packages[PackageReference.from_package_info(pkg)] = pkg
+        # add all files from build trace
         for file in self.file_data:
             app_info.files.append(FileInfo(
-                path=pathlib.Path(file['path']),
-                package=file['package'],
+                path=pathlib.Path(file['path']).absolute(),
+                package=PackageReference(file['package'][0],
+                                         pathlib.Path(file['package'][1]).absolute()) if file['package'] else None,
                 licenses=None,
                 copyrights=None,
                 authors=None))
@@ -315,18 +321,18 @@ class BuildScanner(object):
             'package': None
         }
         if file_path.startswith(sbom_input['riot']['source_dir']):
-            file_info['package'] = "RIOT OS"
+            file_info['package'] = ("RIOT OS", sbom_input['riot']['source_dir'])
         # package data overrides RIOT data
         for package in package_data:
             if file_path.startswith(package['source_dir']):
-                file_info['package'] = package['name']
+                file_info['package'] = (package['name'], package['source_dir'])
                 break
         for ext_mod in sbom_input['external_modules']:
             if file_path.startswith(ext_mod['source_dir']):
-                file_info['package'] = ext_mod['name']
+                file_info['package'] = (ext_mod['name'], ext_mod['source_dir'])
                 break
         if file_path.startswith(sbom_input['application']['source_dir']):
-            file_info['package'] = sbom_input['application']['name']
+            file_info['package'] = (sbom_input['application']['name'], sbom_input['application']['source_dir'])
         return file_info
 
 
@@ -358,9 +364,15 @@ class BuildScannerTest(unittest.TestCase):
         self.assertGreater(len(scanner.file_data), 0)
         app_info = scanner.get_app_info()
         self.assertIsInstance(app_info, AppInfo)
-        self.assertEqual(app_info.app_package.name, 'tests_nanocoap_cli')
-        self.assertEqual(app_info.riot_package.name, 'RIOT OS')
-        self.assertEqual(app_info.board_package.name, 'native64')
+        self.assertIsNotNone(app_info.app_package_ref)
+        self.assertIsNotNone(app_info.riot_package_ref)
+        self.assertIsNotNone(app_info.board_package_ref)
+        self.assertIn(app_info.app_package_ref, app_info.packages)
+        self.assertEqual(app_info.packages[app_info.app_package_ref].name, 'tests_nanocoap_cli')
+        self.assertIn(app_info.riot_package_ref, app_info.packages)
+        self.assertEqual(app_info.packages[app_info.riot_package_ref].name, 'RIOT OS')
+        self.assertIn(app_info.board_package_ref, app_info.packages)
+        self.assertEqual(app_info.packages[app_info.board_package_ref].name, 'native64')
         self.assertEqual(len(app_info.packages), len(scanner.package_data)
                          + len(scanner.external_module_data) + 3)
         self.assertEqual(len(app_info.files), len(scanner.file_data))

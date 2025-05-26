@@ -82,8 +82,6 @@ def register_plugin(name: str, plugin: Plugin) -> None:
     if not name:
         raise ValueError("Plugin name cannot be empty.")
     if name in _plugin_registry:
-        if not isinstance(_plugin_registry[name], type(plugin)):
-            raise RuntimeError(f"Plugin {name} is already registered but of different type (registry: {_plugin_registry}).")
         logging.debug(f"Plugin {name} is already registered. Skipping.")
     if not isinstance(plugin, Plugin):
         raise TypeError(f"Plugin {name} is not an instance of Plugin.")
