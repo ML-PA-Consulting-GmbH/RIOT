@@ -53,27 +53,29 @@ class CheckedUrl:
     def get(self) -> str:
         return str(self)
 
-    def str(self) -> str:
+    def __str__(self) -> str:
         return self.__url
 
 
 class TestCheckedUrl(unittest.TestCase):
     def test_valid_url(self):
         url = CheckedUrl("https://example.com")
-        self.assertEqual(url.str(), "https://example.com")
+        self.assertEqual(str(url), "https://example.com")
 
     def test_invalid_url(self):
         url = CheckedUrl("invalid_url")
-        self.assertEqual(url.str(), "")
+        self.assertEqual(str(url), "")
 
     def test_git_ssh_url(self):
         url = CheckedUrl("user@host:repo.git")
-        self.assertEqual(url.str(), "git+ssh://user@host/repo.git")
+        self.assertEqual(str(url), "git+ssh://user@host/repo.git")
         url = CheckedUrl("user@host:/path/to/repo.git")
-        self.assertEqual(url.str(), "git+ssh://user@host/path/to/repo.git")
+        self.assertEqual(str(url), "git+ssh://user@host/path/to/repo.git")
         url = CheckedUrl("user@host:path/to/repo.git")
-        self.assertEqual(url.str(), "git+ssh://user@host/path/to/repo.git")
+        self.assertEqual(str(url), "git+ssh://user@host/path/to/repo.git")
 
 
 if __name__ == "__main__":
+    import logging
+    logging.basicConfig(level=logging.DEBUG)
     unittest.main()

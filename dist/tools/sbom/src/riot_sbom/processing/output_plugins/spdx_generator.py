@@ -7,14 +7,16 @@ Authors:
     Daniel Lockau <daniel.lockau@ml-pa.com>
 """
 
-__all__ = ["SpdxBuilder"]
+__all__ = ["SpdxGenerator", "SpdxBuilder"]
 
 import logging
 import os
 import pathlib
 from datetime import datetime
 from typing import List, Tuple
-from riot_sbom.data.package_info import PackageInfo
+import uuid
+
+from riot_sbom.data.package_info import PackageInfo, PackageReference
 from riot_sbom.data.file_info import FileInfo
 
 from spdx_tools.common.spdx_licensing import spdx_licensing
@@ -42,41 +44,70 @@ from spdx_tools.spdx.validation.validation_message import ValidationMessage
 from spdx_tools.spdx.writer.write_anything import write_file
 
 class SpdxBuilder:
-    def __init__(self, document_name: str, application_name: str,
-                 document_namespace: str, creators: List[Tuple[str, str]]):
+    def __init__(self):
         """
         :param document_name: The name of the SPDX document.
         :param data_license: The SPDX license identifier of the SPDX document.
         :param document_namespace: The namespace of the SPDX document (URL-formatted).
         :param creators: A list of tuples containing the name and email of the creators of the SPDX document.
         """
-        self.__application_name = application_name
         self.__document_ref = "SPDXRef-DOCUMENT"
         self.__application_ref = "SPDXRef-Application"
         creation_info = CreationInfo(
             spdx_version="SPDX-2.3",
             spdx_id=self.__document_ref,
-            name=document_name,
+            name="Package SBOM for RIOT Application",
             data_license="CC0-1.0",
-            document_namespace=document_namespace,
-            creators=[Actor(ActorType.PERSON, name, email) for name, email in creators],
+            document_namespace=f'spdx.org/spdxdocs/riot-sbom-{uuid.uuid4()}',
+            creators=[Actor(ActorType.TOOL, "riot_sbom", "")],
             created=datetime.now(),
         )
         self.__document = Document(creation_info)
-        self.__package_name_to_ref_map = {}
+        self.__package_ref_to_spdx_ref_map = {}
 
-    def add_package(self, package_info: PackageInfo):
-        logging.debug(f"Adding package {package_info.name}")
+    def set_creation_info(self, document_name: str, data_license: str,
+                          document_namespace: str, creators: List[Tuple[str, str]]):
+        """
+        Set the creation information for the SPDX document.
+        :param document_name: The name of the SPDX document.
+        :param data_license: The SPDX license identifier of the SPDX document.
+        :param document_namespace: The namespace of the SPDX document (URL-formatted).
+        :param creators: A list of tuples containing the name and email of the creators of the SPDX document.
+        """
+        logging.debug("Setting creation information for SPDX document")
+        self.__document.creation_info.name = document_name
+        self.__document.creation_info.data_license = data_license
+        self.__document.creation_info.document_namespace = document_namespace
+        self.__document.creation_info.creators = [
+            Actor(ActorType.PERSON, name, email) for name, email in creators
+        ]
+
+    def add_package(self, package_info: PackageInfo, dependent_package_ref: PackageReference | None=None):
+        """
+        Add a package to the SPDX document.
+        :param package_info: The package information to add.
+        :param dependent_package_ref: The reference of the package that this package depends on, if any.
+
+        :raises ValueError: If the dependent package has not been added yet.
+        :raises ValueError: If the package to add has already been added.
+        """
+        if dependent_package_ref and dependent_package_ref not in self.__package_ref_to_spdx_ref_map:
+            raise ValueError(f"Dependent package {dependent_package_ref} must be added first.")
+        if PackageReference.from_package_info(package_info) in self.__package_ref_to_spdx_ref_map:
+            raise ValueError(f"Package {package_info.name} has already been added to the SPDX document.")
+        dependent_package_ref = (self.__package_ref_to_spdx_ref_map[dependent_package_ref]
+                                if dependent_package_ref else None)
+        logging.debug(f"Adding package {package_info.name} (dependency of {dependent_package_ref})")
         package_ref = (self.__application_ref
-                       if self.__application_name == package_info.name
-                       else f"SPDXRef-Package-{len(self.__document.packages) + 1}")
-        self.__package_name_to_ref_map[package_info.name] = package_ref
+                       if not dependent_package_ref
+                       else f"SPDXRef-Package-{len(self.__document.packages)}")
+        self.__package_ref_to_spdx_ref_map[PackageReference.from_package_info(package_info)] = package_ref
         package = Package(
             name=package_info.name,
             spdx_id=package_ref,
-            download_location=package_info.url if package_info.url else SpdxNoAssertion(),
+            download_location=package_info.download_url.get() if package_info.download_url else SpdxNoAssertion(),
             version=package_info.version if package_info.version else None,
-            file_name=package_info.source_dir,
+            file_name=str(package_info.source_dir),
             #supplier=Actor(ActorType.PERSON, "Jane Doe", "jane.doe@example.com"),
             #originator=Actor(ActorType.ORGANIZATION, "some organization", "contact@example.com"),
             files_analyzed=True,
@@ -89,13 +120,13 @@ class SpdxBuilder:
             # ],
             #license_concluded=spdx_licensing.parse("GPL-2.0-only OR MIT"),
             #license_info_from_files=[spdx_licensing.parse("GPL-2.0-only"), spdx_licensing.parse("MIT")],
-            license_declared=(spdx_licensing.parse(package_info.license)
-                              if package_info.license else SpdxNone()),
+            #license_declared=(spdx_licensing.parse(package_info.license)
+            #                  if package_info.license else SpdxNone()),
             #license_comment=None,
-            copyright_text=package_info.copyright,
+            #copyright_text=package_info.copyright,
             #description="package description",
             #attribution_texts=["package attribution"],
-            primary_package_purpose=PackagePurpose.LIBRARY,
+            primary_package_purpose=PackagePurpose.SOURCE if dependent_package_ref else PackagePurpose.APPLICATION,
             #release_date=datetime(2015, 1, 1),
             # external_references=[
             #     ExternalPackageRef(
@@ -107,7 +138,7 @@ class SpdxBuilder:
             # ],
         )
         self.__document.packages.append(package)
-        if self.__application_name == package_info.name:
+        if self.__application_ref == package_ref:
             relationship = Relationship(self.__document_ref, RelationshipType.DESCRIBES, package_ref)
             self.__document.relationships.append(relationship)
         else:
@@ -116,11 +147,19 @@ class SpdxBuilder:
 
 
     def add_file(self, file_info: FileInfo, file_package_info: PackageInfo | None=None):
-        logging.debug(f"Adding file {file_info.path}")
+        logging.debug(f"Adding file {file_info.path} in package {file_package_info}")
+        if file_package_info and PackageReference.from_package_info(file_package_info) not in self.__package_ref_to_spdx_ref_map:
+            raise ValueError(f"Package {file_package_info.name} must be added first.")
+        if file_package_info and PackageReference.from_package_info(file_package_info) != file_info.package:
+            raise ValueError(f"File {file_info.path} not anot belong to package {file_package_info.name}.")
         file_ref = f"SPDXRef-File-{len(self.__document.files) + 1}"
-        file_package_ref = self.__package_name_to_ref_map.get(file_info.package, None)
+        if file_info.package is None:
+            file_package_ref = None
+        else:
+            file_package_ref = self.__package_ref_to_spdx_ref_map.get(
+                file_info.package, None)
         file_name = (os.path.basename(file_info.path)
-                     if not file_package_info
+                     if not file_package_ref
                      else os.path.relpath(file_info.path, file_package_info.source_dir))
         file = File(
             name=file_name,

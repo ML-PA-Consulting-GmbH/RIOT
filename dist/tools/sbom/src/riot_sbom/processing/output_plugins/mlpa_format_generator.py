@@ -49,14 +49,17 @@ class MlpaJsonGenerator(Plugin):
         def _get_copyright_string(copyrights: List[CopyrightInfo] | None) -> str:
             if not copyrights:
                 return ""
-            chosen_copyright = copyrights[0]
-            copyright_string = f"{chosen_copyright.holder} {chosen_copyright.years}"
-            return copyright_string
+            copyright_string = ""
+            for copyright in copyrights:
+                copyright_string += f"{copyright.years} {copyright.holder};\n"
+            return copyright_string.strip('; \t\n')
         def _get_license_string(licenses: List[LicenseInfo] | None) -> str:
             if not licenses:
                 return ""
-            chosen_license = licenses[0]
-            return chosen_license.declaration_text
+            license_string = ""
+            for license in licenses:
+                license_string += f"{license.declaration_text};\n"
+            return license_string.strip('; \t\n')
         json_output = {}
         app_pkg = app_info.packages.get(app_info.app_package_ref, None)
         if app_pkg is None:
@@ -72,12 +75,17 @@ class MlpaJsonGenerator(Plugin):
                 continue
             json_output["dependencies"][pkg.name] = {
                 "version": pkg.version,
-                "source": pkg.download_url.get() if pkg.download_url else "",
                 "type": "source",
                 "license": _get_license_string(pkg.licenses),
                 "copyright": _get_copyright_string(pkg.copyrights),
                 "checksum": None
             }
+            if pkg.download_url and pkg.download_url.get():
+                json_output["dependencies"][pkg.name]["source"] = pkg.download_url.get()
+            elif pkg.supplier:
+                json_output["dependencies"][pkg.name]["source"] = pkg.supplier
+            else:
+                json_output["dependencies"][pkg.name]["source"] = ""
         json_output["sourceFiles"] = {}
         for file in app_info.files:
             pkg = app_info.packages.get(file.package, None) if file.package else None
@@ -306,14 +314,14 @@ class TestMlpaJsonGenerator(unittest.TestCase):
             self.assertEqual(json_data["packageName"], app_package.name)
             self.assertEqual(json_data["packageVersion"], app_package.version)
             self.assertEqual(json_data["packageLicense"], "MIT")
-            self.assertEqual(json_data["packageCopyright"], "Example Holder 2025")
+            self.assertEqual(json_data["packageCopyright"], "2025 Example Holder")
             self.assertIn("example-pkg1", json_data["dependencies"])
             self.assertIn("example-pkg2", json_data["dependencies"])
             for file in app_info.files:
                 self.assertIn(file.path.name, json_data["sourceFiles"])
                 self.assertEqual(json_data["sourceFiles"][file.path.name]["checksum"], file.digests[DigestType.MD5])
                 self.assertEqual(json_data["sourceFiles"][file.path.name]["license"], "MIT")
-                self.assertEqual(json_data["sourceFiles"][file.path.name]["copyright"], "Example Holder 2025")
+                self.assertEqual(json_data["sourceFiles"][file.path.name]["copyright"], "2025 Example Holder")
                 if not file.package:
                     continue
                 file_pkg = app_info.packages[file.package]
@@ -327,7 +335,7 @@ class TestMlpaJsonGenerator(unittest.TestCase):
                 self.assertIn(pkg.name, json_data["dependencies"])
                 self.assertEqual(json_data["dependencies"][pkg.name]["version"], pkg.version)
                 self.assertEqual(json_data["dependencies"][pkg.name]["license"], "MIT")
-                self.assertEqual(json_data["dependencies"][pkg.name]["copyright"], "Example Holder 2025")
+                self.assertEqual(json_data["dependencies"][pkg.name]["copyright"], "2025 Example Holder")
                 self.assertEqual(json_data["dependencies"][pkg.name]["checksum"], None)
             has_jsonschema = False
             try:
@@ -340,4 +348,5 @@ class TestMlpaJsonGenerator(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     unittest.main()

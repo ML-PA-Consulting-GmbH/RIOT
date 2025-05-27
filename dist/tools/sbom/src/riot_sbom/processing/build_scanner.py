@@ -378,4 +378,5 @@ class BuildScannerTest(unittest.TestCase):
         self.assertEqual(len(app_info.files), len(scanner.file_data))
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     unittest.main()

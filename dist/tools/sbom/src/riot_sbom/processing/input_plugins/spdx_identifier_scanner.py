@@ -91,4 +91,5 @@ class TestSpdxIdsMatcher(unittest.TestCase):
             self.assertIsNone(m, f"Expected no match for line: \"{t}\"")
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.DEBUG)
     unittest.main()
