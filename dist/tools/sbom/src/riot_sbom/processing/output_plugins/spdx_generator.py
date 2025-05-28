@@ -9,15 +9,27 @@ Authors:
 
 __all__ = ["SpdxGenerator", "SpdxBuilder"]
 
+
+if __name__ == "__main__":
+    # update search path for local testing
+    import sys
+    import pathlib
+    sys.path.insert(0,pathlib.Path(__file__).absolute().parents[3].as_posix())
+
+
 import logging
 import os
 import pathlib
 from datetime import datetime
 from typing import List, Tuple
+import unittest
 import uuid
 
+from riot_sbom.processing.plugin_type import Plugin
+from riot_sbom.data.app_info import AppInfo
 from riot_sbom.data.package_info import PackageInfo, PackageReference
-from riot_sbom.data.file_info import FileInfo
+from riot_sbom.data.file_info import FileInfo, DigestType
+from riot_sbom.data.license_info import LicenseDeclarationType
 
 from spdx_tools.common.spdx_licensing import spdx_licensing
 from spdx_tools.spdx.model import (
@@ -148,6 +160,13 @@ class SpdxBuilder:
 
     def add_file(self, file_info: FileInfo, file_package_info: PackageInfo | None=None):
         logging.debug(f"Adding file {file_info.path} in package {file_package_info}")
+        if file_info.package and not file_package_info:
+            raise ValueError(f"File {file_info.path} belongs to package {file_info.package}, "
+                             f"but no package information was provided.")
+        if file_package_info and not file_info.package:
+            logging.warning(f"File {file_info.path} does not belong to any package, "
+                             f"but package information was provided for {file_package_info.name}. Ignoring package information.")
+            file_package_info = None
         if file_package_info and PackageReference.from_package_info(file_package_info) not in self.__package_ref_to_spdx_ref_map:
             raise ValueError(f"Package {file_package_info.name} must be added first.")
         if file_package_info and PackageReference.from_package_info(file_package_info) != file_info.package:
@@ -159,19 +178,56 @@ class SpdxBuilder:
             file_package_ref = self.__package_ref_to_spdx_ref_map.get(
                 file_info.package, None)
         file_name = (os.path.basename(file_info.path)
-                     if not file_package_ref
+                     if not file_package_info
                      else os.path.relpath(file_info.path, file_package_info.source_dir))
+        if not file_info.licenses:
+            file_license = [(SpdxNone()
+                            if file_info.licenses == []
+                            else SpdxNoAssertion())]
+            license_concluded = file_license
+        if file_info.licenses:
+            spdx_licenses_concluded = []
+            spdx_licenses_in_file = []
+            for license_info in file_info.licenses:
+                try:
+                    spdx_license = spdx_licensing.parse(license_info.declaration_text)
+                except:
+                    logging.warning(f"License {license_info.declaration_text} in file {file_info.path} could not be parsed. "
+                                    "Skipping.")
+                    continue
+                if spdx_license is None:
+                    logging.warning(f"License {license_info.declaration_text} in file {file_info.path} could not be parsed. "
+                                    "Using no assertion instead.")
+                    spdx_license = SpdxNoAssertion()
+                if license_info.declaration_type == LicenseDeclarationType.DERIVED:
+                    if spdx_license not in spdx_licenses_concluded:
+                        spdx_licenses_concluded.append(spdx_license)
+                else:
+                    if spdx_license not in spdx_licenses_in_file:
+                        spdx_licenses_in_file.append(spdx_license)
+            spdx_licenses_concluded = [l for l in spdx_licenses_concluded if l != SpdxNoAssertion()]
+            if len(spdx_licenses_concluded) > 1:
+                logging.warning(f"File {file_info.path} has multiple licenses: {file_info.licenses}. "
+                                "Picking the first license.")
+                license_concluded = spdx_licenses_concluded[0]
+            elif len(spdx_licenses_concluded) == 0:
+                license_concluded = SpdxNoAssertion()
+            else:
+                license_concluded = spdx_licenses_concluded[0]
+            file_license = [l for l in spdx_licenses_in_file if l != SpdxNoAssertion()]
+            if len(file_license) == 0:
+                file_license = [SpdxNoAssertion()]
         file = File(
             name=file_name,
             spdx_id=file_ref,
             file_types=[FileType.SOURCE],
             checksums=[
-                Checksum(ChecksumAlgorithm.SHA1, file_info.digests["sha1"]),
-                Checksum(ChecksumAlgorithm.MD5, file_info.digests["md5"]),
+                Checksum(ChecksumAlgorithm.SHA1, file_info.digests[DigestType.SHA1]),
+                Checksum(ChecksumAlgorithm.MD5, file_info.digests[DigestType.MD5]),
             ],
-            license_concluded=spdx_licensing.parse(file_package_info.license) if file_package_info else None,
-            license_info_in_file=[spdx_licensing.parse(file_info.license)] if file_info.license else None,
-            copyright_text=file_info.copyright,
+            license_concluded=license_concluded,
+            license_info_in_file=file_license,
+            copyright_text="".join(f'<text>{c}</text>' for c in file_info.copyrights) if file_info.copyrights else SpdxNoAssertion(),
         )
         self.__document.files.append(file)
         if file_package_ref:
@@ -183,7 +239,7 @@ class SpdxBuilder:
 
 
     def write(self, file_path: pathlib.Path):
-        logging.info(f"Writing SPDX file for {self.__application_name} to {file_path}")
+        logging.info(f"Writing SPDX file to {file_path}")
         write_file(self.__document, file_path.as_posix(), False)
 
 
@@ -191,38 +247,40 @@ class SpdxBuilder:
         return validate_full_spdx_document(self.__document)
 
 
-def create_spdx_document_from_app_info(app_info: dict, output_file: pathlib.Path):
-    """
-    Create an SPDX document from the application information.
+class SpdxGenerator(Plugin):
+    def get_name(self):
+        return "spdx-generator"
 
-    :param app_info: The application information to process.
-    :param output_file: The file to write the SPDX document to.
-    """
-    if not app_info['app_dir'].is_dir():
-        raise ValueError(f'{app_info["app_dir"]} is not a directory')
-    if not app_info['app_dir'].joinpath('Makefile').is_file():
-        raise ValueError(f'{app_info["app_dir"]} does not contain a Makefile')
-    if not output_file.parent.is_dir():
-        raise ValueError(f'{output_file.parent} is not a directory. Cannot create output file.')
+    def get_description(self):
+        return "Writes an spdx file in tag:value format."
 
-    spdx = SpdxBuilder(
-            f'Automatically generated SBOM for RIOT APPLICATION "{scanner.app_data['name']}"',
-            scanner.app_data['name'],
-            'https://riot-os.org',
-            [('RIOT SBOM Tool', '')]
-    )
-    for pkg, pkg_info in pkg_map.values():
-        spdx.add_package(pkg_info)
-    for file in scanner.file_data:
-        file_pkg_info = pkg_map.get(file['package'], (None, None))
-        file_info = FileInfo.from_parsed_content_and_package(
-                file['path'], file_pkg_info[0])
-        spdx.add_file(file_info, file_pkg_info[1])
-    print('Validating SPDX document...')
-    validation_messages = spdx.validate()
-    for message in validation_messages:
-        print("======= VALIDATION MESSAGE =======")
-        print(message.validation_message)
-        print(message.context)
-    spdx.write(output_file)
-    print(f'Wrote SPDX file to {output_file}')
+    def run(self, app_info: AppInfo, output_file_prefix: pathlib.Path) -> AppInfo:
+        logging.info("Generating SPDX document")
+        builder = SpdxBuilder()
+        builder.set_creation_info(
+            document_name=f"SBOM for {app_info.packages[app_info.app_package_ref].name} application",
+            data_license="CC0-1.0",
+            document_namespace=f'spdx.org/spdxdocs/riot-sbom-{uuid.uuid4()}',
+            creators=([(author.name, author.email) for author in app_info.packages[app_info.app_package_ref].authors]
+                      if app_info.packages[app_info.app_package_ref].authors else [])
+        )
+        builder.add_package(app_info.packages[app_info.app_package_ref])
+        for package_ref in app_info.packages:
+            if package_ref == app_info.app_package_ref:
+                continue
+            builder.add_package(
+                app_info.packages[package_ref],
+                app_info.app_package_ref
+            )
+        for file in app_info.files:
+            builder.add_file(file, app_info.packages[file.package] if file.package else None)
+        output_file = output_file_prefix.parent / (output_file_prefix.name + "-sbom.spdx")
+        builder.write(output_file)
+        validation_messages = builder.validate()
+        if validation_messages:
+            logging.error(f"SPDX document validation failed with {len(validation_messages)} messages.")
+            for message in validation_messages:
+                logging.error(message)
+        else:
+            logging.info("SPDX document validation succeeded.")
+        return app_info
