@@ -13,7 +13,7 @@
  * @author José I. Alamos <jose.alamos@haw-hamburg.de>
  */
 
-#include "irq_arch.h"
+#include "irq.h"
 #include "net/netdev/ieee802154_submac.h"
 #include "event/thread.h"
 
