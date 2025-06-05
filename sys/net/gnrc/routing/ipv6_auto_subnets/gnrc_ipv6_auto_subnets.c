@@ -547,11 +547,22 @@ static void _deferred_config(void *ctx)
 }
 #endif
 
+
+static bool _enabled = true;
+void gnrc_ipv6_auto_subnets_enable(bool on)
+{
+    _enabled = on;
+}
+
 void gnrc_ipv6_nib_rtr_adv_pio_cb(gnrc_netif_t *upstream, const ndp_opt_pi_t *pio,
                                   const ipv6_addr_t *src)
 {
     /* create a subnet for each downstream interface */
     unsigned subnets = gnrc_netif_numof() - 1;
+
+    if (!_enabled) {
+        return;
+    }
 
     if (subnets == 0) {
         return;
