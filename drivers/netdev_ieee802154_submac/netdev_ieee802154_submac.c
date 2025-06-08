@@ -65,6 +65,7 @@ static int _get(netdev_t *netdev, netopt_t opt, void *value, size_t max_len)
     netdev_ieee802154_t *netdev_ieee802154 = container_of(netdev, netdev_ieee802154_t, netdev);
     netdev_ieee802154_submac_t *netdev_submac = container_of(netdev_ieee802154, netdev_ieee802154_submac_t, dev);
     ieee802154_submac_t *submac = &netdev_submac->submac;
+    int ret;
 
     switch (opt) {
         case NETOPT_STATE:
@@ -79,6 +80,16 @@ static int _get(netdev_t *netdev, netopt_t opt, void *value, size_t max_len)
         case NETOPT_IEEE802154_PHY:
             *((uint8_t*) value) = ieee802154_get_phy_mode(submac);
             return 1;
+        case NETOPT_PROMISCUOUSMODE: {
+            ieee802154_filter_mode_t mode;
+            ret = ieee802154_radio_get_frame_filter_mode(&submac->dev, &mode);
+            if (ret < 0) {
+                return ret;
+            }
+            *((netopt_enable_t *)value) = (mode == IEEE802154_FILTER_PROMISC)
+                ? NETOPT_ENABLE : NETOPT_DISABLE;
+            return 1;
+        }
         default:
             break;
     }
