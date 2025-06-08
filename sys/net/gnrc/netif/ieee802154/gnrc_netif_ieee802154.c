@@ -215,8 +215,10 @@ static gnrc_pktsnip_t *_recv(gnrc_netif_t *netif)
             if ((mhr[0] & IEEE802154_FCF_TYPE_MASK) == IEEE802154_FCF_TYPE_DATA &&
                 (mhr[0] & IEEE802154_FCF_ACK_REQ)) {
                 netopt_enable_t auto_ack = NETOPT_DISABLE;
-                if (dev->driver->get(dev, NETOPT_AUTOACK, &auto_ack, sizeof(auto_ack)) > 0 &&
-                    auto_ack != NETOPT_ENABLE) {
+                netopt_enable_t promiscuous = NETOPT_DISABLE;
+                if (dev->driver->get(dev, NETOPT_PROMISCUOUSMODE, &promiscuous, sizeof(promiscuous)) > 0 &&
+                    dev->driver->get(dev, NETOPT_AUTOACK, &auto_ack, sizeof(auto_ack)) > 0 &&
+                    auto_ack != NETOPT_ENABLE && promiscuous != NETOPT_ENABLE) {
                     uint8_t ack[IEEE802154_ACK_FRAME_LEN - IEEE802154_FCS_LEN]
                         = { IEEE802154_FCF_TYPE_ACK, 0x00, ieee802154_get_seq(mhr) };
                     iolist_t io = {
