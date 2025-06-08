@@ -93,6 +93,10 @@ static int _get(netdev_t *netdev, netopt_t opt, void *value, size_t max_len)
                 ? NETOPT_ENABLE : NETOPT_DISABLE;
             return 1;
         }
+        case NETOPT_AUTOACK:
+            *((netopt_enable_t *)value)
+                = ieee802154_radio_has_capability(&submac->dev, IEEE802154_CAP_AUTO_ACK);
+            return 1;
         default:
             break;
     }
