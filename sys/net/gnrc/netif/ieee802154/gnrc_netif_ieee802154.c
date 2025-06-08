@@ -231,9 +231,6 @@ static gnrc_pktsnip_t *_recv(gnrc_netif_t *netif)
                     if (snd < 0) {
                         DEBUG("_recv_ieee802154: failed to send ACK (%d)\n", snd);
                     }
-                    else {
-                        DEBUG("_recv_ieee802154: ACK sent successfully\n");
-                    }
                 }
             }
 #endif
