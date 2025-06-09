@@ -728,7 +728,7 @@ static int _confirm_op(ieee802154_dev_t *dev, ieee802154_hal_op_t op, void *ctx)
 static const ieee802154_radio_ops_t socket_zep_rf_ops = {
     .caps = IEEE802154_CAP_24_GHZ
           | IEEE802154_CAP_AUTO_CSMA
-          | IS_ACTIVE(SOCKET_ZEP_AUTO_ACK) ? IEEE802154_CAP_AUTO_ACK : 0
+          | (IS_ACTIVE(SOCKET_ZEP_AUTO_ACK) ? IEEE802154_CAP_AUTO_ACK : 0)
           | IEEE802154_CAP_IRQ_TX_DONE
           | IEEE802154_CAP_IRQ_TX_START
           | IEEE802154_CAP_IRQ_RX_START
