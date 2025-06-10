@@ -804,6 +804,8 @@ int ieee802154_submac_init(ieee802154_submac_t *submac, const network_uint16_t *
     /* Get supported PHY modes */
     int supported_phy_modes = ieee802154_radio_get_phy_modes(dev);
 
+    assert(supported_phy_modes != 0);
+
     uint32_t default_phy_cap = ieee802154_phy_mode_to_cap(CONFIG_IEEE802154_DEFAULT_PHY_MODE);
 
     /* Check if configuration provides valid PHY */
@@ -812,7 +814,7 @@ int ieee802154_submac_init(ieee802154_submac_t *submac, const network_uint16_t *
         /* Check if default PHY is supported */
         submac->phy_mode = CONFIG_IEEE802154_DEFAULT_PHY_MODE;
     }
-    else if (supported_phy_modes) {
+    else {
         /* Get first set bit, and use it as the default,
          *
          * by this order, the priority is defined on the ieee802154_rf_caps_t
@@ -821,9 +823,6 @@ int ieee802154_submac_init(ieee802154_submac_t *submac, const network_uint16_t *
         unsigned bit = bitarithm_lsb(supported_phy_modes);
 
         submac->phy_mode = ieee802154_cap_to_phy_mode(1 << bit);
-    }
-    else {
-        submac->phy_mode = IEEE802154_PHY_DISABLED; /* non standard */
     }
 
     /* If the radio is still not in TRX_OFF state, spin */
