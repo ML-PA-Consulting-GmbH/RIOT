@@ -447,7 +447,7 @@ static int _config_phy(ieee802154_dev_t *hal, ieee802154_phy_conf_t *conf)
     sx126x_t *dev = hal->priv;
     uint8_t channel = conf->channel;
     /* dont allow overwriting TX power */
-    conf->pow = CONFIG_SX126X_TX_POWER_DEFAULT;
+    conf->pow = SX126X_POWER_DEFAULT;
     if (channel > SX126X_CHAN_MAX) {
         return -EINVAL;
     }
