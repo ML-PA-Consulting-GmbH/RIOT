@@ -570,6 +570,7 @@ static int _set_csma_params(ieee802154_dev_t *hal, const ieee802154_csma_be_t *b
 
 static const ieee802154_radio_ops_t _sx126x_ops = {
     .caps =  IEEE802154_CAP_SUB_GHZ
+          | IEEE802154_CAP_PHY_LORA
           | IEEE802154_CAP_IRQ_CRC_ERROR
           | IEEE802154_CAP_IRQ_RX_START
           | IEEE802154_CAP_IRQ_TX_DONE
