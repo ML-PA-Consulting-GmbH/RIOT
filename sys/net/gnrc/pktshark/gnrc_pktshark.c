@@ -365,6 +365,10 @@ static bool _dump_coap(const void *buf, size_t len)
     while ((opt_len = coap_opt_get_next(&pkt, &opt, &value, false)) >= 0) {
         const bool first_of_a_kind = opt.opt_num != old_opt;
         switch (opt.opt_num) {
+        case COAP_OPT_URI_HOST:
+            print_str(" host=");
+            print((char *)value, opt_len);
+            break;
         case COAP_OPT_URI_PATH:
             if (first_of_a_kind) {
                 print_str(" ");
@@ -385,6 +389,14 @@ static bool _dump_coap(const void *buf, size_t len)
             break;
         case COAP_OPT_NO_RESPONSE:
             print_str(" no-resp");
+            break;
+        case COAP_OPT_ETAG:
+            print_str(" etag=");
+            print_bytes_hex(value, opt_len);
+            break;
+        case COAP_OPT_REQUEST_TAG:
+            print_str(" rtag=");
+            print_bytes_hex(value, opt_len);
             break;
         default:
             print_str(" opt=");
