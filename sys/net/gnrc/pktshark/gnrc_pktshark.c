@@ -11,7 +11,7 @@
  * @{
  *
  * @file
- * @brief       Pretty-printer for packages send/received via netapi
+ * @brief       Pretty-printer for packages sent/received via netapi
  *
  * @author      Benjamin Valentin <benjamin.valentin@ml-pa.com>
  *
@@ -212,7 +212,7 @@ static void _dump_nbr_adv(const ndp_nbr_adv_t *nbr_adv, size_t payload_len)
     }
 }
 
-static void _dump_icmp_echo(const icmpv6_echo_t *echo, size_t payload_len)
+static void _dump_icmpv6_echo(const icmpv6_echo_t *echo, size_t payload_len)
 {
     print_str(" seq=");
     print_u32_dec(byteorder_ntohs(echo->seq));
@@ -237,11 +237,11 @@ static void _dump_icmpv6(const icmpv6_hdr_t *hdr, size_t payload_len)
         break;
     case ICMPV6_ECHO_REQ:
         print_str("PING");
-        _dump_icmp_echo((icmpv6_echo_t *)hdr, payload_len - sizeof(icmpv6_echo_t));
+        _dump_icmpv6_echo((icmpv6_echo_t *)hdr, payload_len - sizeof(icmpv6_echo_t));
         break;
     case ICMPV6_ECHO_REP:
         print_str("PONG");
-        _dump_icmp_echo((icmpv6_echo_t *)hdr, payload_len - sizeof(icmpv6_echo_t));
+        _dump_icmpv6_echo((icmpv6_echo_t *)hdr, payload_len - sizeof(icmpv6_echo_t));
         break;
     case ICMPV6_RTR_SOL:
         _dump_rtr_sol((ndp_rtr_sol_t *)hdr, payload_len - sizeof(ndp_rtr_sol_t));
@@ -431,7 +431,7 @@ static void _dump_udp(const udp_hdr_t *hdr, size_t payload_len, gnrc_pktsnip_t *
 
     print_str("  UDP [");
     print_u32_dec(byteorder_ntohs(hdr->src_port));
-    print_str(" ↣ ");
+    print_str(" -> ");
     print_u32_dec(byteorder_ntohs(hdr->dst_port));
     print_str("]\n");
 
@@ -450,7 +450,7 @@ static void _dump_tcp(const tcp_hdr_t *hdr, size_t payload_len)
 {
     print_str("  TCP [");
     print_u32_dec(byteorder_ntohs(hdr->src_port));
-    print_str(" ↣ ");
+    print_str(" -> ");
     print_u32_dec(byteorder_ntohs(hdr->dst_port));
     print_str("]\n");
 
@@ -497,7 +497,7 @@ static void _dump_ipv4(const ipv4_hdr_t *hdr, size_t payload_len, bool rx)
     const void *payload = hdr + 1;
 
     ipv4_addr_print(me);
-    print_str(rx ? " ⇐ " : " ⇒ ");
+    print_str(rx ? " <= " : " => ");
     ipv4_addr_print(they);
 
     switch (hdr->protocol) {
@@ -643,7 +643,7 @@ static void *_eventloop(void *arg)
                 msg_reply(&msg, &reply);
                 break;
             default:
-                puts("PKTDUMP: received something unexpected");
+                puts("gnrc_pktshark: received something unexpected");
                 break;
         }
     }
