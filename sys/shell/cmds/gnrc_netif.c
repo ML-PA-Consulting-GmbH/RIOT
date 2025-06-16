@@ -532,7 +532,8 @@ static const char *_netopt_ieee802154_phy_str[] = {
     [IEEE802154_PHY_OQPSK] = "O-QPSK",
     [IEEE802154_PHY_MR_OQPSK] = "MR-O-QPSK",
     [IEEE802154_PHY_MR_OFDM] = "MR-OFDM",
-    [IEEE802154_PHY_MR_FSK] = "MR-FSK"
+    [IEEE802154_PHY_MR_FSK] = "MR-FSK",
+    [IEEE802154_PHY_LORA] = "LORA",
 };
 #endif
 
@@ -622,6 +623,8 @@ static void _netif_list_ipv6(ipv6_addr_t *addr, uint8_t flags)
             break;
         }
     }
+#else
+    (void)flags;
 #endif
     _newline(0U, _LINE_THRESHOLD);
 }

@@ -128,6 +128,7 @@ FEATURES_EXISTING := \
     esp_wifi \
     esp_wifi_ap \
     esp_wifi_enterprise \
+    feather_shield \
     gecko_sdk_librail_fpu \
     gecko_sdk_librail_nonfpu \
     highlevel_stdio \
@@ -141,6 +142,7 @@ FEATURES_EXISTING := \
     periph_adc \
     periph_adc_continuous \
     periph_adc_multi \
+    periph_aead_aes_128_ccm \
     periph_can \
     periph_cipher_aes_128_cbc \
     periph_cipher_chacha20 \

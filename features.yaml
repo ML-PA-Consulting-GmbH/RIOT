@@ -409,6 +409,10 @@ groups:
             Indicates that the board is mechanically and electrically compatible
             with shields developed for the Arduino Nano. (Note: Except the
             ISP header, that requires `arduino_shield_isp` in addition.)
+    - name: feather_shield
+      help: >
+            Indicates that the board is mechanically and electrically compatible
+            with shields developed for the Adafruit Feather board family.
     - name: xiao_shield
       help: >
             Indicates that the board is mechanically and electrically compatible
@@ -868,6 +872,8 @@ groups:
       help: AES 128 CBC hardware acceleration present
     - name: periph_cipher_chacha20
       help: ChaCha20 hardware acceleration present
+    - name: periph_aead_aes_128_ccm
+      help: AES 128 CCM hardware acceleration present
     - name: periph_ecc_p192r1
       help: ECC P192R1 hardware acceleration peripheral present.
     - name: periph_ecc_p256r1
