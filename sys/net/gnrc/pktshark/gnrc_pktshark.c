@@ -390,6 +390,10 @@ static bool _dump_coap(const void *buf, size_t len)
         case COAP_OPT_NO_RESPONSE:
             print_str(" no-resp");
             break;
+        case COAP_OPT_OBSERVE:
+            print_str(" obs=");
+            print_bytes_hex(value, opt_len);
+            break;
         case COAP_OPT_ETAG:
             print_str(" etag=");
             print_bytes_hex(value, opt_len);
