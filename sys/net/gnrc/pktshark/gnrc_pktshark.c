@@ -538,7 +538,7 @@ static void _dump_ipv6(const ipv6_hdr_t *hdr, size_t payload_len, bool rx)
     const ipv6_addr_t *they = rx ? &hdr->src : &hdr->dst;
 
     ipv6_addr_print(me);
-    print_str(rx ? " ⇐ " : " ⇒ ");
+    print_str(rx ? " <= " : " => ");
     ipv6_addr_print(they);
 
     if (payload_len) {
