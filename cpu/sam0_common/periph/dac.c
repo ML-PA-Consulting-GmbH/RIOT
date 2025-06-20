@@ -115,8 +115,12 @@ int8_t dac_init(dac_t line)
 
 #ifdef DAC_DACCTRL_ENABLE
     DAC->DACCTRL[line].reg = DAC_DACCTRL_ENABLE
-                           | _get_CCTRL(sam0_gclk_freq(DAC_CLOCK));
+                           | _get_CCTRL(sam0_gclk_freq(DAC_CLOCK))
 #endif
+#if defined(DAC_DACCTRL_RUNSTDBY) && defined(CPU_SAM0_COMMON_DAC_RUN_ON_STANDBY)
+                           | DAC_DACCTRL_RUNSTDBY
+#endif
+                           ;
 
     /* Set Reference Voltage & enable Output if needed */
     DAC->CTRLB.reg = DAC_VREF
