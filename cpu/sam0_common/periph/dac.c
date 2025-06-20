@@ -122,6 +122,17 @@ int8_t dac_init(dac_t line)
 #endif
                            ;
 
+#ifdef DAC_DACCTRL_REFRESH
+    /** The DAC can only maintain its output on the desired value for approximately 100 μs.
+     *  For static voltages the conversion must be refreshed periodically (see e.g.
+     *  '47.6.9.3 Conversion Refresh' in the SAM D5xE5x family data sheet).
+     *
+     *  Note: T_REFRESH = REFRESH * T_OSCULP32K
+     *        (DACCTRLx.REFRESH = 1 is reserved)
+     */
+    DAC->DACCTRL[line].bit.REFRESH = 2;
+#endif
+
     /* Set Reference Voltage & enable Output if needed */
     DAC->CTRLB.reg = DAC_VREF
 #ifdef DAC_CTRLB_EOEN
