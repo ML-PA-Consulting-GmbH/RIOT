@@ -25,4 +25,5 @@ git merge --no-edit benpicco/riotboot_suit_seq_number
 git cherry-pick 3c74301718d193c6acad1f71c8632b7a831fd9ee
 git cherry-pick 3ba9e0155b57ba502c8e4b2a6b63f5caa9474ce9
 git cherry-pick fc2f7222c4859038bf0b5b59fdbb06196ec32124
+git cherry-pick eaa0643071f5ab851be5d16804f62dd0d9d305a7
 ```
