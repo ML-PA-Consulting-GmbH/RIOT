@@ -413,10 +413,10 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t max_size, ieee802154_r
 
     if (info) {
         /* scale int8_t LoRa SNR into uint8_t IEEE 802.15.4 LQI */
-        SX126X_DEBUG(dev, "hal: SNR %ddb\n", (int)pkt_status.snr_pkt_in_db);
+        SX126X_DEBUG(dev, "hal: SNR %"PRId8"db\n", pkt_status.snr_pkt_in_db);
         info->lqi = (-INT8_MIN) + pkt_status.snr_pkt_in_db;
         /* scale into IEEE 802.15.4 RSSI [-174,80] dbm */
-        SX126X_DEBUG(dev, "hal: RSSI %ddbm\n", (int)pkt_status.rssi_pkt_in_dbm);
+        SX126X_DEBUG(dev, "hal: RSSI %"PRId8"dbm\n", pkt_status.rssi_pkt_in_dbm);
         info->rssi = ieee802154_dbm_to_rssi(pkt_status.rssi_pkt_in_dbm);
     }
     /* Put PSDU to the output buffer */
@@ -446,15 +446,15 @@ static int _config_phy(ieee802154_dev_t *hal, ieee802154_phy_conf_t *conf)
 {
     sx126x_t *dev = hal->priv;
     uint8_t channel = conf->channel;
-    /* dont allow overwriting TX power */
-    conf->pow = SX126X_POWER_DEFAULT;
     if (channel > SX126X_CHAN_MAX) {
         return -EINVAL;
     }
+    SX126X_DEBUG(dev, "hal: config_phy channel %"PRIu8"\n", channel);
     sx126x_set_channel(dev, channel * SX126X_HAL_CHAN_SPACING + SX126X_HAL_CHAN_BASE);
     if (conf->pow < SX126X_POWER_MIN || conf->pow > SX126X_POWER_MAX) {
         return -EINVAL;
     }
+    SX126X_DEBUG(dev, "hal: config_phy power %"PRId8"\n", conf->pow);
     sx126x_set_tx_params(dev, conf->pow, CONFIG_SX126X_RAMP_TIME_DEFAULT);
     conf->res.ack_timeout_us =
         sx126x_symbol_time_on_air_us(dev) * (IEEE802154_ATURNAROUNDTIME_IN_SYMBOLS +
