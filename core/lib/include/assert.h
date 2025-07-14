@@ -81,6 +81,8 @@ extern "C" {
 #endif /*__GNUC__*/
 #endif /*__NORETURN*/
 
+__NORETURN void _assert_panic(void);
+
 #ifdef NDEBUG
 #define assert(ignore)((void)0)
 #elif defined(DEBUG_ASSERT_VERBOSE)
@@ -134,7 +136,6 @@ __NORETURN void _assert_failure(const char *file, unsigned line);
  */
 #define assert(cond) (_likely(cond) ? (void)0 :  _assert_failure(__FILE__, __LINE__))
 #else /* DEBUG_ASSERT_VERBOSE */
-__NORETURN void _assert_panic(void);
 #define assert(cond) (_likely(cond) ? (void)0 : _assert_panic())
 #endif /* DEBUG_ASSERT_VERBOSE */
 
