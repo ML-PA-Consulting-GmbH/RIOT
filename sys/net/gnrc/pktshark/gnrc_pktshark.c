@@ -424,6 +424,8 @@ static bool _dump_coap(const void *buf, size_t len)
 static bool _try_parse_udp(uint16_t port, const void *payload, size_t payload_len)
 {
     switch (port) {
+    case 1024:
+    case 60660:
     case COAP_PORT:
         if (_dump_coap(payload, payload_len)) {
             return true;
