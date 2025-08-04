@@ -1,0 +1,30 @@
+RIOT-2025.10-mlpa-1 - Merge Notes
+=================================
+
+- based on 2025.10-devel-204-ga25a776427
+
+```
+git cherry-pick 7646899f72d805f031eda605d2200c43bac0a160 # (gcoap_fileserver: bump stack size)
+git cherry-pick b2a45de624f4a941d3663fb236f31ede55a5077a # disable auto-subnetting at run-time
+git merge --no-edit benpicco/drivers/rtt_rtc-no-retain
+git merge --no-edit benpicco/pkg/fatfs-threadsafe
+git merge --no-edit benpicco/sock-addr_struct
+git merge --no-edit benpicco/pkg/nanopb-multi
+git merge --no-edit fabian18/pr/configuration_riotconf
+git merge --no-edit benpicco/cpu/sam0_common-adc_sample_multi
+git merge --no-edit maribu/sys/net/nanocoap/transport-tcp
+git merge --no-edit maribu/tests/unittests/out-of-tree-tests
+git merge --no-edit benpicco/gnrc/ipv6/nib-abr_run-time
+git merge --no-edit benpicco/gnrc_ipv6_auto_subnets-auto_6ctx
+git merge --no-edit benpicco/gnrc_ipv6_auto_subnets-deferred-send
+git merge --no-edit benpicco/ipv6_auto_subnets-removal
+git merge --no-edit benpicco/gnrc_netapi-warn
+git merge --no-edit benpicco/gnrc_pktdump2
+git merge --no-edit benpicco/walltime
+git merge --no-edit maribu/sys/newlib/fix-stdio
+git merge --no-edit benpicco/riotboot_suit_seq_number
+git merge --no-edit benpicco/suit_get_public_key
+git merge --no-edit benpicco/hack/sam0-eth/delay
+git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports for DFT
+```
+
