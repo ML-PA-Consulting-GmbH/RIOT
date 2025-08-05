@@ -26,5 +26,6 @@ git merge --no-edit benpicco/riotboot_suit_seq_number
 git merge --no-edit benpicco/suit_get_public_key
 git merge --no-edit benpicco/hack/sam0-eth/delay
 git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports for DFT
+git cherry-pick 67974e308498280ab6566a9fe0adb9e2480aa4a7 # newlib_syscalls_default: respect NDEBUG
 ```
 
