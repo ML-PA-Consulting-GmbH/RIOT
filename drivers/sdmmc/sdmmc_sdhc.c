@@ -48,45 +48,45 @@
 
 #if defined(CPU_SAMD5X) || defined(CPU_SAME5X)
 
-#ifndef SDHC_CLOCK
-#define SDHC_CLOCK          SAM0_GCLK_MAIN
-#endif
+#  ifndef SDHC_CLOCK
+#    define SDHC_CLOCK          SAM0_GCLK_MAIN
+#  endif
 
-#ifndef SDHC_CLOCK_SLOW
-#define SDHC_CLOCK_SLOW     SAM0_GCLK_TIMER
-#endif
+#  ifndef SDHC_CLOCK_SLOW
+#    define SDHC_CLOCK_SLOW     SAM0_GCLK_TIMER
+#  endif
 
 #else
-#error "CPU not supported"
+#  error "CPU not supported"
 #endif
 
 /* limit the Default and High Speed clock rates for debugging */
 #if CONFIG_SDMMC_CLK_MAX_400KHZ
-#define CONFIG_SDMMC_CLK_MAX        KHZ(400)
+#  define CONFIG_SDMMC_CLK_MAX        KHZ(400)
 #elif CONFIG_SDMMC_CLK_MAX_1MHZ
-#define CONFIG_SDMMC_CLK_MAX        MHZ(1)
+#  define CONFIG_SDMMC_CLK_MAX        MHZ(1)
 #elif CONFIG_SDMMC_CLK_MAX_4MHZ
-#define CONFIG_SDMMC_CLK_MAX        MHZ(4)
+#  define CONFIG_SDMMC_CLK_MAX        MHZ(4)
 #elif CONFIG_SDMMC_CLK_MAX_10MHZ
-#define CONFIG_SDMMC_CLK_MAX        MHZ(10)
+#  define CONFIG_SDMMC_CLK_MAX        MHZ(10)
 #elif CONFIG_SDMMC_CLK_MAX_20MHZ
-#define CONFIG_SDMMC_CLK_MAX        MHZ(20)
+#  define CONFIG_SDMMC_CLK_MAX        MHZ(20)
 #elif CONFIG_SDMMC_CLK_MAX_25MHZ
-#define CONFIG_SDMMC_CLK_MAX        MHZ(25)
+#  define CONFIG_SDMMC_CLK_MAX        MHZ(25)
 #else
-#define CONFIG_SDMMC_CLK_MAX        MHZ(50)
+#  define CONFIG_SDMMC_CLK_MAX        MHZ(50)
 #endif
 
 /* millisecond timer definitions dependent on active ztimer backend */
 #if IS_USED(MODULE_ZTIMER_MSEC)
-#define _ZTIMER_CLOCK           ZTIMER_MSEC
-#define _ZTIMER_TICKS_PER_MS    1
+#  define _ZTIMER_CLOCK           ZTIMER_MSEC
+#  define _ZTIMER_TICKS_PER_MS    1
 
 #elif IS_USED(MODULE_ZTIMER_USEC)
-#define _ZTIMER_CLOCK           ZTIMER_USEC
-#define _ZTIMER_TICKS_PER_MS    US_PER_MS
+#  define _ZTIMER_CLOCK           ZTIMER_USEC
+#  define _ZTIMER_TICKS_PER_MS    US_PER_MS
 #else
-#error "Either module ztimer_msec or ztimer_usec is needed"
+#  error "Either module ztimer_msec or ztimer_usec is needed"
 #endif
 
 #define _ZTIMER_ACQUIRE()       ztimer_acquire(_ZTIMER_CLOCK)
@@ -739,7 +739,6 @@ static bool _wait_for_event(sdhc_dev_t *sdhc_dev,
 
     sdhc_dev->error = 0;
 
-    /* TODO: timeout */
     sdhc->NISIER.reg |= event;
     sdhc->EISIER.reg |= error_mask;
 
@@ -762,7 +761,9 @@ static bool _wait_for_event(sdhc_dev_t *sdhc_dev,
             if (timeout) {
                 DEBUG("[sdmmc] IRQ wait timeout\n");
             }
-            DEBUG("[sdmmc] SDHC error: EISTR=%04x, ", sdhc_dev->error);
+            else {
+                DEBUG("[sdmmc] SDHC error: EISTR=%04x, ", sdhc_dev->error);
+            }
             switch (reset) {
             case SDHC_SRR_SWRSTCMD:
                 DEBUG("reset CMD\n");
