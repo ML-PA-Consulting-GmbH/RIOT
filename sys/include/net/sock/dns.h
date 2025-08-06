@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    net_sock_dns    DNS sock API
  * @ingroup     net_sock
@@ -20,9 +22,6 @@
  * @author  Kaspar Schleiser <kaspar@schleiser.de>
  * @author  Hendrik van Essen <hendrik.ve@fu-berlin.de>
  */
-
-#ifndef NET_SOCK_DNS_H
-#define NET_SOCK_DNS_H
 
 #include <errno.h>
 #include <stdint.h>
@@ -114,5 +113,4 @@ extern sock_udp_ep_t sock_dns_server;
 }
 #endif
 
-#endif /* NET_SOCK_DNS_H */
 /** @} */

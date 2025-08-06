@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     cpu_cc2538
  * @{
@@ -17,9 +19,6 @@
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  * @author      Sebastian Meiling <s@mlng.net>
  */
-
-#ifndef PERIPH_CPU_H
-#define PERIPH_CPU_H
 
 #include <stdint.h>
 #include <stdio.h>
@@ -153,7 +152,7 @@ typedef enum {
     GPIO_IN_PD      = ((uint8_t)OVERRIDE_PULLDOWN),     /**< input, pull-down */
     GPIO_IN_PU      = ((uint8_t)OVERRIDE_PULLUP),       /**< input, pull-up */
     GPIO_OUT        = ((uint8_t)OVERRIDE_ENABLE),       /**< output */
-    GPIO_OD         = (0xff),                           /**< not supported */
+    GPIO_OD         = (0xfe),                           /**< not supported */
     GPIO_OD_PU      = (0xff)                            /**< not supported */
 } gpio_mode_t;
 /** @} */
@@ -386,5 +385,4 @@ typedef gpio_t adc_conf_t;
 }
 #endif
 
-#endif /* PERIPH_CPU_H */
 /** @} */

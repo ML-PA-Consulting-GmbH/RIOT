@@ -6,8 +6,7 @@
  * directory for more details.
  */
 
-#ifndef PERIPH_GPIO_H
-#define PERIPH_GPIO_H
+#pragma once
 
 /**
  * @defgroup    drivers_periph_gpio GPIO
@@ -200,8 +199,8 @@ int gpio_init_int(gpio_t pin, gpio_mode_t mode, gpio_flank_t flank,
 /**
  * @brief   Enable pin interrupt if configured as interrupt source
  *
- *          Interrupts that would have occurred after @see gpio_irq_disable
- *          was called will be discarded.
+ * Interrupts that would have occurred after @see gpio_irq_disable
+ * was called will be discarded.
  *
  * @note    You have to add the module `periph_gpio_irq` to your project to
  *          enable this function
@@ -287,4 +286,3 @@ static inline int gpio_is_valid(gpio_t gpio)
 #endif
 
 /** @} */
-#endif /* PERIPH_GPIO_H */

@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_esp32c3_devkit
  * @brief       Peripheral configurations for ESP32-C3-DevKit boards
@@ -33,9 +35,6 @@
  * @file
  * @author      Gunar Schorcht <gunar@schorcht.net>
  */
-
-#ifndef PERIPH_CONF_H
-#define PERIPH_CONF_H
 
 #include <stdint.h>
 
@@ -88,7 +87,7 @@ extern "C" {
  * @name   PWM channel configuration
  *
  * For generic boards, two PWM devices are configured. These devices
- * contain all GPIOs that are not defined as I2C, SPI or UART for this board.
+ * contain all GPIOs that are not defined as I2C or UART for this board.
  * Generally, all outputs pins could be used as PWM channels.
  *
  * @note As long as the according PWM device is not initialized with
@@ -103,7 +102,17 @@ extern "C" {
  *        at maximum PWM_CHANNEL_NUM_DEV_MAX.
  */
 #ifndef PWM0_GPIOS
-#define PWM0_GPIOS  { GPIO3, GPIO4 }
+#  define PWM0_GPIOS  { GPIO3, GPIO1 }
+#endif
+
+/**
+ * @brief Declaration of the channels for device PWM_DEV(1),
+ *        at maximum PWM_CHANNEL_NUM_DEV_MAX.
+ *
+ * PWM_DEV(1) is only used if SPI peripheral is not enabled.
+ */
+#if !defined(PWM1_GPIOS) && !defined(MODULE_PERIPH_SPI)
+#  define PWM1_GPIOS  { GPIO10, GPIO7 }
 #endif
 
 /** @} */
@@ -157,5 +166,4 @@ extern "C" {
 /* include common peripheral definitions as last step */
 #include "periph_conf_common.h"
 
-#endif /* PERIPH_CONF_H */
 /** @} */

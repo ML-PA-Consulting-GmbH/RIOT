@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     sys_psa_crypto
  * @defgroup    sys_psa_crypto_cipher   PSA Wrapper Functions: Cipher
@@ -16,9 +18,6 @@
  *
  * @author      Lena Boeckmann <lena.boeckmann@haw-hamburg.de>
  */
-
-#ifndef PSA_CIPHERS_H
-#define PSA_CIPHERS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -138,5 +137,4 @@ psa_status_t psa_cipher_chacha20_decrypt(uint8_t *key_buffer,
 }
 #endif
 
-#endif /* PSA_CIPHERS_H */
 /** @} */

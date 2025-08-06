@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    net_gcoap  GCoAP
  * @ingroup     net
@@ -393,9 +395,6 @@
  * @author      Ken Bannister <kb2ma@runbox.com>
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  */
-
-#ifndef NET_GCOAP_H
-#define NET_GCOAP_H
 
 #include <stdint.h>
 
@@ -1225,5 +1224,4 @@ static inline coap_udp_hdr_t *gcoap_request_memo_get_hdr(const gcoap_request_mem
 }
 #endif
 
-#endif /* NET_GCOAP_H */
 /** @} */

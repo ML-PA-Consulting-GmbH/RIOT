@@ -10,6 +10,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    net_sock_dtls    DTLS sock API
  * @ingroup     net_sock net_dtls
@@ -526,9 +528,6 @@
  * @author  Ken Bannister <kb2ma@runbox.com>
  * @author  Leandro Lanzieri <leandro.lanzieri@haw-hamburg.de>
  */
-
-#ifndef NET_SOCK_DTLS_H
-#define NET_SOCK_DTLS_H
 
 #include <assert.h>
 #include <errno.h>
@@ -1124,5 +1123,4 @@ void sock_dtls_close(sock_dtls_t *sock);
 }
 #endif
 
-#endif /* NET_SOCK_DTLS_H */
 /** @} */

@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_seeedstudio-xiao-esp32c3
  * @brief       Board definitions for the Seeed Studio Xiao ESP32-C3 board
@@ -15,11 +17,9 @@
  * @author      David Picard
  */
 
-#ifndef BOARD_H
-#define BOARD_H
-
 #include <stdint.h>
 
+#if MODULE_PERIPH_INIT_BUTTONS || DOXYGEN
 /**
  * @name    Button pin definitions
  * @{
@@ -31,8 +31,11 @@
  * Pressing the button will give a low signal.
  *
  * @note GPIO9 is a strapping pin that must be pulled up a boot time
- * in order to boot the user application.
- * After boot, it can be used as user button.
+ *       in order to boot the user application.
+ *       After boot, it can be used as user button.
+ *
+ * @note \c BTN0_PIN conflicts with the SPI MISO line. If the SPI
+ *       module is enabled, the button will be automatically disabled.
  */
 #define BTN0_PIN        GPIO9
 
@@ -59,6 +62,7 @@
 #define BUTTON0_PIN     BTN0_PIN
 
 /** @} */
+#endif
 
 /* include common board definitions as last step */
 #include "board_common.h"
@@ -71,5 +75,4 @@ extern "C" {
 } /* end extern "C" */
 #endif
 
-#endif /* BOARD_H */
 /** @} */

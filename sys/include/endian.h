@@ -6,6 +6,8 @@
  * details.
  */
 
+#pragma once
+
 /**
  * @defgroup    sys_endian  endian conversions as provided by most libcs
  * @ingroup     sys
@@ -19,9 +21,6 @@
  *
  * @author      Marian Buschsieweke <marian.buschsieweke@posteo.net>
  */
-
-#ifndef ENDIAN_H
-#define ENDIAN_H
 
 #include <stdint.h>
 
@@ -177,5 +176,4 @@ uint64_t le64toh(uint64_t little_endian_64bits);/**< little endian to host, 64 b
 }
 #endif
 
-#endif /* ENDIAN_H */
 /** @} */

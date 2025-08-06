@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_seeedstudio-xiao-esp32c3
  * @{
@@ -15,9 +17,6 @@
  *
  * @author      David Picard
  */
-
-#ifndef ARDUINO_IOMAP_H
-#define ARDUINO_IOMAP_H
 
 #include "periph/gpio.h"
 #include "periph/adc.h"
@@ -42,21 +41,22 @@ extern "C" {
 #define ARDUINO_PIN_9       GPIO9       /**< Arduino pin 0 (SPI MISO)*/
 #define ARDUINO_PIN_10      GPIO10      /**< Arduino pin 0 (SPI MOSI) */
 
-#define ARDUINO_PIN_LAST    10
+#define ARDUINO_PIN_LAST    10          /**< Last Arduino pin index. */
 /** @} */
 
 /**
  * @name    Aliases for analog pins
  * @{
  */
-#define ARDUINO_PIN_A0          ARDUINO_PIN_0
-#define ARDUINO_PIN_A1          ARDUINO_PIN_1
-#define ARDUINO_PIN_A2          ARDUINO_PIN_2
+#define ARDUINO_A0          ADC_LINE(0)     /**< ADC line for Arduino pin A0 */
+#define ARDUINO_A1          ADC_LINE(1)     /**< ADC line for Arduino pin A1 */
+#define ARDUINO_A2          ADC_LINE(2)     /**< ADC line for Arduino pin A2 */
+
+#define ARDUINO_ANALOG_PIN_LAST 2           /**< Last Arduino analog pin index */
 /** @} */
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ARDUINO_IOMAP_H */
 /** @} */

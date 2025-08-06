@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_esp32s3_usb_otg
  * @brief       Peripheral configurations for ESP32-S3-USB-OTG boards
@@ -21,9 +23,6 @@
  * @file
  * @author      Gunar Schorcht <gunar@schorcht.net>
  */
-
-#ifndef PERIPH_CONF_H
-#define PERIPH_CONF_H
 
 #include <stdint.h>
 
@@ -62,6 +61,30 @@ extern "C" {
 #ifndef PWM0_GPIOS
 #define PWM0_GPIOS  { LED0_PIN, LED1_PIN }
 #endif
+/** @} */
+
+/**
+ * @name   SD/MMC host controller configuration
+ * @{
+ */
+
+/** SDMMC devices */
+static const sdmmc_conf_t sdmmc_config[] = {
+    {
+        .slot = SDMMC_SLOT_1,
+        .cd = GPIO_UNDEF,
+        .wp = GPIO_UNDEF,
+        .clk = GPIO36,
+        .cmd = GPIO35,
+        .dat0 = GPIO37,
+        .dat1 = GPIO38,
+        .dat2 = GPIO33,
+        .dat3 = GPIO34,
+    },
+};
+
+/** Number of configured SDMMC devices */
+#define SDMMC_CONFIG_NUMOF  1
 /** @} */
 
 /**
@@ -128,5 +151,4 @@ extern "C" {
 /* include common peripheral definitions as last step */
 #include "periph_conf_common.h"
 
-#endif /* PERIPH_CONF_H */
 /** @} */

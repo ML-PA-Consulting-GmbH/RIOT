@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup pthread
  * @{
@@ -13,9 +15,6 @@
  * @brief   Thread creation features (attributes).
  * @note    Do not include this header file directly, but pthread.h.
  */
-
-#ifndef PTHREAD_THREADING_ATTR_H
-#define PTHREAD_THREADING_ATTR_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -232,8 +231,6 @@ int pthread_attr_setstack(pthread_attr_t *attr, void *stackaddr, size_t stacksiz
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* PTHREAD_THREADING_ATTR_H */
 
 /**
  * @}

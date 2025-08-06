@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    sys_fmt String formatting (fmt)
  * @ingroup     sys
@@ -37,9 +39,6 @@
  *
  * @author      Kaspar Schleiser <kaspar@schleiser.de>
  */
-
-#ifndef FMT_H
-#define FMT_H
 
 #include <stddef.h>
 #include <stdint.h>
@@ -662,4 +661,3 @@ size_t fmt_lpad(char *str, size_t in_len, size_t pad_len, char pad_char);
 #endif
 
 /** @} */
-#endif /* FMT_H */

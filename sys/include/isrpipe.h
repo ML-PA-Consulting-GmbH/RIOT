@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup isr_pipe ISR Pipe
  * @ingroup sys
@@ -18,9 +20,6 @@
  * @author      Kaspar Schleiser <kaspar@schleiser.de>
  *
  */
-
-#ifndef ISRPIPE_H
-#define ISRPIPE_H
 
 #include <stdint.h>
 
@@ -98,4 +97,3 @@ int isrpipe_read(isrpipe_t *isrpipe, uint8_t *buf, size_t count);
 }
 #endif
 /** @} */
-#endif /* ISRPIPE_H */

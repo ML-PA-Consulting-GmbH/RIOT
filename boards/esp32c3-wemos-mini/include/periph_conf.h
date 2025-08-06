@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_esp32c3_wemos_mini
  * @brief       Peripheral configurations for the Wemos ESP32-C3 mini board
@@ -35,9 +37,6 @@
  * @file
  * @author      Gunar Schorcht <gunar@schorcht.net>
  */
-
-#ifndef PERIPH_CONF_H
-#define PERIPH_CONF_H
 
 #include <stdint.h>
 
@@ -89,9 +88,8 @@ extern "C" {
 /**
  * @name   PWM channel configuration
  *
- * For generic boards, two PWM devices are configured. These devices
- * contain all GPIOs that are not defined as I2C, SPI or UART for this board.
- * Generally, all outputs pins could be used as PWM channels.
+ * One PWM device is configured. It uses all GPIOs that are not defined as
+ * I2C, SPI or UART for this board.
  *
  * @note As long as the according PWM device is not initialized with
  * the `pwm_init`, the GPIOs declared for this device can be used
@@ -105,11 +103,11 @@ extern "C" {
  *        at maximum PWM_CHANNEL_NUM_DEV_MAX.
  */
 #ifndef PWM0_GPIOS
-#ifdef MODULE_ESP32C3_WEMOS_MINI_V1_0_0
-#define PWM0_GPIOS  { GPIO1, GPIO6, GPIO7 }
-#else /* MODULE_ESP32C3_WEMOS_MINI_V2_1_0 */
-#define PWM0_GPIOS  { GPIO2, GPIO6 }
-#endif
+#  ifdef MODULE_ESP32C3_WEMOS_MINI_V1_0_0
+#    define PWM0_GPIOS  { GPIO1, GPIO6, GPIO7 }
+#  else /* MODULE_ESP32C3_WEMOS_MINI_V2_1_0 */
+#    define PWM0_GPIOS  { GPIO2, GPIO6, GPIO3 }
+#  endif
 #endif
 
 /** @} */
@@ -188,5 +186,4 @@ extern "C" {
 /* include common peripheral definitions as last step */
 #include "periph_conf_common.h"
 
-#endif /* PERIPH_CONF_H */
 /** @} */

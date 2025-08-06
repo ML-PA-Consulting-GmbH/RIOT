@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_esp32_esp-wrover-kit
  * @brief       Board specific definitions for Espressif ESP-WROVER-KIT V3
@@ -42,9 +44,6 @@
  * @author      Gunar Schorcht <gunar@schorcht.net>
  */
 
-#ifndef BOARD_H
-#define BOARD_H
-
 #include <stdint.h>
 
 /**
@@ -57,13 +56,14 @@
 #define LED0_ACTIVE     (1)     /**< LED0 is high active */
 #endif
 
-#if !MODULE_SDCARD_SPI || DOXYGEN
-#define LED1_PIN        GPIO2    /**< LED1 is available when the SD-Card is not used */
+#if !MODULE_PERIPH_SPI || DOXYGEN
+#define LED1_PIN        GPIO2    /**< LED1 is available when the SPI bus is not used */
 #define LED1_ACTIVE     (1)      /**< LED1 is high active */
 #endif
 
-#if !MODULE_ESP32_WROVER_KIT_CAMERA || DOXYGEN
-#define LED2_PIN        GPIO4    /**< LED2 is available when the camera is not plugged in */
+#if (!MODULE_ESP32_WROVER_KIT_CAMERA && !MODULE_PERIPH_SDMMC) || DOXYGEN
+#define LED2_PIN        GPIO4    /**< LED2 is available when the camera is not plugged in
+                                      and SDMMD is not used */
 #define LED2_ACTIVE     (1)      /**< LED2 is high active */
 #endif
 
@@ -136,5 +136,4 @@ extern "C" {
 } /* end extern "C" */
 #endif
 
-#endif /* BOARD_H */
 /** @} */

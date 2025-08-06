@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     drivers_ds18
  * @{
@@ -17,9 +19,6 @@
  * @author      Frits Kuipers <frits.kuipers@gmail.com>
  * @author      Leandro Lanzieri <leandro.lanzieri@haw-hamburg.de>
  */
-
-#ifndef DS18_INTERNAL_H
-#define DS18_INTERNAL_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -60,5 +59,3 @@ extern "C" {
 }
 #endif
 /** @} */
-
-#endif /* DS18_INTERNAL_H */

@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     sys_psa_crypto
  * @defgroup    sys_psa_crypto_ecc  PSA Wrapper Functions: ECC
@@ -16,9 +18,6 @@
  *
  * @author      Lena Boeckmann <lena.boeckmann@haw-hamburg.de>
  */
-
-#ifndef PSA_ECC_H
-#define PSA_ECC_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -91,6 +90,13 @@ psa_status_t psa_ecc_p192r1_verify_message(const psa_key_attributes_t *attribute
 psa_status_t psa_generate_ecc_p256r1_key_pair(  const psa_key_attributes_t *attributes,
                                                 uint8_t *priv_key_buffer, uint8_t *pub_key_buffer,
                                                 size_t *priv_key_buffer_length,
+                                                size_t *pub_key_buffer_length);
+
+/**
+ * @brief   Low level wrapper function to call a driver for deriving an P256R1 public key from the private key.
+ */
+psa_status_t psa_derive_ecc_p256r1_public_key(  const uint8_t *priv_key_buffer, uint8_t *pub_key_buffer,
+                                                size_t priv_key_buffer_length,
                                                 size_t *pub_key_buffer_length);
 
 /**
@@ -182,5 +188,4 @@ psa_status_t psa_ecc_ed25519_verify_message(const uint8_t *key_buffer, size_t ke
 }
 #endif
 
-#endif /* PSA_ECC_H */
 /**@}*/

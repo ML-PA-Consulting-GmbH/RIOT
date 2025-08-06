@@ -10,6 +10,8 @@
 #ifndef NET_NANOCOAP_SOCK_H
 #define NET_NANOCOAP_SOCK_H
 
+#pragma once
+
 /**
  * @defgroup    net_nanosock nanoCoAP Sock
  * @ingroup     net

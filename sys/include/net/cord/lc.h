@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    net_cord_lc CoRE RD Lookup Client
  * @ingroup     net_cord
@@ -45,9 +47,6 @@
  *
  * @author      Aiman Ismail <muhammadaimanbin.ismail@haw-hamburg.de>
  */
-
-#ifndef NET_CORD_LC_H
-#define NET_CORD_LC_H
 
 #include "net/sock/udp.h"
 #include "net/nanocoap.h"
@@ -242,5 +241,4 @@ static inline ssize_t cord_lc_ep(cord_lc_rd_t *rd, cord_lc_ep_t *endpoint,
 }
 #endif
 
-#endif /* NET_CORD_LC_H */
 /** @} */

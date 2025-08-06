@@ -7,8 +7,7 @@
  * directory for more details.
  */
 
-#ifndef TMP00X_H
-#define TMP00X_H
+#pragma once
 
 /**
  * @defgroup    drivers_tmp00x TMP006/TMP007 Infrared Thermopile Sensor
@@ -168,7 +167,6 @@ extern "C"
 #define TMP00X_CONFIG_CR_DEF       TMP00X_CONFIG_CR_AS4 /**< Default for Testing */
 /** @} */
 
-
 /**
  * @name    Constants for TMP00X calibration
  * @{
@@ -299,4 +297,3 @@ int tmp00x_read_temperature(const tmp00x_t *dev, int16_t *ta, int16_t *to);
 #endif
 
 /** @} */
-#endif /* TMP00X_H */

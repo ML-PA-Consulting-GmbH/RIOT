@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    net_ntp_packet NTP Packet
  * @ingroup     net
@@ -18,9 +20,6 @@
  * @author      Luminița Lăzărescu <cluminita.lazarescu@gmail.com>
  * @author      Martine Lenders <m.lenders@fu-berlin.de>
  */
-
-#ifndef NET_NTP_PACKET_H
-#define NET_NTP_PACKET_H
 
 #include <stdint.h>
 #include "byteorder.h"
@@ -169,5 +168,4 @@ static inline ntp_mode_t ntp_packet_get_mode(ntp_packet_t *packet)
 }
 #endif
 
-#endif /* NET_NTP_PACKET_H */
 /** @} */

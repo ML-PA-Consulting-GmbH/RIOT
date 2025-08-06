@@ -8,6 +8,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup net_gnrc_rpl
  * @{
@@ -20,9 +22,6 @@
  * @author      Eric Engel <eric.engel@fu-berlin.de>
  * @author      Cenk Gündoğan <cenk.guendogan@haw-hamburg.de>
  */
-
-#ifndef NET_GNRC_RPL_STRUCTS_H
-#define NET_GNRC_RPL_STRUCTS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -375,7 +374,6 @@ typedef struct  {
 }
 #endif
 
-#endif /* NET_GNRC_RPL_STRUCTS_H */
 /**
  * @}
  */

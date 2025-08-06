@@ -7,8 +7,7 @@
  * directory for more details.
  */
 
-#ifndef ILI9341_H
-#define ILI9341_H
+#pragma once
 
 /**
  * @defgroup    drivers_ili9341 ILI9341 display driver
@@ -76,7 +75,6 @@ extern "C" {
 #define CONFIG_ILI9341_VCOML            -2000
 #endif
 
-
 /**
  * @name    ILI9341 display rotation modes
  * @{
@@ -105,4 +103,3 @@ extern const lcd_driver_t lcd_ili9341_driver;
 }
 #endif
 /** @} */
-#endif /* ILI9341_H */

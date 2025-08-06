@@ -6,6 +6,8 @@
  * more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    net_ipv6_addr    IPv6 addresses
  * @ingroup     net_ipv6
@@ -20,9 +22,6 @@
  *
  * @author      Martine Lenders <mlenders@inf.fu-berlin.de>
  */
-
-#ifndef NET_IPV6_ADDR_H
-#define NET_IPV6_ADDR_H
 
 #include <stdbool.h>
 #include <string.h>
@@ -776,7 +775,6 @@ void ipv6_prefix_print(const ipv6_addr_t *prefix, uint8_t bits);
 }
 #endif
 
-#endif /* NET_IPV6_ADDR_H */
 /**
  * @}
  */

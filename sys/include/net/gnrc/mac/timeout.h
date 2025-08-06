@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     net_gnrc_mac
  * @{
@@ -17,9 +19,6 @@
  * @author      Daniel Krebs <github@daniel-krebs.net>
  * @author      Shuguo Zhuo  <shuguo.zhuo@inria.fr>
  */
-
-#ifndef NET_GNRC_MAC_TIMEOUT_H
-#define NET_GNRC_MAC_TIMEOUT_H
 
 #include <assert.h>
 #include <stdint.h>
@@ -145,5 +144,4 @@ void gnrc_mac_reset_timeouts(gnrc_mac_timeout_t *mac_timeout);
 }
 #endif
 
-#endif /* NET_GNRC_MAC_TIMEOUT_H */
 /** @} */

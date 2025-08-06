@@ -6,6 +6,8 @@
  * details.
  */
 
+#pragma once
+
 /**
  * @ingroup    sys_can_dll
  * @{
@@ -16,9 +18,6 @@
  * @author      Toon Stegen <toon.stegen@altran.com>
  * @author      Vincent Dupont <vincent@otakeys.com>
  */
-
-#ifndef CAN_ROUTER_H
-#define CAN_ROUTER_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -113,5 +112,4 @@ int can_router_dispatch_tx_error(can_pkt_t *pkt);
 }
 #endif
 
-#endif /* CAN_ROUTER_H */
 /** @} */

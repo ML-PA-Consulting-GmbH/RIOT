@@ -5,6 +5,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_arduino-nano-33-ble-sense
  * @{
@@ -16,14 +18,10 @@
  *
  */
 
-#ifndef PERIPH_CONF_H
-#define PERIPH_CONF_H
-
 #include "periph_cpu.h"
 #include "cfg_clock_32_1.h"
 #include "cfg_rtt_default.h"
 #include "cfg_timer_default.h"
-
 
 #ifdef __cplusplus
 extern "C"
@@ -93,5 +91,4 @@ extern "C"
 }
 #endif
 
-#endif /* PERIPH_CONF_H */
 /** @} */

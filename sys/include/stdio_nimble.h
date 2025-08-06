@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup     sys_stdio_nimble STDIO over NimBLE
  * @ingroup      sys_stdio
@@ -161,9 +163,6 @@
  * @author      Hendrik van Essen <hendrik.ve@fu-berlin.de>
  */
 
-#ifndef STDIO_NIMBLE_H
-#define STDIO_NIMBLE_H
-
 #include "stdio_base.h"
 
 #ifdef __cplusplus
@@ -200,4 +199,3 @@ extern "C" {
 }
 #endif
 /** @} */
-#endif /* STDIO_NIMBLE_H */

@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     sys_psa_crypto
  * @defgroup    sys_psa_crypto_alg_disp PSA Crypto Algorithm Dispatcher
@@ -16,9 +18,6 @@
  *
  * @author      Lena Boeckmann <lena.boeckmann@haw-hamburg.de>
  */
-
-#ifndef PSA_CRYPTO_ALGORITHM_DISPATCH_H
-#define PSA_CRYPTO_ALGORITHM_DISPATCH_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -155,6 +154,41 @@ psa_status_t psa_algorithm_dispatch_cipher_decrypt( const psa_key_attributes_t *
                                                     size_t *output_length);
 #endif /* MODULE_PSA_CIPHER */
 
+#if IS_USED(MODULE_PSA_AEAD)
+/**
+ * @brief   Dispatch a aead encrypt function to a specific backend.
+ *          See @ref psa_aead_encrypt()
+ */
+psa_status_t psa_algorithm_dispatch_aead_encrypt(   const psa_key_attributes_t *attributes,
+                                                    psa_algorithm_t alg,
+                                                    const psa_key_slot_t *slot,
+                                                    const uint8_t *nonce,
+                                                    size_t nonce_length,
+                                                    const uint8_t *additional_data,
+                                                    size_t additional_data_length,
+                                                    const uint8_t *plaintext,
+                                                    size_t plaintext_length,
+                                                    uint8_t *ciphertext,
+                                                    size_t ciphertext_size,
+                                                    size_t *ciphertext_length);
+
+/**
+ * @brief   Dispatch a aead decrypt function to a specific backend.
+ *          See @ref psa_aead_decrypt()
+ */
+psa_status_t psa_algorithm_dispatch_aead_decrypt(   const psa_key_attributes_t *attributes,
+                                                    psa_algorithm_t alg,
+                                                    const psa_key_slot_t *slot,
+                                                    const uint8_t *nonce,
+                                                    size_t nonce_length,
+                                                    const uint8_t *additional_data,
+                                                    size_t additional_data_length,
+                                                    const uint8_t *ciphertext,
+                                                    size_t ciphertext_length,
+                                                    uint8_t *plaintext,
+                                                    size_t plaintext_size,
+                                                    size_t *plaintext_length);
+#endif /* MODULE_PSA_AEAD */
 #if IS_USED(MODULE_PSA_MAC)
 /**
  * @brief   Dispatch a mac computation function to a specific backend.
@@ -174,5 +208,4 @@ psa_status_t psa_algorithm_dispatch_mac_compute(const psa_key_attributes_t *attr
 }
 #endif
 
-#endif /* PSA_CRYPTO_ALGORITHM_DISPATCH_H */
 /** @} */

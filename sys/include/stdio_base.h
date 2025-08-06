@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @addtogroup  sys_stdio STDIO abstraction
  *
@@ -17,9 +19,6 @@
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  * @author      Benjamin Valentin <benjamin.valentin@ml-pa.com>
  */
-
-#ifndef STDIO_BASE_H
-#define STDIO_BASE_H
 
 #include <unistd.h>
 
@@ -177,4 +176,3 @@ void stdio_close(void);
 }
 #endif
 /** @} */
-#endif /* STDIO_BASE_H */

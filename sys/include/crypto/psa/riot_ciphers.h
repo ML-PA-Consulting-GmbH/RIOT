@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     sys_psa_crypto
  * @{
@@ -15,9 +17,6 @@
  * @author      Lena Boeckmann <lena.boeckmann@haw-hamburg.de>
  *
  */
-
-#ifndef CRYPTO_PSA_RIOT_CIPHERS_H
-#define CRYPTO_PSA_RIOT_CIPHERS_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,5 +39,4 @@ typedef cipher_t psa_cipher_aes_256_ctx_t;
 }
 #endif
 
-#endif /* CRYPTO_PSA_RIOT_CIPHERS_H */
 /** @} */

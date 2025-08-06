@@ -6,8 +6,7 @@
  * directory for more details.
  */
 
-#ifndef SDMMC_SDMMC_H
-#define SDMMC_SDMMC_H
+#pragma once
 
 /**
  * @defgroup    drivers_sdmmc    SDIO/SD/MMC Device API (SDMMC)
@@ -270,7 +269,7 @@ typedef enum {
                                              [48 bit (16 bit RCA, 16 bit not defined) */
     SDMMC_R6  = 6 | SDMMC_RESP_CRC,     /**< Published RCA Response [48 bit (16 bit RCA,
                                              16 bit card status) */
-    SDMMC_R7  = 7 | SDMMC_RESP_CRC,     /**< Card Interface Condition [48 bit] (32 bit data,
+    SDMMC_R7  = 7 | SDMMC_RESP_CRC,     /**< Card Interface Condition [48 bit (32 bit data)],
                                              see section 4.9.6) */
 } sdmmc_resp_t;
 /** @} */
@@ -1957,5 +1956,3 @@ uint64_t sdmmc_get_capacity(sdmmc_dev_t *dev);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* SDMMC_SDMMC_H */

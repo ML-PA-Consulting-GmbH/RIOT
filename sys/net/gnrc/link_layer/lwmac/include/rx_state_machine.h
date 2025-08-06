@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     net_gnrc_lwmac
  * @{
@@ -18,9 +20,6 @@
  * @author      Shuguo Zhuo  <shuguo.zhuo@inria.fr>
  * @}
  */
-
-#ifndef RX_STATE_MACHINE_H
-#define RX_STATE_MACHINE_H
 
 #include "net/gnrc/pkt.h"
 #include "net/gnrc/netif.h"
@@ -56,5 +55,3 @@ void gnrc_lwmac_rx_update(gnrc_netif_t *netif);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* RX_STATE_MACHINE_H */

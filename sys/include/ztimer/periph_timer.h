@@ -6,6 +6,8 @@
  * details.
  */
 
+#pragma once
+
 /**
  * @defgroup    sys_ztimer_periph_timer  ztimer periph/timer backend
  * @ingroup     sys_ztimer
@@ -23,9 +25,6 @@
  *
  * @author      Kaspar Schleiser <kaspar@schleiser.de>
  */
-
-#ifndef ZTIMER_PERIPH_TIMER_H
-#define ZTIMER_PERIPH_TIMER_H
 
 #include "ztimer.h"
 #include "periph/timer.h"
@@ -62,5 +61,4 @@ uint32_t ztimer_periph_timer_init(ztimer_periph_timer_t *clock, tim_t dev,
 }
 #endif
 
-#endif /* ZTIMER_PERIPH_TIMER_H */
 /** @} */

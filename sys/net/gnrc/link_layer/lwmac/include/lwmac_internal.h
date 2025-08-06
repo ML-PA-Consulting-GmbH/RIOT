@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     net_gnrc_lwmac
  * @{
@@ -17,9 +19,6 @@
  * @author      Daniel Krebs <github@daniel-krebs.net>
  * @author      Shuguo Zhuo  <shuguo.zhuo@inria.fr>
  */
-
-#ifndef LWMAC_INTERNAL_H
-#define LWMAC_INTERNAL_H
 
 #include <stdint.h>
 
@@ -390,5 +389,4 @@ int _gnrc_lwmac_dispatch_defer(gnrc_pktsnip_t * buffer[], gnrc_pktsnip_t * pkt);
 }
 #endif
 
-#endif /* LWMAC_INTERNAL_H */
 /** @} */

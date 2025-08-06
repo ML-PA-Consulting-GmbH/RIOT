@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @defgroup    net_emcute MQTT-SN Client (emCute)
  * @ingroup     net
@@ -82,9 +84,6 @@
  *
  * @author      Hauke Petersen <hauke.petersen@fu-berlin.de>
  */
-
-#ifndef NET_EMCUTE_H
-#define NET_EMCUTE_H
 
 #include <stdint.h>
 #include <stddef.h>
@@ -389,5 +388,4 @@ const char *emcute_type_str(uint8_t type);
 }
 #endif
 
-#endif /* NET_EMCUTE_H */
 /** @} */

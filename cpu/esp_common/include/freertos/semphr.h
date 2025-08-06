@@ -8,8 +8,7 @@
  * FreeRTOS to RIOT-OS adaption module for source code compatibility
  */
 
-#ifndef FREERTOS_SEMPHR_H
-#define FREERTOS_SEMPHR_H
+#pragma once
 
 #ifndef DOXYGEN
 
@@ -76,9 +75,12 @@ void vPortCPUReleaseMutex (portMUX_TYPE *mux);
         xQueueGiveFromISR( ( QueueHandle_t ) ( xSemaphore ), \
                            ( pxHigherPriorityTaskWoken ) )
 
+#define xSemaphoreCreateCountingStatic( uxMaxCount, uxInitialCount, pxSemaphoreBuffer ) \
+        xQueueCreateCountingSemaphoreStatic( ( uxMaxCount ), ( uxInitialCount ), \
+                                             ( pxSemaphoreBuffer ) )
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* DOXYGEN */
-#endif /* FREERTOS_SEMPHR_H */

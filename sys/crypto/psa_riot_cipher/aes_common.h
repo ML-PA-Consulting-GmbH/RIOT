@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @cond
  * @ingroup     sys_crypto
@@ -16,9 +18,6 @@
  * @author      Lena Boeckmann <lena.boeckmann@haw-hamburg.de>
  *
  */
-
-#ifndef AES_COMMON_H
-#define AES_COMMON_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -51,6 +50,5 @@ psa_status_t cbc_aes_common_encrypt_decrypt(cipher_t *ctx,
 }
 #endif
 
-#endif /* AES_COMMON_H */
 /** @} */
 /** @endcond */

@@ -6,6 +6,8 @@
  * details.
  */
 
+#pragma once
+
 /**
  * @defgroup    sys_can_dll Data Link Layer
  * @ingroup     sys_can
@@ -22,9 +24,6 @@
  * @author      Vincent Dupont <vincent@otakeys.com>
  * @author      Toon Stegen <toon.stegen@altran.com>
  */
-
-#ifndef CAN_CAN_H
-#define CAN_CAN_H
 
 #ifdef __cplusplus
 extern "C" {
@@ -182,7 +181,5 @@ typedef struct can_frame can_frame_t;
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* CAN_CAN_H */
 
 /** @} */

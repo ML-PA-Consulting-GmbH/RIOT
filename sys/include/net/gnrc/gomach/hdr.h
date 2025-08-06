@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     net_gnrc_gomach
  * @{
@@ -15,9 +17,6 @@
  * @internal
  * @author      Shuguo Zhuo  <shuguo.zhuo@inria.fr>
  */
-
-#ifndef NET_GNRC_GOMACH_HDR_H
-#define NET_GNRC_GOMACH_HDR_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -138,5 +137,4 @@ typedef struct __attribute__((packed)) {
 }
 #endif
 
-#endif /* NET_GNRC_GOMACH_HDR_H */
 /** @} */

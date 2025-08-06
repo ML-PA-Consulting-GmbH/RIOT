@@ -6,6 +6,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     boards_lora-e5-dev
  * @{
@@ -18,9 +20,6 @@
  *
  * @author      J. David Ibáñez <jdavid.ibp@gmail.com>
  */
-
-#ifndef ARDUINO_IOMAP_H
-#define ARDUINO_IOMAP_H
 
 #include "periph/gpio.h"
 
@@ -64,10 +63,8 @@ extern "C" {
 #define ARDUINO_PIN_LAST        28
 /** @} */
 
-
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* ARDUINO_IOMAP_H */
 /** @} */

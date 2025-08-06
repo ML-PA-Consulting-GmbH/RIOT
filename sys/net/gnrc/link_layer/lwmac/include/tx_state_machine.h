@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     net_gnrc_lwmac
  * @{
@@ -18,9 +20,6 @@
  * @author      Shuguo Zhuo  <shuguo.zhuo@inria.fr>
  * @}
  */
-
-#ifndef TX_STATE_MACHINE_H
-#define TX_STATE_MACHINE_H
 
 #include "net/gnrc/pkt.h"
 #include "net/gnrc/netif.h"
@@ -61,5 +60,3 @@ void gnrc_lwmac_tx_update(gnrc_netif_t *netif);
 #ifdef __cplusplus
 }
 #endif
-
-#endif /* TX_STATE_MACHINE_H */

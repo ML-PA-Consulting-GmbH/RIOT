@@ -7,6 +7,8 @@
  * directory for more details.
  */
 
+#pragma once
+
 /**
  * @ingroup     net_gnrc_lwmac
  * @{
@@ -18,9 +20,6 @@
  * @author      Daniel Krebs <github@daniel-krebs.net>
  * @author      Shuguo Zhuo  <shuguo.zhuo@inria.fr>
  */
-
-#ifndef NET_GNRC_LWMAC_TYPES_H
-#define NET_GNRC_LWMAC_TYPES_H
 
 #include "msg.h"
 #include "xtimer.h"
@@ -216,5 +215,4 @@ typedef struct lwmac {
 }
 #endif
 
-#endif /* NET_GNRC_LWMAC_TYPES_H */
 /** @} */
