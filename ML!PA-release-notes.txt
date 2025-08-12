@@ -26,4 +26,6 @@ git merge --no-edit maribu/sys/newlib/fix-stdio
 git merge --no-edit benpicco/riotboot_suit_seq_number
 git merge --no-edit benpicco/suit_get_public_key
 git merge --no-edit benpicco/hack/sam0-eth/delay
+git merge fabian18/pr/rtc_pre_post_set_time
+git merge fabian18/pr/shell_cmd_mtd
 ```
