@@ -327,15 +327,14 @@ int suit_component_name_to_string(const suit_manifest_t *manifest,
                                   char separator, char *buf, size_t buf_len);
 
 /**
- * @brief Iterate public keys accepted by SUIT
+ * @brief Get public key accepted by SUIT
  *
- * @param[in] idx   index of the key to query
- * @param[out] dst  variable to store the pointer to the key in
+ * @param[in] idx   Index of the key to query
+ * @param[out] key  The public key used to verify the signature
  *
- * @return          size of the public key
- * @return          0 if no key with that index exists
+ * @returns         True if a key at that index exists
  */
-size_t suit_get_public_key(uint8_t idx, const void **dst);
+bool suit_get_public_key(uint8_t idx, cose_key_t *key);
 
 #ifdef __cplusplus
 }

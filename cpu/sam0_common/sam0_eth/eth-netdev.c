@@ -28,6 +28,7 @@
 #include "net/eui_provider.h"
 
 #include "periph/gpio.h"
+#include "xtimer.h"
 #include "ztimer.h"
 
 #include "sam0_eth_netdev.h"

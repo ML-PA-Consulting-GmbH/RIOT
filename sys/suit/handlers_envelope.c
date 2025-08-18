@@ -32,18 +32,21 @@
 #include "suit/handlers.h"
 #include "suit.h"
 
-size_t suit_get_public_key(uint8_t idx, const void **dst)
+bool suit_get_public_key(uint8_t idx, cose_key_t *pkey)
 {
     if (idx >= ARRAY_SIZE(public_key)) {
-        return 0;
+        return false;
     }
 
-    *dst = &public_key[idx];
-    return sizeof(public_key[idx]);
+    /* Initialize key from hardcoded public key */
+    cose_key_init(pkey);
+    cose_key_set_keys(pkey, COSE_EC_CURVE_ED25519, COSE_ALGO_EDDSA,
+                      (void *)public_key[idx], NULL, NULL);
+    return true;
 }
 
 static int _verify_with_key(suit_manifest_t *manifest, const nanocbor_value_t *it,
-                            const void *key)
+                            cose_key_t *pkey)
 {
     cose_sign_dec_t verify;
     const uint8_t *cose_buf;
@@ -57,12 +60,6 @@ static int _verify_with_key(suit_manifest_t *manifest, const nanocbor_value_t *i
         LOG_INFO("Unable to get auth container\n");
         return SUIT_ERR_INVALID_MANIFEST;
     }
-
-    /* Initialize key from hardcoded public key */
-    cose_key_t pkey;
-    cose_key_init(&pkey);
-    cose_key_set_keys(&pkey, COSE_EC_CURVE_ED25519, COSE_ALGO_EDDSA,
-                      (void *)key, NULL, NULL);
 
     nanocbor_value_t _cont, arr;
     nanocbor_decoder_init(&_cont, auth_container, auth_container_len);
@@ -97,7 +94,7 @@ static int _verify_with_key(suit_manifest_t *manifest, const nanocbor_value_t *i
             }
             LOG_INFO("suit: verifying manifest signature\n");
             int verification = cose_sign_verify(&verify, &signature,
-                                                &pkey, manifest->validation_buf,
+                                                pkey, manifest->validation_buf,
                                                 SUIT_COSE_BUF_SIZE);
             if (verification == 0) {
                 manifest->state |= SUIT_STATE_COSE_AUTHENTICATED;
@@ -121,9 +118,11 @@ static int _auth_handler(suit_manifest_t *manifest, int key,
     (void)key;
 
     int res = 0;
+    unsigned idx = 0;
+    cose_key_t pkey;
 
-    for (unsigned i = 0; i < ARRAY_SIZE(public_key); ++i) {
-        res = _verify_with_key(manifest, it, public_key[i]);
+    while (suit_get_public_key(idx++, &pkey)) {
+        res = _verify_with_key(manifest, it, &pkey);
         if (res != SUIT_ERR_SIGNATURE) {
             break;
         }

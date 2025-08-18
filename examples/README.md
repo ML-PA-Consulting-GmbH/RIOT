@@ -103,7 +103,6 @@ Here is a quick overview of the examples available in the RIOT:
 | [gnrc_networking_subnets](./networking/gnrc/gnrc_networking_subnets/README.md) | This example demonstrates IPv6 subnet auto-configuration for networks on a tree topology. |
 | [gnrc_border_router](./networking/gnrc/gnrc_border_router/README.md) | Example of `gnrc_border_router` using automatic configuration |
 | [gnrc_lorawan](./networking/gnrc/gnrc_lorawan/README.md) | Send and receive LoRaWAN packets and perform basic LoRaWAN commands |
-| [gnrc_networking_mac](./networking/gnrc/gnrc_networking_mac/README.md) | This example shows you how to try out communications between RIOT instances with duty-cycled MAC layer protocols |
 
 ### DTLS
 
@@ -142,6 +141,7 @@ Here is a quick overview of the examples available in the RIOT:
 | [twr_aloha](./advanced/twr_aloha/README.md) | This example allows testing different two-way ranging algorithms between two boards supporting a dw1000 device. This makes use of the uwb-core pkg. |
 | [senml_saul](./advanced/senml_saul/README.md) | This example demonstrates the usage of the SAUL (Sensor Actuator Uber Layer) module with the SenML (Sensor Measurement Lists) format. |
 | [opendsme](./advanced/opendsme/README.md) | This example demonstrates the usage of the OpenDSME module in RIOT. |
+| [xipfs](./advanced/xipfs/README.md) | This example demonstrates the usage of XIPFS for creating and executing an executable file. |
 
 ## Examples from Guides
 
