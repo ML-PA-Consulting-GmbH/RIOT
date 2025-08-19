@@ -516,8 +516,6 @@ export CCACHE_CPP2=yes
 # set some settings useful for continuous integration builds
 ifeq ($(RIOT_CI_BUILD),1)
     RIOT_VERSION ?= buildtest
-    # set a dummy version number
-    RIOT_VERSION_CODE ?= $(RIOT_VERSION_DUMMY_CODE)
     ifneq ($(filter $(BOARD_INSUFFICIENT_MEMORY), $(BOARD)),)
         RIOTNOLINK:=1
     endif
