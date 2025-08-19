@@ -28,4 +28,8 @@ git merge --no-edit benpicco/suit_get_public_key
 git merge --no-edit benpicco/hack/sam0-eth/delay
 git merge fabian18/pr/rtc_pre_post_set_time
 git merge fabian18/pr/shell_cmd_mtd
+#https://github.com/RIOT-OS/RIOT/pull/21668
+git cherry-pick 9d23860b8d1f1321e5914809c56911c9177bcc4f
+#https://github.com/RIOT-OS/RIOT/pull/21666
+git cherry-pick cd430849517e2de77dfb08dc8f728cb54ca209f3
 ```
