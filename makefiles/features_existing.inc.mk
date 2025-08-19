@@ -140,6 +140,7 @@ FEATURES_EXISTING := \
     no_idle_thread \
     periph_adc \
     periph_adc_continuous \
+    periph_adc_multi \
     periph_aead_aes_128_ccm \
     periph_can \
     periph_cipher_aes_128_cbc \
