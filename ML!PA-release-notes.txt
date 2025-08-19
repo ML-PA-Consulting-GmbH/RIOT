@@ -25,5 +25,6 @@ git merge --no-edit maribu/sys/newlib/fix-stdio
 git merge --no-edit benpicco/riotboot_suit_seq_number
 git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports for DFT
 git merge --no-edit derMihai/mir/tflags_wq
+git cherry-pick 9d23860b8d1f1321e5914809c56911c9177bcc4f # populate RIOT_VERSION_CODE in CI correctly
 ```
 
