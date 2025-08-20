@@ -573,7 +573,8 @@ static const ieee802154_radio_ops_t _sx126x_ops = {
           | IEEE802154_CAP_IRQ_CRC_ERROR
           | IEEE802154_CAP_IRQ_RX_START
           | IEEE802154_CAP_IRQ_TX_DONE
-          | IEEE802154_CAP_IRQ_CCA_DONE,
+          | IEEE802154_CAP_IRQ_CCA_DONE
+          | IEEE802154_CAP_PHY_LORA,
     .write = _write,
     .read = _read,
     .request_on = _request_on,
