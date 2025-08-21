@@ -1,4 +1,5 @@
 USEMODULE += iolist
+USEMODULE += od
 USEMODULE += netdev_legacy_api
 USEPKG += driver_sx126x
 FEATURES_REQUIRED += periph_gpio_irq
