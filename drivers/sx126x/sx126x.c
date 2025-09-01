@@ -348,6 +348,14 @@ int sx126x_init(sx126x_t *dev)
         sx126x_cfg_tx_clamp(dev);
     }
 
+    /* read status to verify device presence */
+    sx126x_chip_status_t radio_status;
+    sx126x_get_status(dev, &radio_status);
+    if (!radio_status.chip_mode) {
+        SX126X_LOG_INFO(dev, "startup: no device found\n");
+        return -ENODEV;
+    }
+
     /* check for errors */
     sx126x_errors_mask_t error = 0;
     sx126x_get_device_errors(dev, &error);
