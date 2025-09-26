@@ -136,7 +136,7 @@ static int _set_state(sx126x_t *dev, sx126x_state_t state)
     switch (state) {
     case SX126X_STATE_STANDBY:
         SX126X_DEBUG(dev, "hal: set STATE_STANDBY\n");
-        sx126x_set_standby(dev, SX126X_CHIP_MODE_STBY_XOSC);
+        sx126x_set_state(dev, SX126X_CHIP_MODE_STBY_XOSC);
         break;
 
     case SX126X_STATE_RX:
@@ -147,25 +147,7 @@ static int _set_state(sx126x_t *dev, sx126x_state_t state)
             dev->params->set_rf_mode(dev, SX126X_RF_MODE_RX);
         }
 #endif
-        sx126x_cfg_rx_boosted(dev, true);
-        if (dev->rx_timeout >= 0) {
-            int timeout = (sx126x_symbol_to_msec(dev, dev->rx_timeout));
-            sx126x_set_rx_tx_fallback_mode(dev, SX126X_FALLBACK_STDBY_XOSC);
-            if (timeout > 0) {
-                sx126x_set_rx(dev, timeout);
-            }
-            else {
-                sx126x_set_rx(dev, SX126X_RX_SINGLE_MODE);
-            }
-        }
-        else {
-            /* By default, the radio will always return in STDBY_RC
-               unless the configuration is changed by using this command.
-               Changing the default mode from STDBY_RC to STDBY_XOSC or FS
-               will only have an impact on the switching time of the radio */
-            sx126x_set_rx_tx_fallback_mode(dev, SX126X_FALLBACK_FS);
-            sx126x_set_rx_with_timeout_in_rtc_step(dev, SX126X_RX_CONTINUOUS);
-        }
+        sx126x_set_state(dev, SX126X_CHIP_MODE_RX);
         break;
 
     case SX126X_STATE_TX:
@@ -175,7 +157,7 @@ static int _set_state(sx126x_t *dev, sx126x_state_t state)
             dev->params->set_rf_mode(dev, dev->params->tx_pa_mode);
         }
 #endif
-        sx126x_set_tx(dev, 0);
+        sx126x_set_state(dev, SX126X_CHIP_MODE_TX);
         break;
 
     case SX126X_STATE_CAD:
@@ -193,13 +175,10 @@ static int _set_state(sx126x_t *dev, sx126x_state_t state)
 
 static int _get_state(sx126x_t *dev, void *val)
 {
-    sx126x_chip_status_t radio_status;
-
-    sx126x_get_status(dev, &radio_status);
     sx126x_state_t state;
-    SX126X_DEBUG(dev, "hal: state %d\n", radio_status.chip_mode);
-
-    switch (radio_status.chip_mode) {
+    sx126x_chip_modes_t mode = sx126x_get_state(dev);
+    SX126X_DEBUG(dev, "hal: state %d\n", mode);
+    switch (mode) {
     case SX126X_CHIP_MODE_TX:
         state = SX126X_STATE_TX;
         break;
@@ -445,12 +424,6 @@ static int _set_cca_threshold(ieee802154_dev_t *hal, int8_t threshold)
 static int _config_phy(ieee802154_dev_t *hal, ieee802154_phy_conf_t *conf)
 {
     sx126x_t *dev = hal->priv;
-    uint8_t channel = conf->channel;
-    if (channel > SX126X_CHAN_MAX) {
-        return -EINVAL;
-    }
-    SX126X_DEBUG(dev, "hal: config_phy channel %"PRIu8"\n", channel);
-    sx126x_set_channel(dev, channel * SX126X_HAL_CHAN_SPACING + SX126X_HAL_CHAN_BASE);
     if (conf->pow < SX126X_POWER_MIN || conf->pow > SX126X_POWER_MAX) {
         return -EINVAL;
     }

@@ -86,7 +86,6 @@ typedef enum {
 typedef enum {
     SX126X_STATE_STANDBY,
     SX126X_STATE_TX,
-    SX126X_STATE_ACK,
     SX126X_STATE_RX,
     SX126X_STATE_CAD,
 } sx126x_state_t;

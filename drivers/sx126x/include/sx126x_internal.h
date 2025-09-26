@@ -320,6 +320,23 @@ static inline int _sx126x_lora_cr_to(sx126x_lora_cr_t cr)
 #define SX126X_LOG_ERROR(d, msg, ...)   LOG_ERROR("[sx126x %i] " msg, SX126X_ID(d), ##__VA_ARGS__)
 /** @} */
 
+/**
+ * @brief   Get the current chip state
+ *
+ * @param[in]   dev
+ *
+ * @return sx126x_chip_modes_t
+ */
+sx126x_chip_modes_t sx126x_get_state(sx126x_t *dev);
+
+/**
+ * @brief   Set the internal chip state
+ *
+ * @param[in]   dev
+ * @param[in]   state
+ */
+void sx126x_set_state(sx126x_t *dev, sx126x_chip_modes_t state);
+
 #ifdef __cplusplus
 }
 #endif
