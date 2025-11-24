@@ -1,9 +1,6 @@
 /*
- * Copyright (C) 2022 HAW Hamburg
- *
- * This file is subject to the terms and conditions of the GNU Lesser
- * General Public License v2.1. See the file LICENSE in the top level
- * directory for more details.
+ * SPDX-FileCopyrightText: 2022 HAW Hamburg
+ * SPDX-License-Identifier: LGPL-2.1-only
  */
 
 /**
@@ -34,7 +31,7 @@ int netdev_ieee802154_minimal_init_devs(netdev_event_cb_t cb) {
     puts("Initializing CC2538_RF device");
 
     netdev_register(netdev, NETDEV_CC2538, 0);
-    netdev_ieee802154_submac_init(&cc2538_rf);
+    netdev_ieee802154_submac_init(&cc2538_rf, NULL);
 
     /* set the application-provided callback */
     netdev->event_callback = cb;

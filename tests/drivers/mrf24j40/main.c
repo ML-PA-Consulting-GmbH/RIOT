@@ -1,9 +1,6 @@
 /*
- * Copyright (C) 2022 HAW Hamburg
- *
- * This file is subject to the terms and conditions of the GNU Lesser
- * General Public License v2.1. See the file LICENSE in the top level
- * directory for more details.
+ * SPDX-FileCopyrightText: 2022 HAW Hamburg
+ * SPDX-License-Identifier: LGPL-2.1-only
  */
 
 /**
@@ -49,7 +46,7 @@ int netdev_ieee802154_minimal_init_devs(netdev_event_cb_t cb) {
     for (unsigned i = 0; i < MRF24J40_NUM; i++) {
         printf("%d out of %u\n", i + 1, (unsigned)MRF24J40_NUM);
         netdev_register(&mrf24j40_netdev[i].dev.netdev, NETDEV_MRF24J40, 0);
-        netdev_ieee802154_submac_init(&mrf24j40_netdev[i]);
+        netdev_ieee802154_submac_init(&mrf24j40_netdev[i], NULL);
 
         /* set the application-provided callback */
         mrf24j40_netdev[i].dev.netdev.event_callback = cb;
