@@ -21,6 +21,6 @@ git merge --no-edit benpicco/riotboot_suit_seq_number
 git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports for DFT
 git merge --no-edit maribu/sys/net/nanocoap/transport-tcp
 git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora
-git cherry-pick 80ec16c8f9bcfe6ce89d9a7a76a84601d9d28e81 # fix parallel build of riotboot
 git cherry-pick 6fdf1cca2e3a4f6373a8ee21b59386130b266d30 # allow multiple external module dirs with the same last component when not using BUILD_IN_DOCKER=1
+git cherry-pick abcc155652aeb02d8503d6edbc49b842160dacb4 # fix RIOTBOOT_SKIP_COMPILE flag
 ```
