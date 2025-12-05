@@ -4,16 +4,12 @@ ifneq (1,$(RIOTBOOT_BUILD))
 .PHONY: riotboot/flash riotboot/flash-bootloader riotboot/flash-slot0 riotboot/flash-slot1 riotboot/bootloader/%
 
 RIOTBOOT_DIR = $(RIOTBASE)/bootloaders/riotboot
-BINDIR_RIOTBOOT = $(BINDIR)/riotboot_files
-RIOTBOOT = $(BINDIR_RIOTBOOT)/riotboot.elf
+RIOTBOOT ?= $(RIOTBOOT_DIR)/bin/$(BOARD)/riotboot.elf
 CFLAGS += -I$(BINDIR)/riotbuild
-
-# Add an explicit dependency from riotboot.bin to riotboot.elf - apparently
-# otherwise the dependency is not taken up.
-$(BINDIR_RIOTBOOT)/riotboot.bin: $(BINDIR_RIOTBOOT)/riotboot.elf
 
 HEADER_TOOL_DIR = $(RIOTBASE)/dist/tools/riotboot_gen_hdr
 HEADER_TOOL ?= $(HEADER_TOOL_DIR)/bin/genhdr
+BINDIR_RIOTBOOT = $(BINDIR)/riotboot_files
 
 $(BINDIR_RIOTBOOT): $(CLEAN)
 	$(Q)mkdir -p $(BINDIR_RIOTBOOT)
@@ -97,28 +93,28 @@ riotboot/bootloader/%: $$(if $$(filter riotboot/bootloader/clean,$$@),,$$(BUILDD
 		DEBUG_ADAPTER_ID=$(DEBUG_ADAPTER_ID) \
 		IOTLAB_NODE=$(IOTLAB_NODE) \
 		PROGRAMMER=$(PROGRAMMER) PROGRAMMER_QUIET=$(PROGRAMMER_QUIET) \
-		BINDIR=$(BINDIR_RIOTBOOT) \
 		SLOT_AUX_LEN=$(SLOT_AUX_LEN) \
 			$(MAKE) --no-print-directory -C $(RIOTBOOT_DIR) $*
 
 # Generate a binary file from the bootloader which fills all the
 # allocated space. This is used afterwards to create a combined
 # binary with both bootloader and RIOT firmware with header
-$(BINDIR_RIOTBOOT)/riotboot.extended.bin: $(BINDIR_RIOTBOOT)/riotboot.bin
+BOOTLOADER_BIN = $(RIOTBOOT_DIR)/bin/$(BOARD)
+$(BOOTLOADER_BIN)/riotboot.extended.bin: $(BOOTLOADER_BIN)/riotboot.bin
 	$(Q)cp $^ $@.tmp
 	$(Q)truncate -s $$(($(RIOTBOOT_LEN))) $@.tmp
 	$(Q)mv $@.tmp $@
 
 # Only call sub make if not already in riotboot
-ifneq ($(BINDIR_RIOTBOOT)/riotboot.bin,$(BINFILE))
+ifneq ($(BOOTLOADER_BIN)/riotboot.bin,$(BINFILE))
   clean: riotboot/bootloader/clean
-  $(BINDIR_RIOTBOOT)/riotboot.bin: riotboot/bootloader/binfile
+  $(BOOTLOADER_BIN)/riotboot.bin: riotboot/bootloader/binfile
 endif
 
 # Create combined binary booloader + RIOT firmware with header
 RIOTBOOT_COMBINED_BIN = $(BINDIR_RIOTBOOT)/slot0-combined.bin
 riotboot/combined-slot0: $(RIOTBOOT_COMBINED_BIN)
-$(RIOTBOOT_COMBINED_BIN): $(BINDIR_RIOTBOOT)/riotboot.extended.bin $(SLOT0_RIOT_BIN)
+$(RIOTBOOT_COMBINED_BIN): $(BOOTLOADER_BIN)/riotboot.extended.bin $(SLOT0_RIOT_BIN)
 	$(Q)cat $^ > $@
 
 RIOTBOOT_EXTENDED_BIN = $(BINDIR_RIOTBOOT)/slot0-extended.bin
@@ -171,7 +167,7 @@ ifneq (,$(filter uf2conv,$(PROGRAMMER)))
   ifneq (,$(filter riotboot/flash-extended-slot0 riotboot/flash-combined-slot0,$(MAKECMDGOALS)))
     $(error riotboot/flash-extended-slot0 riotboot/flash-combined-slot0 are not supported with uf2conv)
   endif
-  FLASHFILE = $(BINDIR_RIOTBOOT)/riotboot.bin
+  FLASHFILE = $(BOOTLOADER_BIN)/riotboot.bin
   riotboot/flash-slot0-remount: riotboot/flash-slot0
 	sleep $(TERM_DELAY)
 	$(PREFLASHER_PREFIX)$(PREFLASHER) $(PREFFLAGS)
