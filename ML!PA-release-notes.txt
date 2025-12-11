@@ -1,0 +1,29 @@
+RIOT-2026.01-mlpa-3 - Merge Notes
+=================================
+
+- based on 2026.01-devel-191-g6b536 / 6b536c6215c14c88ad65a3150855f8257a9e7d5b
+
+```
+git cherry-pick 7646899f72d805f031eda605d2200c43bac0a160 # (gcoap_fileserver: bump stack size)
+git cherry-pick 290ba3302eafcb36a4e8f8dc13d72e30b4724db2 # disable auto-subnetting at run-time
+git merge --no-edit benpicco/drivers/rtt_rtc-no-retain
+git merge --no-edit benpicco/pkg/fatfs-threadsafe
+git merge --no-edit benpicco/sock-addr_struct
+git merge --no-edit fabian18/pr/configuration_riotconf
+git merge --no-edit benpicco/cpu/sam0_common-adc_sample_multi
+git merge --no-edit benpicco/gnrc/ipv6/nib-abr_run-time
+git merge --no-edit benpicco/gnrc_ipv6_auto_subnets-auto_6ctx
+git merge --no-edit benpicco/ipv6_auto_subnets-removal
+git merge --no-edit benpicco/gnrc_netapi-warn
+git merge --no-edit benpicco/gnrc_pktdump2
+git merge --no-edit benpicco/walltime
+git merge --no-edit benpicco/riotboot_suit_seq_number
+git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports for DFT
+git merge --no-edit maribu/sys/net/nanocoap/transport-tcp
+git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora
+git cherry-pick 6fdf1cca2e3a4f6373a8ee21b59386130b266d30 # allow multiple external module dirs with the same last component when not using BUILD_IN_DOCKER=1
+git cherry-pick abcc155652aeb02d8503d6edbc49b842160dacb4 # fix RIOTBOOT_SKIP_COMPILE flag
+git cherry-pick 97a9e748e36de14135c218f99a068047f2370f5c # create riotboot.extended.bin in BINDIR_RIOTBOOT
+git cherry-pick ea04ee077316244df07a5fc3ba45e431cd195ac1 # fix build issues with SOCKET_ZEP and modern GCC
+git cherry-pick d99c2dc712a6f8b0515929a6363db0a8923ba86c # fix unittests in DFT repo
+```
