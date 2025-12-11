@@ -25,4 +25,5 @@ git cherry-pick 6fdf1cca2e3a4f6373a8ee21b59386130b266d30 # allow multiple extern
 git cherry-pick abcc155652aeb02d8503d6edbc49b842160dacb4 # fix RIOTBOOT_SKIP_COMPILE flag
 git cherry-pick 97a9e748e36de14135c218f99a068047f2370f5c # create riotboot.extended.bin in BINDIR_RIOTBOOT
 git cherry-pick ea04ee077316244df07a5fc3ba45e431cd195ac1 # fix build issues with SOCKET_ZEP and modern GCC
+git cherry-pick d99c2dc712a6f8b0515929a6363db0a8923ba86c # fix unittests in DFT repo
 ```
