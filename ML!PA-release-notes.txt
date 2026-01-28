@@ -20,5 +20,6 @@ git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports
 git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora
 git merge --no-edit benpicco/benpicco/cpu/sam0_common-rtc_tamper_enable
 git merge --no-edit benpicco/gnrc_ipv6_nib_dyn_lladdr
+git merge --no-edit origin/mir/comm_v2_patches
 # git merge --no-edit maribu/sys/net/nanocoap/transport-tcp
 ```
