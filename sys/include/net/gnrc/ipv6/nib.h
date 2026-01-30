@@ -444,7 +444,7 @@ void gnrc_ipv6_nib_change_rtr_adv_iface(gnrc_netif_t *netif, bool enable);
 #endif
 
 /**
- * This function is implemented by the application, it assignes a link-local
+ * This function is implemented by the application, it assigns a link-local
  * address to a specific network interface.
  *
  * To use this feature, enable the `gnrc_ipv6_nib_dyn_lladdr` module.

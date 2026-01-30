@@ -844,7 +844,7 @@ static inline bool sock_udp_ep_is_v6(const sock_udp_ep_t *ep)
 #endif
 }
 
-#ifdef MODULE_SOCK_UDP
+#if defined(MODULE_SOCK) || defined(MODULE_SOCK_UDP)
 #include "sock_types.h"
 #endif
 

@@ -423,14 +423,15 @@ int gnrc_netif_set_from_netdev(gnrc_netif_t *netif,
             assert(opt->data_len == sizeof(netopt_enable_t));
             if (*(((netopt_enable_t *)opt->data)) == NETOPT_ENABLE) {
                 if (!(netif->flags & GNRC_NETIF_FLAGS_6LO_ABR)) {
-                    /* we were no ABR before */
+                    /* we were no ABR before,
+                     * as ABR we must not search for routers */
                     gnrc_ipv6_nib_stop_search_rtr(netif);
                 }
                 netif->flags |= GNRC_NETIF_FLAGS_6LO_ABR;
             }
             else {
                 if (netif->flags & GNRC_NETIF_FLAGS_6LO_ABR) {
-                    /* we were a ABR before */
+                    /* we were a ABR before, better search for (upstream) routers */
                     gnrc_ipv6_nib_start_search_rtr(netif);
                 }
                 netif->flags &= ~GNRC_NETIF_FLAGS_6LO_ABR;

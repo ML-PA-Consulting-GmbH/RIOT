@@ -73,13 +73,9 @@
 
 /**
  * @brief   Stack size used for the pktshark thread
- *
- * @note    The message queue was previously allocated on the stack.
- *          The default number of messages is 2³.
- *          Given sizeof(msg_t) == 8, the stack size is reduced by 64 bytes.
  */
 #ifndef GNRC_PKTSHARK_STACKSIZE
-#define GNRC_PKTSHARK_STACKSIZE          ((THREAD_STACKSIZE_MAIN) - 64)
+#define GNRC_PKTSHARK_STACKSIZE          THREAD_STACKSIZE_MAIN
 #endif
 
 /**
@@ -470,8 +466,6 @@ static bool _dump_coap(const void *buf, size_t len)
 static bool _try_parse_udp(uint16_t port, const void *payload, size_t payload_len)
 {
     switch (port) {
-    case 1024:
-    case 60660:
     case COAP_PORT:
         if (_dump_coap(payload, payload_len)) {
             return true;
