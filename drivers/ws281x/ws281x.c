@@ -28,6 +28,7 @@
 #include "ws281x_constants.h"
 #include "ws281x_params.h"
 #include "periph/gpio.h"
+#include "xtimer.h"
 
 /* Default buffer used in ws281x_params.h. Will be optimized out if unused */
 uint8_t ws281x_buf[WS281X_PARAM_NUMOF * WS281X_BYTES_PER_DEVICE];
@@ -46,7 +47,8 @@ void ws281x_set_buffer(void *_dest, uint16_t n, ws281x_pixel_t c)
 /* Backend may implement these functions */
 
 #if !defined(WS281X_HAVE_INIT)
-int ws281x_init(ws281x_t *dev, const ws281x_params_t *params) {
+int ws281x_init(ws281x_t *dev, const ws281x_params_t *params)
+{
     dev->params = *params;
     return 0;
 }

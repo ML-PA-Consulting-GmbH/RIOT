@@ -91,7 +91,6 @@
 #include "periph/gpio.h"
 #include "ws281x_backend.h"
 #include "ws281x_constants.h"
-#include "xtimer.h"
 
 #ifdef __cplusplus
 extern "C" {
