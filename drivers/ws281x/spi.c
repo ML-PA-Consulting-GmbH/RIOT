@@ -188,6 +188,7 @@ static void _ws281x_write_buffer_aligned(const void *_buf, size_t size)
 
 void ws281x_write_buffer(ws281x_t *dev, const void *_buf, size_t size)
 {
+    (void)dev;
     assert(dev);
     assert(size % WS281X_BYTES_PER_DEVICE == 0);
     /* number of already written bytes plus number of bytes to write fits in buffer */
