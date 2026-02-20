@@ -1,1 +1,2 @@
 NATIVEINCLUDES += -I"$(PKGDIRBASE)/libsocketcan/include"
+INCLUDES += -I"$(PKGDIRBASE)/libsocketcan/include"
