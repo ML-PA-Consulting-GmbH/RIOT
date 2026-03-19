@@ -1,4 +1,4 @@
-RIOT-2026.04-mlpa-2 - Merge Notes
+RIOT-2026.04-mlpa-3 - Merge Notes
 =================================
 
 - based on 2026.04-devel-153-g87159fd904
@@ -20,4 +20,5 @@ git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora
 git merge --no-edit benpicco/benpicco/cpu/sam0_common-rtc_tamper_enable
 git merge --no-edit derMihai/mir/i2c/inactout_rebase
 git merge --no-edit maribu/sys/net/nanocoap/transport-tcp
+git cherry-pick a0aa158b4e86f7a54b49ae4b8b73a7804ff745a6 # make: add enableable sarif output #22122
 ```
