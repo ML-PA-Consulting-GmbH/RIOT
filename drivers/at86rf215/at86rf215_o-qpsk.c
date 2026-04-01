@@ -28,8 +28,8 @@
  */
 
 /* currently only EU-868 MHz band is supported */
-#define QPSK_CHANNEL_SPACING_SUBGHZ     (650U)     /* kHz */
-#define QPSK_CENTER_FREQUENCY_SUBGHZ    (868300U)  /* Hz  */
+#define QPSK_CHANNEL_SPACING_SUBGHZ     (2000U)     /* kHz */
+#define QPSK_CENTER_FREQUENCY_SUBGHZ    (904000U)  /* Hz  */
 
 #define QPSK_CHANNEL_SPACING_24GHZ      (5000U)    /* kHz */
 #define QPSK_CENTER_FREQUENCY_24GHZ     (2350000U - CCF0_24G_OFFSET) /* Hz  */
@@ -341,7 +341,7 @@ void _end_configure_OQPSK(at86rf215_t *dev)
     at86rf215_reg_write(dev, dev->BBC->RG_OQPSKC1, OQPSKC1_RXO_MASK | OQPSKC1_RXOLEG_MASK);
 
     /* make sure the channel config is still valid */
-    dev->num_chans = is_subGHz(dev) ? 1 : 16;
+    dev->num_chans = is_subGHz(dev) ? 12 : 16;
     dev->netdev.chan = at86rf215_chan_valid(dev, dev->netdev.chan);
     at86rf215_reg_write16(dev, dev->RF->RG_CNL, dev->netdev.chan);
 
