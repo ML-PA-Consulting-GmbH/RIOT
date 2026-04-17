@@ -234,7 +234,10 @@ ssize_t clif_get_target(const char *input, size_t input_len, char **output)
     assert(input);
     char *target_end;
 
-    *output = memchr(input, LF_PATH_BEGIN_C, input_len);
+    /* on recent glibc (as shipped Ubuntu 26.04) memchr() returns const void *
+     * instead of void *, so we have to cast to intentionally ignore the const
+     * qualifier here */
+    *output = (char *)memchr(input, LF_PATH_BEGIN_C, input_len);
     if (!*output) {
         DEBUG("Path start not found\n");
         return CLIF_NOT_FOUND;
