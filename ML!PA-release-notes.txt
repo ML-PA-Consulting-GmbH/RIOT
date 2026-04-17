@@ -1,0 +1,23 @@
+RIOT-2026.04-mlpa-4 - Merge Notes
+=================================
+
+- based on 2026.04-devel-404-g49d83e 49d83e9dcd1610ad9bdac1c08e1d15a5f856a9c8
+
+```
+git cherry-pick ebbea25187887ff80b4777faadbb1ef304b82e6e # fix build issues on Ubuntu 26.4
+git cherry-pick 290ba3302eafcb36a4e8f8dc13d72e30b4724db2 # disable auto-subnetting at run-time
+git merge --no-edit benpicco/drivers/rtt_rtc-no-retain
+git merge --no-edit benpicco/pkg/fatfs-threadsafe
+git merge --no-edit benpicco/sock-addr_struct
+git merge --no-edit fabian18/pr/configuration_riotconf
+git merge --no-edit benpicco/cpu/sam0_common-adc_sample_multi
+git merge --no-edit benpicco/gnrc_ipv6_auto_subnets-auto_6ctx
+git merge --no-edit benpicco/ipv6_auto_subnets-removal
+git merge --no-edit benpicco/gnrc_netapi-warn
+git merge --no-edit benpicco/riotboot_suit_seq_number
+git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports for DFT
+git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora
+git merge --no-edit benpicco/benpicco/cpu/sam0_common-rtc_tamper_enable
+git merge --no-edit derMihai/mir/i2c/inactout_rebase
+git cherry-pick ad9a7e830f4055e6a6a680f2667c66bd7a847354 # do not lint magic numbers
+```
