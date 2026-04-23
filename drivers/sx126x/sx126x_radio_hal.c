@@ -276,10 +276,7 @@ static int _write(ieee802154_dev_t *hal, const iolist_t *iolist)
 #endif
         }
     }
-    /* Do not compute IEEE 802.15.4 CRC because LoRa frame also provides CRC */
-    uint16_t chksum = 0;
-    sx126x_write_buffer(dev, SX126X_TX_BUFFER_OFFSET + pos, (uint8_t *)&chksum, sizeof(chksum));
-    pos += sizeof(chksum);
+    /* Do not add IEEE 802.15.4 CRC because LoRa frame also provides CRC */
     sx126x_set_lora_payload_length(dev, pos);
     SX126X_DEBUG(dev, "hal: writing (size: %d)\n", (pos));
     return 0;
@@ -384,8 +381,8 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t max_size, ieee802154_r
     }
     sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer,
                        buf, rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN);
-    /* Do not compute IEEE 802.15.4 CRC because LoRa frame also provides CRC */
-    return rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN;
+    /* Do not expect IEEE 802.15.4 CRC because LoRa frame also provides CRC */
+    return rx_buffer_status.pld_len_in_bytes;
 }
 
 static int _set_cca_threshold(ieee802154_dev_t *hal, int8_t threshold)
