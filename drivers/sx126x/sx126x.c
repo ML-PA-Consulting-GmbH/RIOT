@@ -319,18 +319,19 @@ static uint32_t _symbols_numof(const sx126x_t *dev, uint16_t payload_len)
 static void sx126x_init_default_config(sx126x_t *dev)
 {
     /* packet type must be set first */
-    sx126x_set_pkt_type(dev, SX126X_PKT_TYPE_LORA);
+    SX126X_CHECK_API(sx126x_set_pkt_type(dev, SX126X_PKT_TYPE_LORA), /* no return */);
     sx126x_set_channel(dev, CONFIG_SX126X_CHANNEL_DEFAULT);
     sx126x_set_tx_power(dev,  CONFIG_SX126X_TX_POWER_DEFAULT, CONFIG_SX126X_RAMP_TIME_DEFAULT);
 #ifdef CONFIG_SX126X_DEFAULT_SYNC_WORD
-    sx126x_set_lora_sync_word(dev, CONFIG_SX126X_DEFAULT_SYNC_WORD);
+    SX126X_CHECK_API(sx126x_set_lora_sync_word(dev, CONFIG_SX126X_DEFAULT_SYNC_WORD),
+                     /* no return */);
 #endif
 
     dev->mod_params.bw = _sx126x_lora_bw_from(CONFIG_SX126X_LORA_BW_DEFAULT);
     dev->mod_params.sf = _sx126x_lora_sf_from(CONFIG_SX126X_LORA_SF_DEFAULT);
     dev->mod_params.cr = _sx126x_lora_cr_from(CONFIG_SX126X_LORA_CR_DEFAULT);
     dev->mod_params.ldro = _ldro(dev);
-    sx126x_set_lora_mod_params(dev, &dev->mod_params);
+    SX126X_CHECK_API(sx126x_set_lora_mod_params(dev, &dev->mod_params), /* no return */);
 
     dev->pkt_params.pld_len_in_bytes = CONFIG_SX126X_LORA_FIXED_PAYLOAD_LENGTH_DEFAULT;
     dev->pkt_params.crc_is_on = !IS_ACTIVE(CONFIG_SX126X_LORA_PAYLOAD_CRC_OFF_DEFAULT);
@@ -338,8 +339,8 @@ static void sx126x_init_default_config(sx126x_t *dev)
                                     ? SX126X_LORA_PKT_IMPLICIT : SX126X_LORA_PKT_EXPLICIT;
     dev->pkt_params.preamble_len_in_symb = CONFIG_SX126X_LORA_PREAMBLE_LENGTH_DEFAULT;
     dev->pkt_params.invert_iq_is_on = IS_ACTIVE(CONFIG_SX126X_LORA_IQ_INVERTED_DEFAULT);
-    sx126x_set_lora_pkt_params(dev, &dev->pkt_params);
-    sx126x_cfg_rx_boosted(dev, false);
+    SX126X_CHECK_API(sx126x_set_lora_pkt_params(dev, &dev->pkt_params), /* no return */);
+    SX126X_CHECK_API(sx126x_cfg_rx_boosted(dev, false), /* no return */);
 }
 
 /**
@@ -358,9 +359,9 @@ static bool _sx126x_detect(sx126x_t *dev)
 {
     sx126x_pkt_type_t pkt_type = UINT8_MAX;
     sx126x_chip_status_t radio_status = { 0 };
-    sx126x_set_pkt_type(dev, SX126X_PKT_TYPE_LORA);
-    sx126x_get_status(dev, &radio_status);
-    sx126x_get_pkt_type(dev, &pkt_type);
+    SX126X_CHECK_API(sx126x_set_pkt_type(dev, SX126X_PKT_TYPE_LORA), /* no return */);
+    SX126X_CHECK_API(sx126x_get_status(dev, &radio_status), /* no return */);
+    SX126X_CHECK_API(sx126x_get_pkt_type(dev, &pkt_type), /* no return */);
 
     if ((pkt_type == SX126X_PKT_TYPE_LORA) && (radio_status.chip_mode)) {
         return true;
@@ -404,7 +405,7 @@ int sx126x_init(sx126x_t *dev)
 #endif
 
     /* Reset the device */
-    sx126x_reset(dev);
+    SX126X_CHECK_API(sx126x_reset(dev), return -EIO);
 
     if (!_sx126x_detect(dev)) {
         return -ENODEV;
@@ -414,34 +415,35 @@ int sx126x_init(sx126x_t *dev)
         /*  Workaround for SX1262, during the chip initialization.
             Calling this function optimizes the PA clamping threshold.
             The call must be done after a Power On Reset or a wake-up from cold start */
-        sx126x_cfg_tx_clamp(dev);
+        SX126X_CHECK_API(sx126x_cfg_tx_clamp(dev), /* no return */);
     }
 
     /* check for errors */
     sx126x_errors_mask_t error = 0;
-    sx126x_get_device_errors(dev, &error);
+    SX126X_CHECK_API(sx126x_get_device_errors(dev, &error), /* no return */);
     if (error) {
         SX126X_LOG_ERROR(dev, "startup: device errors 0x%04x\n", error);
     }
-    sx126x_clear_device_errors(dev);
+    SX126X_CHECK_API(sx126x_clear_device_errors(dev), /* no return */);
 
 #if IS_USED(MODULE_SX126X_DIO2)
     if (dev->params->dio2_mode == SX126X_DIO2_RF_SWITCH) {
-        sx126x_set_dio2_as_rf_sw_ctrl(dev, true);
+        SX126X_CHECK_API(sx126x_set_dio2_as_rf_sw_ctrl(dev, true), return -EIO);
     }
 #endif
 #if IS_USED(MODULE_SX126X_DIO3)
      if (dev->params->dio3_mode == SX126X_DIO3_TCXO) {
-        sx126x_set_dio3_as_tcxo_ctrl(dev, dev->params->dio3_arg.tcxo_volt,
-                                     dev->params->dio3_arg.tcxo_timeout);
+        SX126X_CHECK_API(sx126x_set_dio3_as_tcxo_ctrl(dev, dev->params->dio3_arg.tcxo_volt,
+                                                      dev->params->dio3_arg.tcxo_timeout),
+                                                      return -EIO);
         /* Once the command SetDIO3AsTCXOCtrl(...) is sent to the device,
            the register controlling the internal cap on XTA will be automatically
            changed to 0x2F (33.4 pF) to filter any spurious injection which could occur
            and be propagated to the PLL.- Verify that. */
         uint8_t trimming_capacitor_values[2] = { 0 };
-        sx126x_read_register(dev, SX126X_REG_XTATRIM,
-                             trimming_capacitor_values,
-                             sizeof(trimming_capacitor_values));
+        SX126X_CHECK_API(sx126x_read_register(dev, SX126X_REG_XTATRIM,
+                         trimming_capacitor_values,
+                         sizeof(trimming_capacitor_values)), /* no return */);
         /* 11.3 pF + x * 0.47pF  = 33.4pF | x = 0x2f*/
         if (trimming_capacitor_values[0] != 0x2f) {
             SX126X_DEBUG(dev, "warning: failed to set TCXO control: SX126X_REG_XTATRIM=%02x\n",
@@ -455,43 +457,44 @@ int sx126x_init(sx126x_t *dev)
         /* When the 32 MHz clock is coming from a TCXO, the calibration will fail
            and the user should request a complete calibration after calling the function
            SetDIO3AsTcxoCtrl(...). */
-        sx126x_cal(dev, SX126X_CAL_ALL);
+        SX126X_CHECK_API(sx126x_cal(dev, SX126X_CAL_ALL), /* no return */);
     }
 #endif
     error = 0;
-    sx126x_get_device_errors(dev, &error);
+    SX126X_CHECK_API(sx126x_get_device_errors(dev, &error), /* no return */);
     if (error) {
         SX126X_LOG_ERROR(dev, "error: device error 0x%04x\n", error);
     }
     else {
         SX126X_LOG_INFO(dev, "startup successful\n");
     }
-    sx126x_clear_device_errors(dev);
+    SX126X_CHECK_API(sx126x_clear_device_errors(dev), /* no return */);
 
     /* The user can specify the use of DC-DC by using the command SetRegulatorMode(...).
        This operation must be carried out in STDBY_RC mode only.*/
-    sx126x_set_reg_mode(dev, dev->params->regulator);
+    SX126X_CHECK_API(sx126x_set_reg_mode(dev, dev->params->regulator), /* no return */);
 
     /* Initialize radio with the default parameters */
     sx126x_init_default_config(dev);
 
-    sx126x_set_standby(dev, SX126X_STANDBY_CFG_XOSC);
+    SX126X_CHECK_API(sx126x_set_standby(dev, SX126X_STANDBY_CFG_XOSC), /* no return */);
 
-    sx126x_set_dio_irq_params(dev, SX126X_IRQ_MASK_ALL, SX126X_IRQ_MASK_ALL, 0, 0);
+    SX126X_CHECK_API(sx126x_set_dio_irq_params(dev, SX126X_IRQ_MASK_ALL, SX126X_IRQ_MASK_ALL, 0, 0),
+                     /* no return */);
 
     if (IS_ACTIVE(ENABLE_DEBUG)) {
         sx126x_pkt_type_t pkt_type;
-        sx126x_get_pkt_type(dev, &pkt_type);
+        SX126X_CHECK_API(sx126x_get_pkt_type(dev, &pkt_type), /* no return */);
         SX126X_DEBUG(dev, "init radio: pkt type: %d\n", pkt_type);
 
         sx126x_chip_status_t radio_status;
-        sx126x_get_status(dev, &radio_status);
+        SX126X_CHECK_API(sx126x_get_status(dev, &radio_status), /* no return */);
         SX126X_DEBUG(dev, "init: chip mode %d\n", radio_status.chip_mode);
         SX126X_DEBUG(dev, "init: cmd status %d\n", radio_status.cmd_status);
     }
 
     /* Radio Rx timeout timer stopped on preamble detection */
-    sx126x_stop_timer_on_preamble(dev, true);
+    SX126X_CHECK_API(sx126x_stop_timer_on_preamble(dev, true), /* no return */);
 
     return res;
 }
@@ -499,7 +502,7 @@ int sx126x_init(sx126x_t *dev)
 sx126x_chip_modes_t sx126x_get_state(const sx126x_t *dev)
 {
     sx126x_chip_status_t radio_status;
-    sx126x_get_status(dev, &radio_status);
+    SX126X_CHECK_API(sx126x_get_status(dev, &radio_status), /* no return */);
     return radio_status.chip_mode;
 }
 
@@ -507,26 +510,27 @@ void sx126x_set_state(sx126x_t *dev, sx126x_chip_modes_t state)
 {
     /* check for errors */
     sx126x_errors_mask_t error = 0;
-    sx126x_get_device_errors(dev, &error);
+    SX126X_CHECK_API(sx126x_get_device_errors(dev, &error), /* no return */);
     if (error) {
         SX126X_DEBUG(dev, "before set state: device error 0x%04x before setting state\n", error);
     }
-    sx126x_clear_device_errors(dev);
+    SX126X_CHECK_API(sx126x_clear_device_errors(dev), /* no return */);
 
     switch (state) {
     case SX126X_CHIP_MODE_TX:
-        sx126x_set_tx(dev, 0); /* no TX frame timeout */
+        SX126X_CHECK_API(sx126x_set_tx(dev, 0), /* no return */); /* no TX frame timeout */
         break;
     case SX126X_CHIP_MODE_RX: {
-        sx126x_cfg_rx_boosted(dev, true);
+        SX126X_CHECK_API(sx126x_cfg_rx_boosted(dev, true), /* no return */);
         if (dev->rx_timeout >= 0) {
             int timeout = (sx126x_symbol_to_msec(dev, dev->rx_timeout));
-            sx126x_set_rx_tx_fallback_mode(dev, SX126X_FALLBACK_STDBY_XOSC);
+            SX126X_CHECK_API(sx126x_set_rx_tx_fallback_mode(dev, SX126X_FALLBACK_STDBY_XOSC),
+                             /* no return */);
             if (timeout > 0) {
-                sx126x_set_rx(dev, timeout);
+                SX126X_CHECK_API(sx126x_set_rx(dev, timeout), /* no return */);
             }
             else {
-                sx126x_set_rx(dev, SX126X_RX_SINGLE_MODE);
+                SX126X_CHECK_API(sx126x_set_rx(dev, SX126X_RX_SINGLE_MODE), /* no return */);
             }
         }
         else {
@@ -534,24 +538,24 @@ void sx126x_set_state(sx126x_t *dev, sx126x_chip_modes_t state)
                unless the configuration is changed by using this command.
                Changing the default mode from STDBY_RC to STDBY_XOSC or FS
                will only have an impact on the switching time of the radio */
-            sx126x_set_rx_tx_fallback_mode(dev, SX126X_FALLBACK_FS);
-            sx126x_set_rx_with_timeout_in_rtc_step(dev, SX126X_RX_CONTINUOUS);
+            SX126X_CHECK_API(sx126x_set_rx_tx_fallback_mode(dev, SX126X_FALLBACK_FS), /* no return */);
+            SX126X_CHECK_API(sx126x_set_rx_with_timeout_in_rtc_step(dev, SX126X_RX_CONTINUOUS), /* no return */);
         }
     } break;
     case SX126X_CHIP_MODE_STBY_RC:
     case SX126X_CHIP_MODE_STBY_XOSC:
-        sx126x_set_standby(dev, state);
+        SX126X_CHECK_API(sx126x_set_standby(dev, state), /* no return */);
         break;
     default:
         break;
     }
 
     error = 0;
-    sx126x_get_device_errors(dev, &error);
+    SX126X_CHECK_API(sx126x_get_device_errors(dev, &error), /* no return */);
     if (error) {
         SX126X_DEBUG(dev, "after set state: device error 0x%04x before setting state\n", error);
     }
-    sx126x_clear_device_errors(dev);
+    SX126X_CHECK_API(sx126x_clear_device_errors(dev), /* no return */);
 }
 
 uint32_t sx126x_get_channel(const sx126x_t *dev)
@@ -567,23 +571,23 @@ static void _cal_img(sx126x_t *dev, uint32_t freq)
     /* don't know what to do with frequencies that don't fit in the intervals from the datasheet */
     if (freq >= MHZ(902) && freq <= MHZ(928)) {
         /* 902 - 928 MHz band and anything upper */
-        sx126x_cal_img_in_mhz(dev, 902, 928);
+        SX126X_CHECK_API(sx126x_cal_img_in_mhz(dev, 902, 928), /* no return */);
     }
     else if (freq >= MHZ(863) && freq <= MHZ(870)) {
         /* 863 - 870 MHz band */
-        sx126x_cal_img_in_mhz(dev, 863, 870);
+        SX126X_CHECK_API(sx126x_cal_img_in_mhz(dev, 863, 870), /* no return */);
     }
     else if (freq >= MHZ(779) && freq <= MHZ(787)) {
         /* 779 - 787 MHz band */
-        sx126x_cal_img_in_mhz(dev, 779, 787);
+        SX126X_CHECK_API(sx126x_cal_img_in_mhz(dev, 779, 787), /* no return */);
     }
     else if (freq >= MHZ(470) && freq <= MHZ(510)) {
         /* 470 - 510 MHz band */
-        sx126x_cal_img_in_mhz(dev, 470, 510);
+        SX126X_CHECK_API(sx126x_cal_img_in_mhz(dev, 470, 510), /* no return */);
     }
     else if (freq >= MHZ(430) && freq <= MHZ(440)) {
         /* 430 - 440 MHz band and anything lower */
-        sx126x_cal_img_in_mhz(dev, 430, 440);
+        SX126X_CHECK_API(sx126x_cal_img_in_mhz(dev, 430, 440), /* no return */);
     }
     else {
         /* Contact your Semtech representative for the other optimal calibration settings
@@ -596,17 +600,17 @@ static void _cal_img(sx126x_t *dev, uint32_t freq)
 
 void sx126x_set_channel(sx126x_t *dev, uint32_t freq)
 {
-    sx126x_clear_device_errors(dev);
+    SX126X_CHECK_API(sx126x_clear_device_errors(dev), /* no return */);
     SX126X_DEBUG(dev, "sx126x_set_channel %" PRIu32 "Hz \n", freq);
     dev->channel = freq;
     sx126x_set_rf_freq(dev, dev->channel);
     _cal_img(dev, freq);
     sx126x_errors_mask_t error = 0;
-    sx126x_get_device_errors(dev, &error);
+    SX126X_CHECK_API(sx126x_get_device_errors(dev, &error), /* no return */);
     if (error) {
         SX126X_DEBUG(dev, "sx126x_set_channel: device errors 0x%04x\n", error);
     }
-    sx126x_clear_device_errors(dev);
+    SX126X_CHECK_API(sx126x_clear_device_errors(dev), /* no return */);
 }
 
 uint8_t sx126x_get_bandwidth(const sx126x_t *dev)
@@ -620,7 +624,7 @@ void sx126x_set_bandwidth(sx126x_t *dev, uint8_t bandwidth)
     SX126X_DEBUG(dev, "sx126x_set_bandwidth %02x\n", bandwidth);
     dev->mod_params.bw = _sx126x_lora_bw_from(bandwidth);
     dev->mod_params.ldro = _ldro(dev);
-    sx126x_set_lora_mod_params(dev, &dev->mod_params);
+    SX126X_CHECK_API(sx126x_set_lora_mod_params(dev, &dev->mod_params), /* no return */);
 }
 
 uint8_t sx126x_get_spreading_factor(const sx126x_t *dev)
@@ -634,7 +638,7 @@ void sx126x_set_spreading_factor(sx126x_t *dev, uint8_t sf)
     SX126X_DEBUG(dev, "sx126x_set_spreading_factor : %02x\n", sf);
     dev->mod_params.sf = _sx126x_lora_sf_from(sf);
     dev->mod_params.ldro = _ldro(dev);
-    sx126x_set_lora_mod_params(dev, &dev->mod_params);
+    SX126X_CHECK_API(sx126x_set_lora_mod_params(dev, &dev->mod_params), /* no return */);
 }
 
 uint8_t sx126x_get_coding_rate(const sx126x_t *dev)
@@ -647,7 +651,7 @@ void sx126x_set_coding_rate(sx126x_t *dev, uint8_t cr)
 {
     SX126X_DEBUG(dev, "sx126x_set_coding_rate %01x\n", cr);
     dev->mod_params.cr = _sx126x_lora_cr_from(cr);
-    sx126x_set_lora_mod_params(dev, &dev->mod_params);
+    SX126X_CHECK_API(sx126x_set_lora_mod_params(dev, &dev->mod_params), /* no return */);
 }
 
 void sx126x_set_tx_power(sx126x_t *dev, int8_t power_dbm, sx126x_ramp_time_t ramp_time)
@@ -656,8 +660,8 @@ void sx126x_set_tx_power(sx126x_t *dev, int8_t power_dbm, sx126x_ramp_time_t ram
     const sx126x_pa_cfg_params_t *pa_cfg;
     int8_t pow = _select_pa_cfg(dev, power_dbm, &pa_cfg);
     if (pow > 0) {
-        sx126x_set_pa_cfg(dev, pa_cfg);
-        sx126x_set_tx_params(dev, pow, ramp_time);
+        SX126X_CHECK_API(sx126x_set_pa_cfg(dev, pa_cfg), /* no return */);
+        SX126X_CHECK_API(sx126x_set_tx_params(dev, pow, ramp_time), /* no return */);
     }
 }
 
@@ -666,7 +670,7 @@ uint8_t sx126x_get_lora_payload_length(const sx126x_t *dev)
     SX126X_DEBUG(dev, "sx126x_get_lora_payload_length \n");
     sx126x_rx_buffer_status_t rx_buffer_status;
 
-    sx126x_get_rx_buffer_status(dev, &rx_buffer_status);
+    SX126X_CHECK_API(sx126x_get_rx_buffer_status(dev, &rx_buffer_status), /* no return */);
     return rx_buffer_status.pld_len_in_bytes;
 }
 
@@ -674,7 +678,7 @@ void sx126x_set_lora_payload_length(sx126x_t *dev, uint8_t len)
 {
     SX126X_DEBUG(dev, "sx126x_set_lora_payload_length %d\n", len);
     dev->pkt_params.pld_len_in_bytes = len;
-    sx126x_set_lora_pkt_params(dev, &dev->pkt_params);
+    SX126X_CHECK_API(sx126x_set_lora_pkt_params(dev, &dev->pkt_params), /* no return */);
 }
 
 bool sx126x_get_lora_crc(const sx126x_t *dev)
@@ -687,7 +691,7 @@ void sx126x_set_lora_crc(sx126x_t *dev, bool crc)
 {
     SX126X_DEBUG(dev, "sx126x_set_lora_crc %d\n", crc);
     dev->pkt_params.crc_is_on = crc;
-    sx126x_set_lora_pkt_params(dev, &dev->pkt_params);
+    SX126X_CHECK_API(sx126x_set_lora_pkt_params(dev, &dev->pkt_params), /* no return */);
 }
 
 bool sx126x_get_lora_implicit_header(const sx126x_t *dev)
@@ -700,7 +704,7 @@ void sx126x_set_lora_implicit_header(sx126x_t *dev, bool mode)
 {
     SX126X_DEBUG(dev, "sx126x_set_lora_implicit_header %d\n", mode);
     dev->pkt_params.header_type = (mode ? SX126X_LORA_PKT_IMPLICIT : SX126X_LORA_PKT_EXPLICIT);
-    sx126x_set_lora_pkt_params(dev, &dev->pkt_params);
+    SX126X_CHECK_API(sx126x_set_lora_pkt_params(dev, &dev->pkt_params), /* no return */);
 }
 
 uint16_t sx126x_get_lora_preamble_length(const sx126x_t *dev)
@@ -713,7 +717,7 @@ void sx126x_set_lora_preamble_length(sx126x_t *dev, uint16_t preamble)
 {
     SX126X_DEBUG(dev, "sx126x_set_lora_preamble_length %" PRIu16 "\n", preamble);
     dev->pkt_params.preamble_len_in_symb = preamble;
-    sx126x_set_lora_pkt_params(dev, &dev->pkt_params);
+    SX126X_CHECK_API(sx126x_set_lora_pkt_params(dev, &dev->pkt_params), /* no return */);
 }
 
 bool sx126x_get_lora_iq_invert(const sx126x_t *dev)
@@ -726,7 +730,7 @@ void sx126x_set_lora_iq_invert(sx126x_t *dev, bool iq_invert)
 {
     SX126X_DEBUG(dev, "sx126x_set_lora_iq_invert %d\n", iq_invert);
     dev->pkt_params.invert_iq_is_on = iq_invert;
-    sx126x_set_lora_pkt_params(dev, &dev->pkt_params);
+    SX126X_CHECK_API(sx126x_set_lora_pkt_params(dev, &dev->pkt_params), /* no return */);
 }
 
 uint32_t sx126x_symbol_time_on_air_us(const sx126x_t *dev)
