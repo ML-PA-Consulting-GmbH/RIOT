@@ -263,7 +263,7 @@ static int _write(ieee802154_dev_t *hal, const iolist_t *iolist)
     sx126x_set_buffer_base_address(dev, SX126X_TX_BUFFER_OFFSET, SX126X_RX_BUFFER_OFFSET);
     /* Write payload buffer */
     for (const iolist_t *iol = iolist; iol; iol = iol->iol_next) {
-        if (pos + iol->iol_len > SX126X_BUFFER_SIZE - SX126X_TX_BUFFER_OFFSET - IEEE802154_FCS_LEN) {
+        if (pos + iol->iol_len > SX126X_BUFFER_SIZE - SX126X_TX_BUFFER_OFFSET) {
             SX126X_DEBUG(dev, "hal: no buffer space to write payload\n");
             return -E2BIG;
         }
@@ -349,7 +349,7 @@ static int _len(ieee802154_dev_t *hal)
     sx126x_t *dev = hal->priv;
     sx126x_rx_buffer_status_t rx_buffer_status;
     sx126x_get_rx_buffer_status(dev, &rx_buffer_status);
-    return rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN;
+    return rx_buffer_status.pld_len_in_bytes;
 }
 
 static int _read(ieee802154_dev_t *hal, void *buf, size_t max_size, ieee802154_rx_info_t *info)
@@ -371,16 +371,16 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t max_size, ieee802154_r
     }
     /* Put PSDU to the output buffer */
     if (buf == NULL) {
-        return rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN;
+        return rx_buffer_status.pld_len_in_bytes;
     }
-    if (rx_buffer_status.pld_len_in_bytes > max_size + IEEE802154_FCS_LEN) {
+    if (rx_buffer_status.pld_len_in_bytes > max_size) {
         return -ENOBUFS;
     }
     if (rx_buffer_status.pld_len_in_bytes < IEEE802154_ACK_FRAME_LEN) {
         return -EBADMSG;
     }
     sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer,
-                       buf, rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN);
+                       buf, rx_buffer_status.pld_len_in_bytes);
     /* Do not expect IEEE 802.15.4 CRC because LoRa frame also provides CRC */
     return rx_buffer_status.pld_len_in_bytes;
 }
