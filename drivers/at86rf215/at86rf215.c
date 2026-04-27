@@ -227,6 +227,12 @@ void at86rf215_tx_done(at86rf215_t *dev)
 
     at86rf215_reg_write(dev, dev->BBC->RG_AMCS, amcs);
 
+    /* listen to non-ACK packets again */
+    if (dev->flags & AT86RF215_OPT_ACK_REQUESTED) {
+        dev->flags &= ~AT86RF215_OPT_ACK_REQUESTED;
+        at86rf215_filter_ack(dev, false);
+    }
+
     /* re-enable reduced power consumption */
     at86rf215_enable_rpc(dev);
 }

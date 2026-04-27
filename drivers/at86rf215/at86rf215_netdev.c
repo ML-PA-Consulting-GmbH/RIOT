@@ -859,12 +859,6 @@ static void _tx_end(at86rf215_t *dev)
 {
     netdev_t *netdev = &dev->netdev.netdev;
 
-    /* listen to non-ACK packets again */
-    if (dev->flags & AT86RF215_OPT_ACK_REQUESTED) {
-        dev->flags &= ~AT86RF215_OPT_ACK_REQUESTED;
-        at86rf215_filter_ack(dev, false);
-    }
-
     at86rf215_tx_done(dev);
 
     if (netdev->event_callback) {
@@ -1014,7 +1008,6 @@ static void _handle_edc(at86rf215_t *dev)
         dev->state = AT86RF215_STATE_IDLE;
 
         at86rf215_enable_baseband(dev);
-        at86rf215_enable_rpc(dev);
         at86rf215_tx_done(dev);
 
         /* signal error to confirm_send */
