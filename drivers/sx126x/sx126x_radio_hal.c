@@ -161,8 +161,19 @@ static int _get_state(sx126x_t *dev, void *val)
         state = SX126X_STATE_RX;
         break;
 
-    default:
+    case SX126X_CHIP_MODE_STBY_XOSC:
+    case SX126X_CHIP_MODE_STBY_RC:
         state = SX126X_STATE_STANDBY;
+        break;
+
+    default:
+        if (!dev->cad_done) {
+            state = SX126X_STATE_CAD;
+        }
+        else {
+            SX126X_DEBUG(dev, "hal: unknown mode %d\n", mode);
+            state = SX126X_STATE_STANDBY;
+        }
         break;
     }
     memcpy(val, &state, sizeof(sx126x_state_t));
@@ -292,8 +303,22 @@ static int _request_op(ieee802154_dev_t *hal, ieee802154_hal_op_t op, void *ctx)
     switch (op) {
     case IEEE802154_HAL_OP_TRANSMIT:
         dev->pending = false;
-        ieee802154_radio_cca(hal);
-        _set_state(dev, SX126X_STATE_TX);
+        int cca = ieee802154_radio_cca(hal);
+        if (cca > 0) {
+            _set_state(dev, SX126X_STATE_TX);
+        }
+        else {
+            sx126x_state_t state;
+            _get_state(dev, &state);
+            if (cca < 0) { /* error */
+                SX126X_DEBUG(dev, "hal: CCA error, state: %d\n", state);
+                return -EIO;
+            }
+            else { /* busy */
+                SX126X_DEBUG(dev, "hal: CCA busy, state: %d\n", state);
+                return -EBUSY;
+            }
+        }
         break;
 
     case IEEE802154_HAL_OP_SET_RX:
@@ -341,7 +366,10 @@ static int _confirm_op(ieee802154_dev_t *hal, ieee802154_hal_op_t op, void *ctx)
         break;
 
     case IEEE802154_HAL_OP_CCA:
-        *((bool *)ctx) = !dev->cad_detected;
+        eagain = (state == SX126X_STATE_CAD);
+        if (!eagain) {
+             *((bool *)ctx) = !dev->cad_detected;
+        }
         break;
     }
     return eagain ? -EAGAIN : 0;
@@ -457,13 +485,68 @@ static int _confirm_on(ieee802154_dev_t *hal)
 static int _set_cca_mode(ieee802154_dev_t *hal, ieee802154_cca_mode_t mode)
 {
     (void)mode;
-    sx126x_t* dev = hal->priv;
+    sx126x_t *dev = hal->priv;
     SX126X_DEBUG(dev, "hal: set_cca_mode \n");
+    /* The settings are based on best practice CAD performance evaluation AN1200.48.
+       Results are only available for 125 kHz and 250 kHz bandwidths.
+       https://semtech.my.salesforce.com/sfc/p/E0000000JelG/a/3n000000qSr3/s723KzQi7zXFhBPKqesoF11.MtwYu6B8pdEQcmInlkE */
+    uint8_t cad_det_peak;
+    uint8_t cad_symbol_num;
+    uint8_t bw = sx126x_get_bandwidth(dev);
+    uint8_t sf = sx126x_get_spreading_factor(dev);
+    if (bw < LORA_BW_500_KHZ) {
+        if (sf <= LORA_SF8) {
+            cad_det_peak = 22;
+            cad_symbol_num = SX126X_CAD_02_SYMB;
+        }
+        else {
+            cad_symbol_num = SX126X_CAD_04_SYMB;
+            if (sf == LORA_SF9) {
+                cad_det_peak = 23;
+            }
+            else if (sf == LORA_SF10) {
+                cad_det_peak = 24;
+            }
+             else if (sf == LORA_SF11) {
+                cad_det_peak = 25;
+            }
+             else {
+                cad_det_peak = 28;
+            }
+        }
+    }
+    else {
+        if (sf <= LORA_SF11) {
+            cad_symbol_num = SX126X_CAD_04_SYMB;
+        }
+        else {
+            cad_symbol_num = SX126X_CAD_08_SYMB;
+        }
+        if (sf == LORA_SF7) {
+            cad_det_peak = 21;
+        }
+        else if (sf == LORA_SF8) {
+            cad_det_peak = 22;
+        }
+        else if (sf == LORA_SF9) {
+            cad_det_peak = 22;
+        }
+        else if (sf == LORA_SF10) {
+            cad_det_peak = 23;
+        }
+        else if (sf == LORA_SF11) {
+            cad_det_peak = 25;
+        }
+        else {
+            cad_det_peak = 29;
+        }
+    }
+
     sx126x_cad_params_t cad_params = {
-        .cad_exit_mode = SX126X_CAD_ONLY,
-        .cad_detect_min = 10,
-        .cad_detect_peak = 22,
-        .cad_symb_nb = SX126X_CAD_02_SYMB,
+        .cad_exit_mode = SX126X_CAD_RX, /* go to Rx when CAD positive */
+        .cad_detect_min = 10, /* no need to change this value */
+        .cad_detect_peak = cad_det_peak,
+        .cad_symb_nb = cad_symbol_num,
         /* Rx timeout = cad_timeout * 15.625us */
         /* Rx timeout = 60ms */
         .cad_timeout = 0x000F00,
