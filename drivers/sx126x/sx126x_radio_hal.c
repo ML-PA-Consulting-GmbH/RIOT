@@ -138,7 +138,7 @@ static int _set_state(sx126x_t *dev, sx126x_state_t state)
     case SX126X_STATE_CAD:
         SX126X_DEBUG(dev, "hal: set STATE_CCA\n");
         dev->cad_done = false;
-        sx126x_set_cad(dev);
+        SX126X_CHECK_API(sx126x_set_cad(dev), return -EIO);
         break;
 
     default:
@@ -161,8 +161,19 @@ static int _get_state(sx126x_t *dev, void *val)
         state = SX126X_STATE_RX;
         break;
 
-    default:
+    case SX126X_CHIP_MODE_STBY_XOSC:
+    case SX126X_CHIP_MODE_STBY_RC:
         state = SX126X_STATE_STANDBY;
+        break;
+
+    default:
+        if (!dev->cad_done) {
+            state = SX126X_STATE_CAD;
+        }
+        else {
+            SX126X_DEBUG(dev, "hal: unknown mode %d\n", mode);
+            state = SX126X_STATE_STANDBY;
+        }
         break;
     }
     memcpy(val, &state, sizeof(sx126x_state_t));
@@ -174,7 +185,7 @@ void sx126x_hal_event_handler(ieee802154_dev_t *hal)
     sx126x_t *dev = hal->priv;
     sx126x_irq_mask_t irq_mask;
 
-    sx126x_get_and_clear_irq_status(dev, &irq_mask);
+    SX126X_CHECK_API(sx126x_get_and_clear_irq_status(dev, &irq_mask), /* no return */);
     SX126X_DEBUG(dev, "sx126x_hal_event_handler(): 0x%"PRIx16"\n", irq_mask);
     if (sx126x_is_stm32wl(dev)) {
 #if IS_USED(MODULE_SX126X_STM32WL)
@@ -189,9 +200,10 @@ void sx126x_hal_event_handler(ieee802154_dev_t *hal)
         SX126X_DEBUG(dev, "hal: SX126X_IRQ_RX_DONE\n");
         uint8_t mhdr[IEEE802154_MAX_HDR_LEN];
         sx126x_rx_buffer_status_t rx_buffer_status;
-        sx126x_get_rx_buffer_status(dev, &rx_buffer_status);
+        SX126X_CHECK_API(sx126x_get_rx_buffer_status(dev, &rx_buffer_status), /* no return */);
         size_t rx_size = MIN(sizeof(mhdr), rx_buffer_status.pld_len_in_bytes);
-        sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer, mhdr, rx_size);
+        SX126X_CHECK_API(sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer, mhdr, rx_size),
+                         /* no return */);
         bool is_ack = (mhdr[0] & IEEE802154_FCF_TYPE_MASK) == IEEE802154_FCF_TYPE_ACK;
         bool is_data = (mhdr[0] & IEEE802154_FCF_TYPE_MASK) == IEEE802154_FCF_TYPE_DATA;
         bool ackf = dev->ack_filter;
@@ -260,15 +272,17 @@ static int _write(ieee802154_dev_t *hal, const iolist_t *iolist)
     sx126x_t *dev = hal->priv;
     size_t pos = 0;
     /* Full buffer used for Tx */
-    sx126x_set_buffer_base_address(dev, SX126X_TX_BUFFER_OFFSET, SX126X_RX_BUFFER_OFFSET);
+    SX126X_CHECK_API(sx126x_set_buffer_base_address(dev, SX126X_TX_BUFFER_OFFSET, SX126X_RX_BUFFER_OFFSET),
+                     return -EIO);
     /* Write payload buffer */
     for (const iolist_t *iol = iolist; iol; iol = iol->iol_next) {
-        if (pos + iol->iol_len > SX126X_BUFFER_SIZE - SX126X_TX_BUFFER_OFFSET - IEEE802154_FCS_LEN) {
+        if (pos + iol->iol_len > SX126X_BUFFER_SIZE - SX126X_TX_BUFFER_OFFSET) {
             SX126X_DEBUG(dev, "hal: no buffer space to write payload\n");
             return -E2BIG;
         }
         if (iol->iol_len > 0) {
-            sx126x_write_buffer(dev, SX126X_TX_BUFFER_OFFSET + pos, iol->iol_base, iol->iol_len);
+            SX126X_CHECK_API(sx126x_write_buffer(dev, SX126X_TX_BUFFER_OFFSET + pos, iol->iol_base, iol->iol_len),
+                             return -EIO);
             SX126X_DEBUG(dev, "hal: wrote data to payload buffer\n");
             pos += iol->iol_len;
 #if IS_ACTIVE(ENABLE_DEBUG)
@@ -276,10 +290,7 @@ static int _write(ieee802154_dev_t *hal, const iolist_t *iolist)
 #endif
         }
     }
-    /* Do not compute IEEE 802.15.4 CRC because LoRa frame also provides CRC */
-    uint16_t chksum = 0;
-    sx126x_write_buffer(dev, SX126X_TX_BUFFER_OFFSET + pos, (uint8_t *)&chksum, sizeof(chksum));
-    pos += sizeof(chksum);
+    /* Do not add IEEE 802.15.4 CRC because LoRa frame also provides CRC */
     sx126x_set_lora_payload_length(dev, pos);
     SX126X_DEBUG(dev, "hal: writing (size: %d)\n", (pos));
     return 0;
@@ -292,8 +303,22 @@ static int _request_op(ieee802154_dev_t *hal, ieee802154_hal_op_t op, void *ctx)
     switch (op) {
     case IEEE802154_HAL_OP_TRANSMIT:
         dev->pending = false;
-        ieee802154_radio_cca(hal);
-        _set_state(dev, SX126X_STATE_TX);
+        int cca = ieee802154_radio_cca(hal);
+        if (cca > 0) {
+            _set_state(dev, SX126X_STATE_TX);
+        }
+        else {
+            sx126x_state_t state;
+            _get_state(dev, &state);
+            if (cca < 0) { /* error */
+                SX126X_DEBUG(dev, "hal: CCA error, state: %d\n", state);
+                return -EIO;
+            }
+            else { /* busy */
+                SX126X_DEBUG(dev, "hal: CCA busy, state: %d\n", state);
+                return -EBUSY;
+            }
+        }
         break;
 
     case IEEE802154_HAL_OP_SET_RX:
@@ -308,7 +333,7 @@ static int _request_op(ieee802154_dev_t *hal, ieee802154_hal_op_t op, void *ctx)
         SX126X_DEBUG(dev, "hal: HAL_OP_CCA (CAD Detection state)\n");
         dev->cad_detected = false;
         _set_state(dev, SX126X_STATE_STANDBY);
-        sx126x_set_cad(dev);
+        SX126X_CHECK_API(sx126x_set_cad(dev), return -EIO);
         break;
     }
     return 0;
@@ -341,7 +366,10 @@ static int _confirm_op(ieee802154_dev_t *hal, ieee802154_hal_op_t op, void *ctx)
         break;
 
     case IEEE802154_HAL_OP_CCA:
-        *((bool *)ctx) = !dev->cad_detected;
+        eagain = (state == SX126X_STATE_CAD);
+        if (!eagain) {
+             *((bool *)ctx) = !dev->cad_detected;
+        }
         break;
     }
     return eagain ? -EAGAIN : 0;
@@ -351,8 +379,8 @@ static int _len(ieee802154_dev_t *hal)
 {
     sx126x_t *dev = hal->priv;
     sx126x_rx_buffer_status_t rx_buffer_status;
-    sx126x_get_rx_buffer_status(dev, &rx_buffer_status);
-    return rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN;
+    SX126X_CHECK_API(sx126x_get_rx_buffer_status(dev, &rx_buffer_status), return -EIO);
+    return rx_buffer_status.pld_len_in_bytes;
 }
 
 static int _read(ieee802154_dev_t *hal, void *buf, size_t max_size, ieee802154_rx_info_t *info)
@@ -361,8 +389,8 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t max_size, ieee802154_r
     /* Getting information about last received packet */
     sx126x_rx_buffer_status_t rx_buffer_status;
     sx126x_pkt_status_lora_t pkt_status;
-    sx126x_get_rx_buffer_status(dev, &rx_buffer_status);
-    sx126x_get_lora_pkt_status(dev, &pkt_status);
+    SX126X_CHECK_API(sx126x_get_rx_buffer_status(dev, &rx_buffer_status), return -EIO);
+    SX126X_CHECK_API(sx126x_get_lora_pkt_status(dev, &pkt_status), return -EIO);
 
     if (info) {
         /* scale int8_t LoRa SNR into uint8_t IEEE 802.15.4 LQI */
@@ -374,18 +402,19 @@ static int _read(ieee802154_dev_t *hal, void *buf, size_t max_size, ieee802154_r
     }
     /* Put PSDU to the output buffer */
     if (buf == NULL) {
-        return rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN;
+        return rx_buffer_status.pld_len_in_bytes;
     }
-    if (rx_buffer_status.pld_len_in_bytes > max_size + IEEE802154_FCS_LEN) {
+    if (rx_buffer_status.pld_len_in_bytes > max_size) {
         return -ENOBUFS;
     }
     if (rx_buffer_status.pld_len_in_bytes < IEEE802154_ACK_FRAME_LEN) {
         return -EBADMSG;
     }
-    sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer,
-                       buf, rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN);
-    /* Do not compute IEEE 802.15.4 CRC because LoRa frame also provides CRC */
-    return rx_buffer_status.pld_len_in_bytes - IEEE802154_FCS_LEN;
+    SX126X_CHECK_API(sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer,
+                                        buf, rx_buffer_status.pld_len_in_bytes),
+                                        return -EIO);
+    /* Do not expect IEEE 802.15.4 CRC because LoRa frame also provides CRC */
+    return rx_buffer_status.pld_len_in_bytes;
 }
 
 static int _set_cca_threshold(ieee802154_dev_t *hal, int8_t threshold)
@@ -414,7 +443,7 @@ static int _off(ieee802154_dev_t *hal)
 {
     (void)hal;
     sx126x_t *dev = hal->priv;
-    sx126x_set_sleep(dev, SX126X_SLEEP_CFG_WARM_START);
+    SX126X_CHECK_API(sx126x_set_sleep(dev, SX126X_SLEEP_CFG_WARM_START), return -EIO);
     return 0;
 }
 
@@ -456,18 +485,73 @@ static int _confirm_on(ieee802154_dev_t *hal)
 static int _set_cca_mode(ieee802154_dev_t *hal, ieee802154_cca_mode_t mode)
 {
     (void)mode;
-    sx126x_t* dev = hal->priv;
+    sx126x_t *dev = hal->priv;
     SX126X_DEBUG(dev, "hal: set_cca_mode \n");
+    /* The settings are based on best practice CAD performance evaluation AN1200.48.
+       Results are only available for 125 kHz and 250 kHz bandwidths.
+       https://semtech.my.salesforce.com/sfc/p/E0000000JelG/a/3n000000qSr3/s723KzQi7zXFhBPKqesoF11.MtwYu6B8pdEQcmInlkE */
+    uint8_t cad_det_peak;
+    uint8_t cad_symbol_num;
+    uint8_t bw = sx126x_get_bandwidth(dev);
+    uint8_t sf = sx126x_get_spreading_factor(dev);
+    if (bw < LORA_BW_500_KHZ) {
+        if (sf <= LORA_SF8) {
+            cad_det_peak = 22;
+            cad_symbol_num = SX126X_CAD_02_SYMB;
+        }
+        else {
+            cad_symbol_num = SX126X_CAD_04_SYMB;
+            if (sf == LORA_SF9) {
+                cad_det_peak = 23;
+            }
+            else if (sf == LORA_SF10) {
+                cad_det_peak = 24;
+            }
+             else if (sf == LORA_SF11) {
+                cad_det_peak = 25;
+            }
+             else {
+                cad_det_peak = 28;
+            }
+        }
+    }
+    else {
+        if (sf <= LORA_SF11) {
+            cad_symbol_num = SX126X_CAD_04_SYMB;
+        }
+        else {
+            cad_symbol_num = SX126X_CAD_08_SYMB;
+        }
+        if (sf == LORA_SF7) {
+            cad_det_peak = 21;
+        }
+        else if (sf == LORA_SF8) {
+            cad_det_peak = 22;
+        }
+        else if (sf == LORA_SF9) {
+            cad_det_peak = 22;
+        }
+        else if (sf == LORA_SF10) {
+            cad_det_peak = 23;
+        }
+        else if (sf == LORA_SF11) {
+            cad_det_peak = 25;
+        }
+        else {
+            cad_det_peak = 29;
+        }
+    }
+
     sx126x_cad_params_t cad_params = {
-        .cad_exit_mode = SX126X_CAD_ONLY,
-        .cad_detect_min = 10,
-        .cad_detect_peak = 22,
-        .cad_symb_nb = SX126X_CAD_02_SYMB,
+        .cad_exit_mode = SX126X_CAD_RX, /* go to Rx when CAD positive */
+        .cad_detect_min = 10, /* no need to change this value */
+        .cad_detect_peak = cad_det_peak,
+        .cad_symb_nb = cad_symbol_num,
         /* Rx timeout = cad_timeout * 15.625us */
         /* Rx timeout = 60ms */
         .cad_timeout = 0x000F00,
     };
-    sx126x_set_cad_params(dev, &cad_params);
+    SX126X_CHECK_API(sx126x_set_cad_params(dev, &cad_params), return -EIO);
     return 0;
 }
 

@@ -287,6 +287,23 @@ static inline int _sx126x_lora_cr_to(sx126x_lora_cr_t cr)
 #define SX126X_LOG_ERROR(d, msg, ...)   LOG_ERROR("[sx126x %i] " msg, SX126X_ID(d), ##__VA_ARGS__)
 /** @} */
 
+/**
+ * @brief   Check sx126x API return values.
+ *
+ * API return value is of type sx126x_status_t.
+ * The RIOT HAL always returns 0 as SPI transfer currently is not expected to fail.
+ * However checking return values will not hide potential errors in the future.
+ *
+ * @param[in]   func_call      Function call with arguments to check
+ * @param[in]   return_val     Returned value if the function call does not return SX126X_STATUS_OK
+ *
+ */
+#define SX126X_CHECK_API(func_call, return_val) \
+if (func_call != SX126X_STATUS_OK) { \
+    SX126X_DEBUG(dev, "[%s] API call failed: %s\n", __func__, #func_call); \
+    return_val; \
+}
+
 #ifdef __cplusplus
 }
 #endif

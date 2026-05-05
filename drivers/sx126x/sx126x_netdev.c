@@ -53,7 +53,8 @@ static int _send(netdev_t *netdev, const iolist_t *iolist)
     /* Write payload buffer */
     for (const iolist_t *iol = iolist; iol; iol = iol->iol_next) {
         if (iol->iol_len > 0) {
-            sx126x_write_buffer(dev, pos, iol->iol_base, iol->iol_len);
+            SX126X_CHECK_API(sx126x_write_buffer(dev, pos, iol->iol_base, iol->iol_len),
+                             return -EIO);
             SX126X_DEBUG(dev, "netdev: send: wrote data to payload buffer.\n");
             pos += iol->iol_len;
         }
@@ -83,14 +84,14 @@ static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
 
     if (packet_info) {
         sx126x_pkt_status_lora_t pkt_status;
-        sx126x_get_lora_pkt_status(dev, &pkt_status);
+        SX126X_CHECK_API(sx126x_get_lora_pkt_status(dev, &pkt_status), return -EIO);
         packet_info->snr = pkt_status.snr_pkt_in_db;
         packet_info->rssi = pkt_status.rssi_pkt_in_dbm;
     }
 
     sx126x_rx_buffer_status_t rx_buffer_status;
 
-    sx126x_get_rx_buffer_status(dev, &rx_buffer_status);
+    SX126X_CHECK_API(sx126x_get_rx_buffer_status(dev, &rx_buffer_status), return -EIO);
 
     size = rx_buffer_status.pld_len_in_bytes;
 
@@ -102,7 +103,8 @@ static int _recv(netdev_t *netdev, void *buf, size_t len, void *info)
         return -ENOBUFS;
     }
 
-    sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer, buf, size);
+    SX126X_CHECK_API(sx126x_read_buffer(dev, rx_buffer_status.buffer_start_pointer, buf, size),
+                                        return -EIO);
 
     return size;
 }
@@ -132,7 +134,7 @@ static void _isr(netdev_t *netdev)
 
     sx126x_irq_mask_t irq_mask;
 
-    sx126x_get_and_clear_irq_status(dev, &irq_mask);
+    SX126X_CHECK_API(sx126x_get_and_clear_irq_status(dev, &irq_mask), /* no return */);
 
     if (sx126x_is_stm32wl(dev)) {
 #if IS_USED(MODULE_SX126X_STM32WL)
@@ -258,7 +260,7 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
 
     case NETOPT_RANDOM:
         assert(max_len >= sizeof(uint32_t));
-        sx126x_get_random_numbers(dev, val, 1);
+        SX126X_CHECK_API(sx126x_get_random_numbers(dev, val, 1), return -EIO);
         return sizeof(uint32_t);
 
     case NETOPT_IQ_INVERT:
@@ -268,7 +270,7 @@ static int _get(netdev_t *netdev, netopt_t opt, void *val, size_t max_len)
 
     case NETOPT_RSSI:
         assert(max_len >= sizeof(int16_t));
-        sx126x_get_rssi_inst(dev, ((int16_t *)val));
+        SX126X_CHECK_API(sx126x_get_rssi_inst(dev, ((int16_t *)val)), return -EIO);
         return sizeof(int16_t);
 
     default:
@@ -310,7 +312,7 @@ static int _set_state(sx126x_t *dev, netopt_state_t state)
 
     case NETOPT_STATE_RESET:
         SX126X_DEBUG(dev, "netdev: set NETOPT_STATE_RESET state\n");
-        sx126x_reset(dev);
+        SX126X_CHECK_API(sx126x_reset(dev), return -EIO);
         break;
 
     default:
@@ -338,7 +340,7 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *val, size_t len)
         assert(len <= sizeof(uint16_t));
         /* Only LoRa modem is supported for the moment */
         if (*(const uint16_t *)val == NETDEV_TYPE_LORA) {
-            sx126x_set_pkt_type(dev, SX126X_PKT_TYPE_LORA);
+            SX126X_CHECK_API(sx126x_set_pkt_type(dev, SX126X_PKT_TYPE_LORA), return -EIO);
             return sizeof(uint16_t);
         }
         else {
@@ -438,7 +440,7 @@ static int _set(netdev_t *netdev, netopt_t opt, const void *val, size_t len)
 
     case NETOPT_SYNCWORD:
         assert(len <= sizeof(uint8_t));
-        sx126x_set_lora_sync_word(dev, *((uint8_t *)val));
+        SX126X_CHECK_API(sx126x_set_lora_sync_word(dev, *((uint8_t *)val)), return -EIO);
         return sizeof(uint8_t);
 
     case NETOPT_IQ_INVERT:
