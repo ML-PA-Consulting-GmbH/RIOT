@@ -19,4 +19,5 @@ git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora
 git merge --no-edit benpicco/benpicco/cpu/sam0_common-rtc_tamper_enable
 git merge --no-edit derMihai/mir/i2c/inactout_rebase
 git cherry-pick 372a419d8532132cf3f0c48069c20f2f02353de2 # fix tigard selection with SERIAL, already upstream
+git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora # again, to merge in new changes
 ```
