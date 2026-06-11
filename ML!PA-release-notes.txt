@@ -22,4 +22,6 @@ git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports
 git merge --no-edit maribu/core/thread_flags_group/fix
 git merge --no-edit maribu/sys/net/nanocoap/transport-tcp
 git cherry-pick 9204df23ad35f936829108f2f25530d9d0a512d4 # (drivers/at86rf215: always disable ACK filter when ending TX)
+git cherry-pick c1dc418072ae3c3de7a6dc385e4fb83f4c672690 # (tests/unittests/tests-rtc: test roll under situations)
+git cherry-pick aa9f45c449296da020ac30ec9ab0619f9ca5c95b # (sys/rtc_utils: correctly handle units rolling under)
 ```
