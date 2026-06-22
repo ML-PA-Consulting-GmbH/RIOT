@@ -20,4 +20,5 @@ git merge --no-edit benpicco/benpicco/cpu/sam0_common-rtc_tamper_enable
 git merge --no-edit derMihai/mir/i2c/inactout_rebase
 git cherry-pick 463e3e497055ad31ceb138ef3d3b938e3922564d # OpenOCD fix, already upstream
 git cherry-pick dd4d951f2133e205fe9bb9713d1bfe707f75ddc9 # fix unittests on read-only source, already upstream
+git cherry-pick 5f5d6ddecbc924ed4d00201fa77bc1da41fa5482 # fix downloading zip files with ro source, see #22398
 ```
