@@ -86,7 +86,7 @@ int _read(const at24cxxx_t *dev, uint32_t pos, void *data, size_t len)
         dev_addr = (DEV_I2C_ADDR | ((pos & 0xFF00) >> 8));
         pos &= 0xFF;
     }
-
+    xtimer_usleep(AT24CXXX_POLL_DELAY_US);
     while (-ENXIO == (check = i2c_read_regs(DEV_I2C_BUS, dev_addr,
                                             pos, data, len, flags))) {
         if (--polls == 0) {
