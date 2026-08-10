@@ -28,7 +28,7 @@
 ## @{
 
 ################################################################################
-# PLEASE KEEP THIS LIST ALPHABETICALL SORTED!!11!!
+# PLEASE KEEP THIS LIST ALPHABETICALLY SORTED!!11!!
 #
 # The entries should be sorted by the module name, so `PSEUDOMODULES` and
 # `NO_PSEUDOMODULES` entries can be mixed.
@@ -47,6 +47,7 @@ PSEUDOMODULES += arduino_serial_stdio
 # Most auto_init modules are pseudomodules
 PSEUDOMODULES += auto_init_%
 NO_PSEUDOMODULES += auto_init_can
+NO_PSEUDOMODULES += auto_init_configuration
 NO_PSEUDOMODULES += auto_init_loramac
 NO_PSEUDOMODULES += auto_init_multimedia
 NO_PSEUDOMODULES += auto_init_security
