@@ -1,0 +1,24 @@
+RIOT-2026.10-mlpa-1 - Merge Notes
+=================================
+
+- based on 2026.10-devel-285-g4374d7 (4374d72b69d593c1e2a346f19a7778c01d6394cc)
+
+```
+git cherry-pick 290ba3302eafcb36a4e8f8dc13d72e30b4724db2 # disable auto-subnetting at run-time
+git merge --no-edit benpicco/drivers/rtt_rtc-no-retain
+git merge --no-edit benpicco/pkg/fatfs-threadsafe
+git merge --no-edit benpicco/sock-addr_struct
+git merge --no-edit fabian18/pr/configuration_riotconf
+git merge --no-edit benpicco/cpu/sam0_common-adc_sample_multi
+git merge --no-edit benpicco/gnrc_ipv6_auto_subnets-auto_6ctx
+git merge --no-edit benpicco/ipv6_auto_subnets-removal
+git merge --no-edit benpicco/gnrc_netapi-warn
+git merge --no-edit benpicco/riotboot_suit_seq_number
+git cherry-pick a71626d0805f248069f67dfe9c36170d06a37380 # additional CoAP ports for DFT
+git merge --no-edit fabian18/mlpa/sx126x_ieee802154_lora
+git merge --no-edit benpicco/benpicco/cpu/sam0_common-rtc_tamper_enable
+git merge --no-edit derMihai/mir/i2c/inactout_rebase
+git cherry-pick 5f5d6ddecbc924ed4d00201fa77bc1da41fa5482 # fix downloading zip files with ro source, see #22398
+git merge --no-edit maribu/drivers/lm75 # mixed bag of fixes for TMP1075 sensor, see #22532
+git merge --no-edit maribu/info-boards-supported/use-bin-dir-base # fix info-boards-supported with ro source, see #22554
+```
