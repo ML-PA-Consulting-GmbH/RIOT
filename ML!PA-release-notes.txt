@@ -1,4 +1,4 @@
-RIOT-2026.10-mlpa-1 - Merge Notes
+RIOT-2026.10-mlpa-2 - Merge Notes
 =================================
 
 - based on 2026.10-devel-285-g4374d7 (4374d72b69d593c1e2a346f19a7778c01d6394cc)
@@ -21,4 +21,5 @@ git merge --no-edit derMihai/mir/i2c/inactout_rebase
 git cherry-pick 5f5d6ddecbc924ed4d00201fa77bc1da41fa5482 # fix downloading zip files with ro source, see #22398
 git merge --no-edit maribu/drivers/lm75 # mixed bag of fixes for TMP1075 sensor, see #22532
 git merge --no-edit maribu/info-boards-supported/use-bin-dir-base # fix info-boards-supported with ro source, see #22554
+git cherry-pick 419b6060646c4b56cfc7aff26f12ae1f6fbcfec8 # drivers/at86rf215: prevent driver from stalling
 ```
